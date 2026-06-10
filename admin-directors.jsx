@@ -123,7 +123,7 @@ function DirLegalDashboard({ cases, officers, openCase, setView }) {
 }
 
 /* ---------------- ผอ.สำนักอำนวยการ — ภาพรวม ---------------- */
-function DirAdminDashboard({ cases, setView }) {
+function DirAdminDashboard({ cases, officers, setView }) {
   const total = cases.length;
   const closed = cases.filter(c=>c.status==="closed").length;
   const onTime = cases.filter(c=>c.sla==="g").length;
