@@ -3,8 +3,8 @@ install.lock
 uploads/*
 !uploads/.htaccess
 
-# ไม่ track config ที่มีรหัสผ่าน (optional — uncomment ถ้าต้องการ)
-# config/db.php
+# ไม่ track config ที่มีรหัสผ่าน
+config/db.php
 
 # OS / IDE
 .DS_Store
