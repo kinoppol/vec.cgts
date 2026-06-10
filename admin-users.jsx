@@ -15,6 +15,18 @@ const ROLE_BADGE = {
   admin:     'badge-danger',
 };
 
+const OVERLAY_STYLE = {
+  position:'fixed', inset:0, background:'rgba(20,10,12,.55)',
+  display:'flex', alignItems:'center', justifyContent:'center',
+  zIndex:200, padding:24,
+};
+const BOX_STYLE_BASE = {
+  background:'var(--surface)', borderRadius:12,
+  boxShadow:'0 8px 40px rgba(0,0,0,.35)',
+  display:'flex', flexDirection:'column',
+  width:'100%', maxHeight:'90vh',
+};
+
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
 function UserModal({ user, officers, onSave, onClose }) {
   const isNew = !user?.id;
@@ -46,8 +58,8 @@ function UserModal({ user, officers, onSave, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{maxWidth:520,display:'flex',flexDirection:'column',maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+    <div style={OVERLAY_STYLE} onClick={onClose}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:520}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
           <h3 style={{margin:0,fontSize:17}}>{isNew ? 'เพิ่มผู้ใช้ใหม่' : 'แก้ไขผู้ใช้'}</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
@@ -143,8 +155,8 @@ function ResetPassModal({ user, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{maxWidth:400,display:'flex',flexDirection:'column',maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+    <div style={OVERLAY_STYLE} onClick={onClose}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:400}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
           <h3 style={{margin:0,fontSize:17}}>รีเซ็ตรหัสผ่าน</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
