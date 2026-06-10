@@ -1,0 +1,12 @@
+# ไม่ track ไฟล์ที่สร้างโดย installer หรือ runtime
+install.lock
+uploads/*
+!uploads/.htaccess
+
+# ไม่ track config ที่มีรหัสผ่าน (optional — uncomment ถ้าต้องการ)
+# config/db.php
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
