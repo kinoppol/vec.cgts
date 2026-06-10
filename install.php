@@ -11,6 +11,17 @@ define('CONFIG_PATH', __DIR__ . '/config/db.php');
 define('SCHEMA_PATH', __DIR__ . '/db/schema.sql');
 define('SEED_PATH',   __DIR__ . '/db/seed.sql');
 
+/* อ่านค่า DB ปัจจุบันจาก config/db.php (ถ้ามี) เพื่อ pre-fill form */
+$cfg = ['host'=>'localhost','port'=>'3306','user'=>'root','pass'=>'','dbname'=>'vec_cgts'];
+if (file_exists(CONFIG_PATH)) {
+    $src = file_get_contents(CONFIG_PATH);
+    foreach (['host'=>'DB_HOST','port'=>'DB_PORT','user'=>'DB_USER','pass'=>'DB_PASS','dbname'=>'DB_NAME'] as $k=>$const) {
+        if (preg_match("/define\('{$const}'\s*,\s*'([^']*)'\)/", $src, $m)) {
+            $cfg[$k] = stripcslashes($m[1]);
+        }
+    }
+}
+
 /* --------------------------------------------------------
    AJAX handlers — ต้องอยู่ก่อน guard เสมอ
 -------------------------------------------------------- */
@@ -18,24 +29,28 @@ $action = $_POST['action'] ?? '';
 
 if ($action === 'test_db') {
     header('Content-Type: application/json');
+    $dbPass = $_POST['pass'] ?? '';
+    if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; }
     echo json_encode(testConnection(
-        $_POST['host'] ?? 'localhost',
-        $_POST['port'] ?? '3306',
-        $_POST['user'] ?? 'root',
-        $_POST['pass'] ?? '',
-        $_POST['dbname'] ?? 'vec_cgts'
+        $_POST['host']   ?? $cfg['host'],
+        $_POST['port']   ?? $cfg['port'],
+        $_POST['user']   ?? $cfg['user'],
+        $dbPass,
+        $_POST['dbname'] ?? $cfg['dbname']
     ));
     exit;
 }
 
 if ($action === 'install') {
     header('Content-Type: application/json');
+    $dbPass = $_POST['pass'] ?? '';
+    if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; } // ใช้รหัสผ่านเดิม
     echo json_encode(runInstall(
-        $_POST['host']   ?? 'localhost',
-        $_POST['port']   ?? '3306',
-        $_POST['user']   ?? 'root',
-        $_POST['pass']   ?? '',
-        $_POST['dbname'] ?? 'vec_cgts',
+        $_POST['host']   ?? $cfg['host'],
+        $_POST['port']   ?? $cfg['port'],
+        $_POST['user']   ?? $cfg['user'],
+        $dbPass,
+        $_POST['dbname'] ?? $cfg['dbname'],
         $_POST['app_pass'] ?? 'password'
     ));
     exit;
@@ -414,24 +429,24 @@ function headStyles(): void { ?>
       <div class="field form-full">
         <label>เซิร์ฟเวอร์ฐานข้อมูล <span class="req">*</span></label>
         <div class="input-row">
-          <input type="text" name="host" id="host" value="localhost" placeholder="localhost หรือ IP" autocomplete="off">
-          <input type="number" name="port" id="port" value="3306" placeholder="พอร์ต" min="1" max="65535">
+          <input type="text" name="host" id="host" value="<?= htmlspecialchars($cfg['host']) ?>" placeholder="localhost หรือ IP" autocomplete="off">
+          <input type="number" name="port" id="port" value="<?= htmlspecialchars($cfg['port']) ?>" placeholder="พอร์ต" min="1" max="65535">
         </div>
         <span class="hint">โดยทั่วไปใช้ localhost และพอร์ต 3306</span>
       </div>
 
       <div class="field">
         <label>ชื่อผู้ใช้ฐานข้อมูล <span class="req">*</span></label>
-        <input type="text" name="dbuser" id="dbuser" value="root" autocomplete="off">
+        <input type="text" name="dbuser" id="dbuser" value="<?= htmlspecialchars($cfg['user']) ?>" autocomplete="off">
       </div>
       <div class="field">
         <label>รหัสผ่านฐานข้อมูล</label>
-        <input type="password" name="dbpass" id="dbpass" placeholder="(เว้นว่างหากไม่มี)" autocomplete="new-password">
+        <input type="password" name="dbpass" id="dbpass" placeholder="<?= $cfg['pass'] !== '' ? '(มีรหัสผ่านอยู่แล้ว — เว้นว่างเพื่อใช้ค่าเดิม)' : '(เว้นว่างหากไม่มี)' ?>" autocomplete="new-password" data-saved="<?= $cfg['pass'] !== '' ? '1' : '0' ?>">
       </div>
 
       <div class="field form-full">
         <label>ชื่อฐานข้อมูล <span class="req">*</span></label>
-        <input type="text" name="dbname" id="dbname" value="vec_cgts" autocomplete="off">
+        <input type="text" name="dbname" id="dbname" value="<?= htmlspecialchars($cfg['dbname']) ?>" autocomplete="off">
         <span class="hint">หากยังไม่มีฐานข้อมูลนี้ ระบบจะสร้างให้อัตโนมัติ</span>
       </div>
     </div>
@@ -601,7 +616,7 @@ async function testConn() {
         host:   document.getElementById('host').value,
         port:   document.getElementById('port').value,
         user:   document.getElementById('dbuser').value,
-        pass:   document.getElementById('dbpass').value,
+        pass:   (() => { const f = document.getElementById('dbpass'); return f.value || (f.dataset.saved === '1' ? '__KEEP__' : ''); })(),
         dbname: document.getElementById('dbname').value,
       })
     });
@@ -642,7 +657,7 @@ async function runInstall() {
         host:     document.getElementById('host').value,
         port:     document.getElementById('port').value,
         user:     document.getElementById('dbuser').value,
-        pass:     document.getElementById('dbpass').value,
+        pass:     (() => { const f = document.getElementById('dbpass'); return f.value || (f.dataset.saved === '1' ? '__KEEP__' : ''); })(),
         dbname:   document.getElementById('dbname').value,
         app_pass: appPass,
       })
