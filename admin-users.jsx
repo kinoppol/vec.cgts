@@ -47,12 +47,12 @@ function UserModal({ user, officers, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
-        <div className="modal-head">
-          <h3>{isNew ? 'เพิ่มผู้ใช้ใหม่' : 'แก้ไขผู้ใช้'}</h3>
+      <div className="modal-box" style={{maxWidth:520,display:'flex',flexDirection:'column',maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
+          <h3 style={{margin:0,fontSize:17}}>{isNew ? 'เพิ่มผู้ใช้ใหม่' : 'แก้ไขผู้ใช้'}</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <form onSubmit={submit} style={{padding:'0 24px 24px',display:'flex',flexDirection:'column',gap:14}}>
+        <form onSubmit={submit} style={{padding:'0 24px 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
 
           <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -144,9 +144,9 @@ function ResetPassModal({ user, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{maxWidth:400}} onClick={e=>e.stopPropagation()}>
-        <div className="modal-head">
-          <h3>รีเซ็ตรหัสผ่าน</h3>
+      <div className="modal-box" style={{maxWidth:400,display:'flex',flexDirection:'column',maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
+          <h3 style={{margin:0,fontSize:17}}>รีเซ็ตรหัสผ่าน</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
         <div style={{padding:'0 24px 24px'}}>
