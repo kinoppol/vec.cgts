@@ -198,7 +198,12 @@ function getDB(): PDO {
     return \$pdo;
 }
 PHP;
-    file_put_contents(CONFIG_PATH, $content);
+    $ok = file_put_contents(CONFIG_PATH, $content);
+    if ($ok === false) {
+        throw new RuntimeException(
+            'ไม่สามารถเขียน config/db.php ได้ — ตรวจสอบสิทธิ์ไฟล์: chmod 666 config/db.php'
+        );
+    }
 }
 
 /* --------------------------------------------------------
