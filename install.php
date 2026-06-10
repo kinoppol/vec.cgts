@@ -198,12 +198,17 @@ function getDB(): PDO {
     return \$pdo;
 }
 PHP;
+    // ให้ไฟล์เขียนได้ก่อน (กรณี git checkout สร้างไฟล์เป็น owner อื่น)
+    if (file_exists(CONFIG_PATH)) {
+        @chmod(CONFIG_PATH, 0666);
+    }
     $ok = file_put_contents(CONFIG_PATH, $content);
     if ($ok === false) {
         throw new RuntimeException(
-            'ไม่สามารถเขียน config/db.php ได้ — ตรวจสอบสิทธิ์ไฟล์: chmod 666 config/db.php'
+            'ไม่สามารถเขียน config/db.php ได้ — รัน: chmod 666 config/db.php บน server แล้วลองใหม่'
         );
     }
+    @chmod(CONFIG_PATH, 0644); // คืนสิทธิ์ปกติหลังเขียน
 }
 
 /* --------------------------------------------------------
