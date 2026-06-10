@@ -21,8 +21,8 @@ function useTheme() {
 
 /* ---------------- Login ---------------- */
 function AdminLogin({ go, onLogin }) {
-  const [username, setUsername] = useState("officer");
-  const [password, setPassword] = useState("password");
+  const [username, setUsername] = useState("dir_admin");
+  const [password, setPassword] = useState("");
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
 
@@ -73,7 +73,7 @@ function AdminLogin({ go, onLogin }) {
               <label>รหัสผ่าน</label>
               <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/>
             </div>
-            <p className="help muted">บัญชีทดสอบ: <code>officer</code> / <code>dir_legal</code> / <code>dir_admin</code> · รหัสผ่าน: <code>password</code></p>
+            <p className="help muted">บัญชี: <code>dir_admin</code> / <code>wornwut</code> / <code>yawrata</code> / <code>nawan</code> ฯลฯ</p>
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
               {loading ? <LoadingSpinner/> : <><Icon name="lock" style={{width:16,height:16}}/> เข้าสู่ระบบ</>}
             </button>

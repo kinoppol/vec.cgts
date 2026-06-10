@@ -3,7 +3,7 @@ require_once __DIR__ . '/config/db.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_name('vec_cgts_sess');
-    session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax']);
+    session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off']);
     session_start();
 }
 
