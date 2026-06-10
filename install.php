@@ -608,11 +608,13 @@ async function testConn() {
     const d = await r.json();
     res.className = d.ok ? 'ok' : 'err';
     res.textContent = d.ok ? '✓ ' + d.msg : '✗ ' + d.msg;
+    res.style.display = '';
     connOk = d.ok;
     document.getElementById('btnNext1').disabled = !d.ok;
   } catch (e) {
     res.className = 'err';
     res.textContent = '✗ ไม่สามารถเชื่อมต่อได้: ' + e.message;
+    res.style.display = '';
     connOk = false;
   }
   btn.disabled = false;
