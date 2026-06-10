@@ -12,16 +12,7 @@ define('SCHEMA_PATH', __DIR__ . '/db/schema.sql');
 define('SEED_PATH',   __DIR__ . '/db/seed.sql');
 
 /* --------------------------------------------------------
-   Guard: ถ้าติดตั้งแล้วและไม่ได้ force reset
--------------------------------------------------------- */
-if (file_exists(INSTALL_LOCK) && ($_GET['reset'] ?? '') !== '1') {
-    $info = json_decode(file_get_contents(INSTALL_LOCK), true);
-    showLocked($info);
-    exit;
-}
-
-/* --------------------------------------------------------
-   AJAX handlers
+   AJAX handlers — ต้องอยู่ก่อน guard เสมอ
 -------------------------------------------------------- */
 $action = $_POST['action'] ?? '';
 
@@ -47,6 +38,15 @@ if ($action === 'install') {
         $_POST['dbname'] ?? 'vec_cgts',
         $_POST['app_pass'] ?? 'password'
     ));
+    exit;
+}
+
+/* --------------------------------------------------------
+   Guard: ถ้าติดตั้งแล้วและไม่ได้ force reset
+-------------------------------------------------------- */
+if (file_exists(INSTALL_LOCK) && ($_GET['reset'] ?? '') !== '1') {
+    $info = json_decode(file_get_contents(INSTALL_LOCK), true);
+    showLocked($info);
     exit;
 }
 
