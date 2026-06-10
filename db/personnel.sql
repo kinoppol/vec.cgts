@@ -32,6 +32,11 @@ ON DUPLICATE KEY UPDATE
 -- placeholder hash สำหรับ "password" — install.php จะ UPDATE ทับทั้งหมด
 SET @ph = '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy';
 
+-- ผู้ดูแลระบบ
+INSERT INTO users (username, password_hash, display_name, role, init, officer_id, can_manage_users) VALUES
+('admin', @ph, 'ผู้ดูแลระบบ', 'admin', 'AD', NULL, 1)
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), init=VALUES(init), can_manage_users=1;
+
 -- ผอ.กลุ่มนิติการ
 INSERT INTO users (username, password_hash, display_name, role, init, officer_id) VALUES
 ('wornwut', @ph, 'นายวรวุฒิ ดำขา', 'dir_legal', 'วว', NULL)

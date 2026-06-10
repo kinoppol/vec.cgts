@@ -27,6 +27,14 @@ function require_auth(): array {
     return ['id' => $_SESSION['user_id'], 'role' => $_SESSION['role']];
 }
 
+function require_user_manager(): array {
+    $u = require_auth();
+    if ($u['role'] !== 'admin' && empty($_SESSION['can_manage_users'])) {
+        err('Forbidden', 403);
+    }
+    return $u;
+}
+
 function audit(string $action, ?string $target = null, ?string $detail = null): void {
     try {
         $db = getDB();

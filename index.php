@@ -49,7 +49,7 @@ window.__APP_BASE__ = <?= json_encode(rtrim(dirname($_SERVER['PHP_SELF']), '/\\'
         crossorigin="anonymous"></script>
 
 <?php
-$jsxFiles = ['data','public','admin-officer','admin-directors','app'];
+$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','app'];
 foreach ($jsxFiles as $f):
     $mt = filemtime(__DIR__ . "/{$f}.jsx");
 ?>

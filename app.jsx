@@ -90,9 +90,21 @@ const ROLE_LABELS = {
   officer:   "เจ้าหน้าที่นิติการ / ธุรการ",
   dir_legal: "ผอ.กลุ่มนิติการ",
   dir_admin: "ผอ.สำนักอำนวยการ",
+  admin:     "ผู้ดูแลระบบ",
 };
 
-function navFor(role, counts) {
+function canManageUsers(user) {
+  return user?.role === 'admin' || !!user?.can_manage_users;
+}
+
+function navFor(role, counts, user) {
+  if (role === "admin") return [
+    {sec:"ระบบ"},
+    {v:"users",     ic:"users",    l:"จัดการผู้ใช้"},
+    {v:"dashboard", ic:"pie",      l:"ภาพรวม"},
+    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"reports",   ic:"chart",    l:"รายงาน"},
+  ];
   if (role === "officer") return [
     {sec:"การดำเนินงาน"},
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -101,6 +113,7 @@ function navFor(role, counts) {
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {sec:"ระบบ"},
     {v:"reports",   ic:"chart",    l:"รายงาน"},
+    ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
   if (role === "dir_legal") return [
     {sec:"กำกับงานสอบสวน"},
@@ -139,7 +152,7 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
   };
 
   const counts = { newQ: cases.filter(c=>["received","screening"].includes(c.status)).length };
-  const nav    = navFor(role, counts);
+  const nav    = navFor(role, counts, user);
   const openCase = (id) => { setSel(id); setView("case-detail"); };
   const updateCase = async (id, patch) => {
     try {
@@ -153,7 +166,7 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
   const sectionTitle = {
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
-    vault:"คลังสำนวน", reports:"รายงาน",
+    vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
   }[view] || "";
 
   let content;
@@ -175,6 +188,8 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
     content = <VaultPage cases={cases} openCase={openCase}/>;
   } else if (view === "reports") {
     content = <ReportCenter role={role}/>;
+  } else if (view === "users" && canManageUsers(user)) {
+    content = <UserManagementPage currentUser={user} officers={officers}/>;
   }
 
   const handleLogout = async () => {

@@ -16,8 +16,9 @@ ON DUPLICATE KEY UPDATE name=VALUES(name), job_title=VALUES(job_title), group_na
 -- ----------------------------------------------------------------
 -- Users (บัญชีผู้ใช้งาน) — password = "password" (bcrypt)
 -- ----------------------------------------------------------------
-INSERT INTO users (username, password_hash, display_name, role, init, officer_id) VALUES
-('dir_admin',  '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้อำนวยการสำนักอำนวยการ',          'dir_admin', 'ผอ', NULL),
+INSERT INTO users (username, password_hash, display_name, role, init, officer_id, can_manage_users) VALUES
+('admin',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้ดูแลระบบ',                        'admin',     'AD', NULL, 1),
+('dir_admin',  '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้อำนวยการสำนักอำนวยการ',          'dir_admin', 'ผอ', NULL, 0),
 ('wornwut',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวรวุฒิ ดำขา',                    'dir_legal', 'วว', NULL),
 ('yawrata',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวเยาวริดา พิณสายแก้ว',         'officer',   'ยร', 'o1'),
 ('nawan',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณวณ เจริญหลาย',                  'officer',   'ณว', 'o2'),
@@ -26,7 +27,7 @@ INSERT INTO users (username, password_hash, display_name, role, init, officer_id
 ('jidapa',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวจิดาภา ทองศรีสังข์',          'officer',   'จด', 'o5'),
 ('kanjana',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกาญจนา อนันต์โก',             'officer',   'กญ', 'o6'),
 ('chotika',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',   'officer',   'ชก', 'o7')
-ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), init=VALUES(init), officer_id=VALUES(officer_id);
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), init=VALUES(init), officer_id=VALUES(officer_id), can_manage_users=VALUES(can_manage_users);
 
 -- ----------------------------------------------------------------
 -- Cases (สำนวน)

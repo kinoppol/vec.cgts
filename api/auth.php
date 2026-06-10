@@ -26,7 +26,7 @@ if ($method === 'POST') {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, init FROM users WHERE username = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, init, can_manage_users FROM users WHERE username = ? AND active = 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -35,8 +35,9 @@ if ($method === 'POST') {
     }
 
     session_regenerate_id(true);
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['role']    = $user['role'];
+    $_SESSION['user_id']          = $user['id'];
+    $_SESSION['role']             = $user['role'];
+    $_SESSION['can_manage_users'] = (bool)$user['can_manage_users'];
 
     audit('login', null, 'เข้าสู่ระบบสำเร็จ');
 
@@ -44,7 +45,8 @@ if ($method === 'POST') {
         'id'           => $user['id'],
         'username'     => $user['username'],
         'display_name' => $user['display_name'],
-        'role'         => $user['role'],
+        'role'            => $user['role'],
+        'can_manage_users'=> (bool)$user['can_manage_users'],
         'init'         => $user['init'],
     ]);
 }
