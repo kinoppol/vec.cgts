@@ -5,6 +5,8 @@
  * ลบไฟล์นี้หลังติดตั้งเสร็จแล้ว!
  */
 
+date_default_timezone_set('Asia/Bangkok');
+
 // ป้องกันการเรียกซ้ำโดยไม่ตั้งใจ
 $token = $_GET['confirm'] ?? '';
 if ($token !== 'install') {

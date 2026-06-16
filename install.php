@@ -4,6 +4,7 @@
  * เรียกใช้ครั้งเดียว แล้วลบหรือ block ไฟล์นี้
  */
 
+date_default_timezone_set('Asia/Bangkok');
 session_start();
 
 define('INSTALL_LOCK', __DIR__ . '/install.lock');
@@ -202,6 +203,7 @@ function writeConfig(string $host, string $port, string $user, string $pass, str
     $content = <<<PHP
 <?php
 // สร้างโดย install.php เมื่อ {$now} — ห้ามแก้ไขโดยตรง
+date_default_timezone_set('Asia/Bangkok');
 define('DB_HOST',    '{$host}');
 define('DB_PORT',    '{$port}');
 define('DB_NAME',    '{$dbname}');
