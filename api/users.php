@@ -12,7 +12,7 @@ $db     = getDB();
 if ($method === 'GET') {
     $rows = $db->query(
         "SELECT id, username, display_name, role, init, officer_id,
-                active, can_manage_users, created_at
+                active, can_manage_users, avatar_path, created_at
          FROM users ORDER BY role, display_name"
     )->fetchAll();
     json_out($rows);

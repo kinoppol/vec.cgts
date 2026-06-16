@@ -279,7 +279,7 @@ function UserManagementPage({ currentUser, officers }) {
                   <tr key={u.id} style={{opacity: u.active ? 1 : 0.45}}>
                     <td>
                       <div className="vcenter" style={{gap:10}}>
-                        <span className="avatar avatar-sm">{u.init||u.username[0].toUpperCase()}</span>
+                        <Avatar user={{...u, init: u.init || u.username[0].toUpperCase()}} size="sm"/>
                         <div>
                           <div style={{fontWeight:600}}>{u.display_name}</div>
                           <div className="faint tiny">{u.username}</div>
