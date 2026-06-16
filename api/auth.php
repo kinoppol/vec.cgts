@@ -9,7 +9,7 @@ if ($method === 'GET') {
         json_out(null);
     }
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, display_name, role, init FROM users WHERE id = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ? AND active = 1');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     json_out($user ?: null);
@@ -26,7 +26,7 @@ if ($method === 'POST') {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, init, can_manage_users FROM users WHERE username = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, init, can_manage_users, avatar_path FROM users WHERE username = ? AND active = 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -48,6 +48,7 @@ if ($method === 'POST') {
         'role'            => $user['role'],
         'can_manage_users'=> (bool)$user['can_manage_users'],
         'init'         => $user['init'],
+        'avatar_path'  => $user['avatar_path'],
     ]);
 }
 
@@ -86,7 +87,7 @@ if ($method === 'PATCH') {
     $db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
     audit('profile_update', (string)$actor['id']);
 
-    $row = $db->prepare('SELECT id, username, display_name, role, init FROM users WHERE id = ?');
+    $row = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ?');
     $row->execute([$actor['id']]);
     json_out($row->fetch());
 }

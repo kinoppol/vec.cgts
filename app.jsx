@@ -137,6 +137,16 @@ function navFor(role, counts, user) {
   ];
 }
 
+/* ---------------- Avatar (ภาพ หรือ ตัวย่อ) ---------------- */
+function Avatar({ user, size = "md", style }) {
+  const url = avatarUrl(user);
+  const cls = "avatar" + (size === "sm" ? " avatar-sm" : "");
+  if (url) {
+    return <img src={url} alt="" className={cls} style={{objectFit:"cover", ...style}}/>;
+  }
+  return <span className={cls} style={style}>{user.init}</span>;
+}
+
 /* ---------------- Profile modal ---------------- */
 function ProfileModal({ user, onSave, onClose }) {
   const [displayName, setDisplayName] = useState(user.display_name || "");
@@ -145,7 +155,38 @@ function ProfileModal({ user, onSave, onClose }) {
   const [newPass, setNewPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [liveUser, setLiveUser] = useState(user);
   const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+
+  const pickAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setErr("ไฟล์ภาพขนาดใหญ่เกิน 2 MB"); return; }
+    setAvatarBusy(true); setErr("");
+    try {
+      const saved = await api.uploadAvatar(file);
+      setLiveUser(u => ({ ...u, ...saved }));
+      onSave(saved, { silent: true });
+    } catch (e) {
+      setErr(e.message);
+    }
+    setAvatarBusy(false);
+  };
+
+  const removeAvatar = async () => {
+    setAvatarBusy(true); setErr("");
+    try {
+      const saved = await api.removeAvatar();
+      setLiveUser(u => ({ ...u, ...saved }));
+      onSave(saved, { silent: true });
+    } catch (e) {
+      setErr(e.message);
+    }
+    setAvatarBusy(false);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -175,7 +216,26 @@ function ProfileModal({ user, onSave, onClose }) {
         <form onSubmit={submit} style={{padding:"0 24px 24px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1}}>
           {err && <div className="notice notice-err" style={{marginTop:16}}><Icon name="alert"/><div>{err}</div></div>}
 
-          <div className="field" style={{marginTop:16}}>
+          <div className="vcenter" style={{gap:16,marginTop:16}}>
+            <div style={{position:"relative",width:64,height:64,flexShrink:0}}>
+              <Avatar user={liveUser} size="lg" style={{width:64,height:64,fontSize:20}}/>
+              {avatarBusy && <div style={{position:"absolute",inset:0,display:"grid",placeItems:"center",background:"rgba(0,0,0,.35)",borderRadius:"50%"}}><LoadingSpinner/></div>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={pickAvatar}/>
+              <button type="button" className="btn btn-outline btn-sm" onClick={()=>fileRef.current?.click()} disabled={avatarBusy}>
+                <Icon name="paperclip" style={{width:14,height:14}}/> เปลี่ยนภาพ
+              </button>
+              {liveUser.avatar_path && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={removeAvatar} disabled={avatarBusy}>
+                  <Icon name="x" style={{width:14,height:14}}/> ลบภาพ
+                </button>
+              )}
+              <span className="hint">JPG, PNG, WEBP ไม่เกิน 2 MB</span>
+            </div>
+          </div>
+
+          <div className="field" style={{marginTop:4}}>
             <label>ชื่อแสดง <span className="req">*</span></label>
             <input className="input" value={displayName} onChange={e=>setDisplayName(e.target.value)} required/>
           </div>
@@ -233,7 +293,7 @@ function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
     <div ref={ref} style={{position:"relative"}}>
       <button type="button" onClick={()=>setOpen(v=>!v)}
         className="vcenter" style={{gap:isSm?9:10,padding:isSm?"0 6px":"6px 8px",background:"none",border:"none",cursor:"pointer",width:"100%",textAlign:"left",borderRadius:8,color:"inherit"}}>
-        <span className={"avatar" + (isSm ? " avatar-sm" : "")}>{user.init}</span>
+        <Avatar user={user} size={isSm ? "sm" : "md"}/>
         {isSm ? (
           <div style={{lineHeight:1.2}}><div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div></div>
         ) : (
@@ -326,9 +386,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     onLogout();
   };
 
-  const handleProfileSave = (saved) => {
+  const handleProfileSave = (saved, opts) => {
     setUser(u => ({ ...u, ...saved }));
-    setShowProfile(false);
+    if (!opts?.silent) setShowProfile(false);
   };
 
   return (

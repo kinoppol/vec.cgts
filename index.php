@@ -12,7 +12,7 @@ $initialUser = null;
 if (!empty($_SESSION['user_id'])) {
     try {
         $db   = getDB();
-        $stmt = $db->prepare('SELECT id, username, display_name, role, init FROM users WHERE id = ? AND active = 1');
+        $stmt = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ? AND active = 1');
         $stmt->execute([$_SESSION['user_id']]);
         $initialUser = $stmt->fetch() ?: null;
     } catch (Throwable) {}

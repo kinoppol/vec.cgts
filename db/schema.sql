@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   officer_id       VARCHAR(10)  DEFAULT NULL,
   active           TINYINT(1)   NOT NULL DEFAULT 1,
   can_manage_users TINYINT(1)   NOT NULL DEFAULT 0,
+  avatar_path   VARCHAR(255) DEFAULT NULL,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_username (username),
