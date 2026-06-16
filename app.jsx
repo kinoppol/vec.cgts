@@ -232,7 +232,7 @@ function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
   return (
     <div ref={ref} style={{position:"relative"}}>
       <button type="button" onClick={()=>setOpen(v=>!v)}
-        className="vcenter" style={{gap:isSm?9:10,padding:isSm?"0 6px":"6px 8px",background:"none",border:"none",cursor:"pointer",width:"100%",textAlign:"left",borderRadius:8}}>
+        className="vcenter" style={{gap:isSm?9:10,padding:isSm?"0 6px":"6px 8px",background:"none",border:"none",cursor:"pointer",width:"100%",textAlign:"left",borderRadius:8,color:"inherit"}}>
         <span className={"avatar" + (isSm ? " avatar-sm" : "")}>{user.init}</span>
         {isSm ? (
           <div style={{lineHeight:1.2}}><div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div></div>
