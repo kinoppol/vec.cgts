@@ -28,7 +28,7 @@ const BOX_STYLE_BASE = {
 };
 
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, onSave, onClose }) {
+function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
     username:'', display_name:'', role:'officer',
@@ -36,8 +36,34 @@ function UserModal({ user, officers, onSave, onClose }) {
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const fileRef = useRef(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const pickAvatar = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setErr('ไฟล์ภาพขนาดใหญ่เกิน 2 MB'); return; }
+    setAvatarBusy(true); setErr('');
+    try {
+      const saved = await api.uploadAvatar(file, user.id);
+      set('avatar_path', saved.avatar_path);
+      onAvatarChange(saved);
+    } catch(e) { setErr(e.message); }
+    setAvatarBusy(false);
+  };
+
+  const removeAvatar = async () => {
+    setAvatarBusy(true); setErr('');
+    try {
+      const saved = await api.removeAvatar(user.id);
+      set('avatar_path', saved.avatar_path);
+      onAvatarChange(saved);
+    } catch(e) { setErr(e.message); }
+    setAvatarBusy(false);
+  };
 
   const submit = async e => {
     e.preventDefault();
@@ -66,6 +92,27 @@ function UserModal({ user, officers, onSave, onClose }) {
         </div>
         <form onSubmit={submit} style={{padding:'0 24px 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+
+          {!isNew && (
+            <div className="vcenter" style={{gap:16}}>
+              <div style={{position:'relative',width:64,height:64,flexShrink:0}}>
+                <Avatar user={form} size="lg" style={{width:64,height:64,fontSize:20}}/>
+                {avatarBusy && <div style={{position:'absolute',inset:0,display:'grid',placeItems:'center',background:'rgba(0,0,0,.35)',borderRadius:'50%'}}><LoadingSpinner/></div>}
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:'none'}} onChange={pickAvatar}/>
+                <button type="button" className="btn btn-outline btn-sm" onClick={()=>fileRef.current?.click()} disabled={avatarBusy}>
+                  <Icon name="paperclip" style={{width:14,height:14}}/> เปลี่ยนภาพ
+                </button>
+                {form.avatar_path && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={removeAvatar} disabled={avatarBusy}>
+                    <Icon name="x" style={{width:14,height:14}}/> ลบภาพ
+                  </button>
+                )}
+                <span className="hint">JPG, PNG, WEBP ไม่เกิน 2 MB</span>
+              </div>
+            </div>
+          )}
 
           <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
             <div className="field">
@@ -214,6 +261,10 @@ function UserManagementPage({ currentUser, officers }) {
     setModal(null);
   };
 
+  const handleAvatarChange = (saved) => {
+    setUsers(us => us.map(u => u.id === saved.id ? { ...u, ...saved } : u));
+  };
+
   const deactivate = async (u) => {
     if (!confirm(`ปิดใช้งานบัญชี "${u.display_name}" (${u.username})?`)) return;
     try {
@@ -332,7 +383,7 @@ function UserManagementPage({ currentUser, officers }) {
         <UserModal officers={officers} onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
-        <UserModal user={modal.user} officers={officers} onSave={handleSave} onClose={() => setModal(null)}/>
+        <UserModal user={modal.user} officers={officers} onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (
         <ResetPassModal user={modal.user} onClose={() => setModal(null)}/>

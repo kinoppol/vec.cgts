@@ -5,6 +5,21 @@ $actor = require_auth();
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 
+// ค่าเริ่มต้นคือแก้ภาพของตัวเอง — ถ้าระบุ ?user_id= เป็นคนอื่น ต้องมีสิทธิ์ user-manager
+$targetId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : (int)$actor['id'];
+if ($targetId !== (int)$actor['id']) {
+    if ($actor['role'] !== 'admin' && empty($_SESSION['can_manage_users'])) {
+        err('ไม่มีสิทธิ์แก้ไขภาพของผู้ใช้คนอื่น', 403);
+    }
+    $target = $db->prepare('SELECT role FROM users WHERE id = ?');
+    $target->execute([$targetId]);
+    $target = $target->fetch();
+    if (!$target) err('ไม่พบผู้ใช้', 404);
+    if ($target['role'] === 'admin' && $actor['role'] !== 'admin') {
+        err('ไม่มีสิทธิ์แก้ไขภาพของบัญชี admin', 403);
+    }
+}
+
 $avatarDir    = __DIR__ . '/../uploads/avatars';
 $avatarWebDir = 'uploads/avatars';
 
@@ -60,7 +75,7 @@ if ($method === 'POST') {
     if (!isset($extByMime[$imgInfo[2]])) err('รองรับเฉพาะไฟล์ภาพ JPG, PNG, WEBP');
 
     $cur = $db->prepare('SELECT avatar_path FROM users WHERE id = ?');
-    $cur->execute([$actor['id']]);
+    $cur->execute([$targetId]);
     $oldPath = $cur->fetchColumn();
 
     $storedName = bin2hex(random_bytes(16)) . '.' . $extByMime[$imgInfo[2]];
@@ -69,29 +84,29 @@ if ($method === 'POST') {
     }
 
     $webPath = $avatarWebDir . '/' . $storedName;
-    $db->prepare('UPDATE users SET avatar_path = ? WHERE id = ?')->execute([$webPath, $actor['id']]);
+    $db->prepare('UPDATE users SET avatar_path = ? WHERE id = ?')->execute([$webPath, $targetId]);
     deleteOldAvatar($oldPath ?: null);
 
-    audit('avatar_update', (string)$actor['id']);
+    audit('avatar_update', (string)$targetId);
 
     $row = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ?');
-    $row->execute([$actor['id']]);
+    $row->execute([$targetId]);
     json_out($row->fetch());
 }
 
 // DELETE /api/avatar.php — ลบภาพประจำตัว (กลับไปใช้ตัวย่อ)
 if ($method === 'DELETE') {
     $cur = $db->prepare('SELECT avatar_path FROM users WHERE id = ?');
-    $cur->execute([$actor['id']]);
+    $cur->execute([$targetId]);
     $oldPath = $cur->fetchColumn();
 
-    $db->prepare('UPDATE users SET avatar_path = NULL WHERE id = ?')->execute([$actor['id']]);
+    $db->prepare('UPDATE users SET avatar_path = NULL WHERE id = ?')->execute([$targetId]);
     deleteOldAvatar($oldPath ?: null);
 
-    audit('avatar_remove', (string)$actor['id']);
+    audit('avatar_remove', (string)$targetId);
 
     $row = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ?');
-    $row->execute([$actor['id']]);
+    $row->execute([$targetId]);
     json_out($row->fetch());
 }
 
