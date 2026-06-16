@@ -10,11 +10,21 @@ if (session_status() === PHP_SESSION_NONE) {
 
 header('Content-Type: application/json; charset=utf-8');
 
+// ป้องกัน PHP error/warning หลุดออกมาปนกับ JSON response (ทำให้ฝั่ง client parse JSON พังทั้งหน้า)
+ini_set('display_errors', '0');
+ob_start();
+
 function json_out(mixed $data, int $code = 200): never {
+    ob_end_clean();
     http_response_code($code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
+
+set_exception_handler(function (Throwable $e) {
+    error_log($e->getMessage());
+    json_out(['error' => 'เกิดข้อผิดพลาดที่ระบบ — กรุณาติดต่อผู้ดูแลระบบ'], 500);
+});
 
 function err(string $msg, int $code = 400): never {
     json_out(['error' => $msg], $code);
