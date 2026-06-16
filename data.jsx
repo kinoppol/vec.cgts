@@ -117,6 +117,7 @@ const api = {
   getMe:       ()         => apiFetch('/api/auth.php'),
   login:       (u, p)     => apiFetch('/api/auth.php', { method:'POST', body: JSON.stringify({username:u,password:p}) }),
   logout:      ()         => apiFetch('/api/auth.php', { method:'DELETE' }),
+  updateProfile: (data)   => apiFetch('/api/auth.php', { method:'PATCH', body: JSON.stringify(data) }),
   getCases:    (params={})=> apiFetch('/api/cases.php?' + new URLSearchParams(params).toString()),
   getCase:     (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
   createCase:  (data)     => apiFetch('/api/cases.php', { method:'POST', body: JSON.stringify(data) }),

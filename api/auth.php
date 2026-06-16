@@ -51,6 +51,46 @@ if ($method === 'POST') {
     ]);
 }
 
+// PATCH /api/auth.php — แก้ไขโปรไฟล์ของตัวเอง (ชื่อแสดง / ตัวย่อ / รหัสผ่าน)
+if ($method === 'PATCH') {
+    $actor = require_auth();
+    $b = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    $db = getDB();
+    $sets = []; $vals = [];
+
+    if (array_key_exists('display_name', $b)) {
+        $name = trim($b['display_name']);
+        if ($name === '') err('กรุณาระบุชื่อแสดง');
+        $sets[] = 'display_name = ?'; $vals[] = $name;
+    }
+    if (array_key_exists('init', $b)) {
+        $sets[] = 'init = ?'; $vals[] = trim($b['init']) ?: null;
+    }
+
+    if (!empty($b['new_password'])) {
+        $cur = $db->prepare('SELECT password_hash FROM users WHERE id = ?');
+        $cur->execute([$actor['id']]);
+        $hash = $cur->fetchColumn();
+        if (!$hash || !password_verify($b['current_password'] ?? '', $hash)) {
+            err('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+        }
+        if (strlen($b['new_password']) < 6) err('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+        $sets[] = 'password_hash = ?';
+        $vals[] = password_hash($b['new_password'], PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+
+    if (empty($sets)) err('ไม่มีข้อมูลที่จะแก้ไข');
+
+    $vals[] = $actor['id'];
+    $db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+    audit('profile_update', (string)$actor['id']);
+
+    $row = $db->prepare('SELECT id, username, display_name, role, init FROM users WHERE id = ?');
+    $row->execute([$actor['id']]);
+    json_out($row->fetch());
+}
+
 // DELETE /api/auth.php — ออกจากระบบ
 if ($method === 'DELETE') {
     audit('logout');

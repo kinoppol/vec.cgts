@@ -137,7 +137,128 @@ function navFor(role, counts, user) {
   ];
 }
 
-function AdminApp({ user, go, theme, setTheme, onLogout }) {
+/* ---------------- Profile modal ---------------- */
+function ProfileModal({ user, onSave, onClose }) {
+  const [displayName, setDisplayName] = useState(user.display_name || "");
+  const [init, setInit] = useState(user.init || "");
+  const [curPass, setCurPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true); setErr("");
+    try {
+      const patch = { display_name: displayName, init };
+      if (newPass) {
+        if (newPass.length < 6) { setErr("รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร"); setSaving(false); return; }
+        patch.current_password = curPass;
+        patch.new_password = newPass;
+      }
+      const saved = await api.updateProfile(patch);
+      onSave(saved);
+    } catch (e) {
+      setErr(e.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(20,10,12,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:24}} onClick={onClose}>
+      <div style={{background:"var(--surface)",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,.35)",width:"100%",maxWidth:440,maxHeight:"90vh",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:"20px 24px",borderBottom:"1px solid var(--line)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <h3 style={{margin:0,fontSize:17}}>แก้ไขโปรไฟล์</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
+        </div>
+        <form onSubmit={submit} style={{padding:"0 24px 24px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1}}>
+          {err && <div className="notice notice-err" style={{marginTop:16}}><Icon name="alert"/><div>{err}</div></div>}
+
+          <div className="field" style={{marginTop:16}}>
+            <label>ชื่อแสดง <span className="req">*</span></label>
+            <input className="input" value={displayName} onChange={e=>setDisplayName(e.target.value)} required/>
+          </div>
+          <div className="field">
+            <label>ตัวย่อ</label>
+            <input className="input" value={init} onChange={e=>setInit(e.target.value)} maxLength={5} placeholder="เช่น วว"/>
+          </div>
+
+          <hr className="divider" style={{border:"none",borderTop:"1px solid var(--line)",margin:"6px 0"}}/>
+          <p className="sm muted" style={{margin:0}}>เปลี่ยนรหัสผ่าน (เว้นว่างถ้าไม่ต้องการเปลี่ยน)</p>
+
+          <div className="field">
+            <label>รหัสผ่านปัจจุบัน</label>
+            <input className="input" type="password" value={curPass} onChange={e=>setCurPass(e.target.value)} autoComplete="current-password"/>
+          </div>
+          <div className="field">
+            <label>รหัสผ่านใหม่</label>
+            <div style={{position:"relative"}}>
+              <input className="input" style={{paddingRight:40}} type={showPass ? "text" : "password"} value={newPass} onChange={e=>setNewPass(e.target.value)} autoComplete="new-password" minLength={6}/>
+              <button type="button" onClick={()=>setShowPass(v=>!v)} aria-label={showPass ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",color:"var(--ink-3)"}}>
+                <Icon name={showPass ? "eyeOff" : "eye"} style={{width:18,height:18}}/>
+              </button>
+            </div>
+            <span className="hint">อย่างน้อย 6 ตัวอักษร</span>
+          </div>
+
+          <div className="btn-row" style={{marginTop:4}}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? <LoadingSpinner/> : "บันทึก"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- User menu (dropdown) ---------------- */
+function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const isSm = size === "sm";
+
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <button type="button" onClick={()=>setOpen(v=>!v)}
+        className="vcenter" style={{gap:isSm?9:10,padding:isSm?"0 6px":"6px 8px",background:"none",border:"none",cursor:"pointer",width:"100%",textAlign:"left",borderRadius:8}}>
+        <span className={"avatar" + (isSm ? " avatar-sm" : "")}>{user.init}</span>
+        {isSm ? (
+          <div style={{lineHeight:1.2}}><div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div></div>
+        ) : (
+          <div style={{flex:1,minWidth:0}}>
+            <div className="sm" style={{fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.display_name}</div>
+            <div className="faint tiny">{ROLE_LABELS[role]}</div>
+          </div>
+        )}
+        <Icon name="chevD" style={{width:14,height:14,flexShrink:0,opacity:.6}}/>
+      </button>
+      {open && (
+        <div className="card" style={{position:"absolute",bottom:isSm?"auto":"calc(100% + 6px)",top:isSm?"calc(100% + 6px)":"auto",right:0,minWidth:190,padding:6,zIndex:100,boxShadow:"0 8px 30px rgba(0,0,0,.18)"}}>
+          <button className="nav-item" onClick={()=>{ setOpen(false); onEditProfile(); }}>
+            <Icon name="edit" style={{width:16,height:16}}/> แก้ไขโปรไฟล์
+          </button>
+          <button className="nav-item" onClick={()=>{ setOpen(false); onLogout(); }}>
+            <Icon name="logout" style={{width:16,height:16}}/> ออกจากระบบ
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const role = user.role;
   const [view, setView]         = useState("dashboard");
   const [sel,  setSel]          = useState(null);
@@ -198,9 +319,16 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
     content = <UserManagementPage currentUser={user} officers={officers}/>;
   }
 
+  const [showProfile, setShowProfile] = useState(false);
+
   const handleLogout = async () => {
     await api.logout().catch(() => {});
     onLogout();
+  };
+
+  const handleProfileSave = (saved) => {
+    setUser(u => ({ ...u, ...saved }));
+    setShowProfile(false);
   };
 
   return (
@@ -222,14 +350,7 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
           )}
         </nav>
         <div style={{padding:12,borderTop:"1px solid var(--line)"}}>
-          <div className="vcenter" style={{gap:10,padding:"6px 8px"}}>
-            <span className="avatar">{user.init}</span>
-            <div style={{flex:1,minWidth:0}}>
-              <div className="sm" style={{fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.display_name}</div>
-              <div className="faint tiny">{ROLE_LABELS[role]}</div>
-            </div>
-          </div>
-          <button className="nav-item" style={{marginTop:4}} onClick={handleLogout}><Icon name="logout"/> ออกจากระบบ</button>
+          <UserMenu user={user} role={role} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout}/>
         </div>
       </aside>
 
@@ -242,14 +363,15 @@ function AdminApp({ user, go, theme, setTheme, onLogout }) {
           <div className="vcenter" style={{gap:12}}>
             <ThemeToggle theme={theme} setTheme={setTheme}/>
             <button className="icon-btn" style={{position:"relative"}}><Icon name="bell"/><span style={{position:"absolute",top:8,right:9,width:7,height:7,borderRadius:"50%",background:"var(--danger)"}}></span></button>
-            <div className="vcenter" style={{gap:9,paddingLeft:6}}>
-              <span className="avatar avatar-sm">{user.init}</span>
-              <div style={{lineHeight:1.2}}><div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div></div>
-            </div>
+            <UserMenu user={user} role={role} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} size="sm"/>
           </div>
         </div>
         <div className="content">{content}</div>
       </main>
+
+      {showProfile && (
+        <ProfileModal user={user} onSave={handleProfileSave} onClose={()=>setShowProfile(false)}/>
+      )}
     </div>
   );
 }
@@ -348,7 +470,7 @@ function App() {
         {pub.view === "track" && <TrackStatus go={go} preset={pub.params}/>}
       </>}
       {screen === "login" && <AdminLogin go={go} onLogin={handleLogin}/>}
-      {screen === "admin" && user && <AdminApp user={user} go={go} theme={theme} setTheme={setTheme} onLogout={handleLogout}/>}
+      {screen === "admin" && user && <AdminApp user={user} setUser={setUser} go={go} theme={theme} setTheme={setTheme} onLogout={handleLogout}/>}
     </>
   );
 }
