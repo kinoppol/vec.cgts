@@ -7,6 +7,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// เลขเวอร์ชันจากเวลา commit ล่าสุด รูปแบบ v0.yyMMddhhii
+function appVersion(): ?string {
+    $out = @shell_exec('git -C ' . escapeshellarg(__DIR__) . ' log -1 --format=%ct 2>&1');
+    $ts  = ($out !== null && ctype_digit(trim($out))) ? (int)trim($out) : null;
+    return $ts ? 'v0.' . date('ymdHi', $ts) : null;
+}
+
 // ส่งข้อมูลผู้ใช้ปัจจุบันมาพร้อม HTML เพื่อลด round-trip
 $initialUser = null;
 if (!empty($_SESSION['user_id'])) {
@@ -36,6 +43,7 @@ if (!empty($_SESSION['user_id'])) {
 <script>
 window.__INITIAL_USER__ = <?= json_encode($initialUser, JSON_UNESCAPED_UNICODE) ?>;
 window.__APP_BASE__ = <?= json_encode(rtrim(dirname($_SERVER['PHP_SELF']), '/\\'), JSON_UNESCAPED_UNICODE) ?>;
+window.__APP_VERSION__ = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"

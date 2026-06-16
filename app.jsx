@@ -409,6 +409,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
               </button>
           )}
         </nav>
+        {window.__APP_VERSION__ && (
+          <div className="faint tiny" style={{padding:"12px 16px",borderTop:"1px solid var(--line)"}}>{window.__APP_VERSION__}</div>
+        )}
       </aside>
 
       <main>
