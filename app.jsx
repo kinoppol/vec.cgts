@@ -68,7 +68,7 @@ function AdminLogin({ go, onLogin }) {
           <div className="grid" style={{gap:14}}>
             <div className="field">
               <label>ชื่อผู้ใช้</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} autoComplete="username"/>
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ""))} autoComplete="username" inputMode="email" lang="en"/>
             </div>
             <div className="field">
               <label>รหัสผ่าน</label>
