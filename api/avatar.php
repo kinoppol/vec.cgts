@@ -9,8 +9,16 @@ $avatarDir    = __DIR__ . '/../uploads/avatars';
 $avatarWebDir = 'uploads/avatars';
 
 // สร้างโฟลเดอร์เก็บภาพ + .htaccess ให้เองถ้ายังไม่มี (กันพังตอน deploy บน server จริง)
+$mkdirError = null;
 if (!is_dir($avatarDir)) {
-    @mkdir($avatarDir, 0755, true);
+    if (!@mkdir($avatarDir, 0755, true) && !is_dir($avatarDir)) {
+        $e = error_get_last();
+        $mkdirError = $e['message'] ?? 'ไม่ทราบสาเหตุ';
+    }
+}
+// ถ้ามีโฟลเดอร์อยู่แล้วแต่เขียนไม่ได้ (เจอบ่อยตอน deploy ด้วย user คนละคนกับ web server) ลองคืนสิทธิ์ให้
+if (is_dir($avatarDir) && !is_writable($avatarDir)) {
+    @chmod($avatarDir, 0775);
 }
 $htaccess = $avatarDir . '/.htaccess';
 if (is_dir($avatarDir) && !file_exists($htaccess)) {
@@ -29,8 +37,12 @@ function deleteOldAvatar(string $path = null): void {
 
 // POST /api/avatar.php — อัปโหลด/เปลี่ยนภาพประจำตัว
 if ($method === 'POST') {
-    if (!is_dir($avatarDir) || !is_writable($avatarDir)) {
-        err('ไม่สามารถเตรียมโฟลเดอร์เก็บภาพได้ — ตรวจสอบสิทธิ์เขียนไฟล์ของ uploads/avatars บน server', 500);
+    if (!is_dir($avatarDir)) {
+        err('ไม่สามารถสร้างโฟลเดอร์ uploads/avatars ได้' . ($mkdirError ? " ({$mkdirError})" : '') .
+            ' — รันคำสั่งบน server: mkdir -p uploads/avatars && chmod 775 uploads/avatars', 500);
+    }
+    if (!is_writable($avatarDir)) {
+        err('โฟลเดอร์ uploads/avatars มีอยู่แล้วแต่เขียนไม่ได้ — รันคำสั่งบน server: chmod 775 uploads/avatars', 500);
     }
     if (empty($_FILES['avatar'])) err('ไม่พบไฟล์ภาพ');
 

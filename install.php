@@ -152,6 +152,18 @@ function runInstall(string $host, string $port, string $user, string $pass, stri
         writeConfig($host, $port, $user, $pass, $safeDb);
         $log[] = ['ok' => true, 'msg' => 'บันทึก config/db.php สำเร็จ'];
 
+        /* 8b. สร้างโฟลเดอร์เก็บไฟล์อัปโหลด (uploads/avatars) ให้พร้อมใช้งาน */
+        $avatarDir = __DIR__ . '/uploads/avatars';
+        if (!is_dir($avatarDir)) {
+            @mkdir($avatarDir, 0775, true);
+        }
+        if (is_dir($avatarDir)) {
+            @chmod($avatarDir, 0775);
+            $log[] = ['ok' => true, 'msg' => 'เตรียมโฟลเดอร์ uploads/avatars สำเร็จ'];
+        } else {
+            $log[] = ['ok' => false, 'msg' => 'สร้างโฟลเดอร์ uploads/avatars ไม่สำเร็จ — ต้องสร้างเองบน server (mkdir -p uploads/avatars && chmod 775 uploads/avatars)'];
+        }
+
         /* 9. เขียน install.lock */
         file_put_contents(INSTALL_LOCK, json_encode([
             'installed_at' => date('c'),
