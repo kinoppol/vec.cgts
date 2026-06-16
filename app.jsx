@@ -349,9 +349,6 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
               </button>
           )}
         </nav>
-        <div style={{padding:12,borderTop:"1px solid var(--line)"}}>
-          <UserMenu user={user} role={role} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout}/>
-        </div>
       </aside>
 
       <main>
