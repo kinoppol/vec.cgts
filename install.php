@@ -27,32 +27,44 @@ if (file_exists(CONFIG_PATH)) {
 -------------------------------------------------------- */
 $action = $_POST['action'] ?? '';
 
-if ($action === 'test_db') {
-    header('Content-Type: application/json');
-    $dbPass = $_POST['pass'] ?? '';
-    if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; }
-    echo json_encode(testConnection(
-        $_POST['host']   ?? $cfg['host'],
-        $_POST['port']   ?? $cfg['port'],
-        $_POST['user']   ?? $cfg['user'],
-        $dbPass,
-        $_POST['dbname'] ?? $cfg['dbname']
-    ));
-    exit;
-}
+if ($action === 'test_db' || $action === 'install') {
+    // ป้องกัน PHP warning/notice ปนใน JSON response (เช่น เขียนไฟล์ไม่ได้)
+    ini_set('display_errors', '0');
+    ob_start();
 
-if ($action === 'install') {
+    if ($action === 'test_db') {
+        $dbPass = $_POST['pass'] ?? '';
+        if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; }
+        $result = testConnection(
+            $_POST['host']   ?? $cfg['host'],
+            $_POST['port']   ?? $cfg['port'],
+            $_POST['user']   ?? $cfg['user'],
+            $dbPass,
+            $_POST['dbname'] ?? $cfg['dbname']
+        );
+    } else {
+        $dbPass = $_POST['pass'] ?? '';
+        if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; } // ใช้รหัสผ่านเดิม
+        $result = runInstall(
+            $_POST['host']   ?? $cfg['host'],
+            $_POST['port']   ?? $cfg['port'],
+            $_POST['user']   ?? $cfg['user'],
+            $dbPass,
+            $_POST['dbname'] ?? $cfg['dbname'],
+            $_POST['app_pass'] ?? 'password'
+        );
+    }
+
+    $stray = trim(ob_get_clean());
+    if ($stray !== '') {
+        // มี warning/notice หลุดมา ใส่ไว้ใน log เพื่อ debug แทนการปน JSON
+        $result['ok'] = false;
+        $result['log'][] = ['ok' => false, 'msg' => 'PHP warning: ' . $stray];
+        $result['msg'] = $result['msg'] ?? $stray;
+    }
+
     header('Content-Type: application/json');
-    $dbPass = $_POST['pass'] ?? '';
-    if ($dbPass === '__KEEP__') { $dbPass = $cfg['pass']; } // ใช้รหัสผ่านเดิม
-    echo json_encode(runInstall(
-        $_POST['host']   ?? $cfg['host'],
-        $_POST['port']   ?? $cfg['port'],
-        $_POST['user']   ?? $cfg['user'],
-        $dbPass,
-        $_POST['dbname'] ?? $cfg['dbname'],
-        $_POST['app_pass'] ?? 'password'
-    ));
+    echo json_encode($result);
     exit;
 }
 
@@ -198,6 +210,16 @@ function getDB(): PDO {
     return \$pdo;
 }
 PHP;
+    // สร้างโฟลเดอร์ config/ ถ้ายังไม่มี (ไม่ track ใน git เพราะมีรหัสผ่าน)
+    $dir = dirname(CONFIG_PATH);
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new RuntimeException(
+                'ไม่สามารถสร้างโฟลเดอร์ config/ ได้ — ตรวจสอบสิทธิ์เขียนไฟล์ในโฟลเดอร์โปรเจกต์'
+            );
+        }
+    }
+
     // ให้ไฟล์เขียนได้ก่อน (กรณี git checkout สร้างไฟล์เป็น owner อื่น)
     if (file_exists(CONFIG_PATH)) {
         @chmod(CONFIG_PATH, 0666);

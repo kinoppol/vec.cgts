@@ -21,8 +21,9 @@ function useTheme() {
 
 /* ---------------- Login ---------------- */
 function AdminLogin({ go, onLogin }) {
-  const [username, setUsername] = useState("dir_admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
 
@@ -71,9 +72,14 @@ function AdminLogin({ go, onLogin }) {
             </div>
             <div className="field">
               <label>รหัสผ่าน</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/>
+              <div style={{position:"relative"}}>
+                <input className="input" style={{paddingRight:40}} type={showPass ? "text" : "password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/>
+                <button type="button" onClick={()=>setShowPass(v=>!v)} aria-label={showPass ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",color:"var(--ink-3)"}}>
+                  <Icon name={showPass ? "eyeOff" : "eye"} style={{width:18,height:18}}/>
+                </button>
+              </div>
             </div>
-            <p className="help muted">บัญชี: <code>dir_admin</code> / <code>wornwut</code> / <code>yawrata</code> / <code>nawan</code> ฯลฯ</p>
             <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
               {loading ? <LoadingSpinner/> : <><Icon name="lock" style={{width:16,height:16}}/> เข้าสู่ระบบ</>}
             </button>
