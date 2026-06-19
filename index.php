@@ -10,9 +10,22 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // เลขเวอร์ชันจากเวลา commit ล่าสุด รูปแบบ v0.yyMMddhhii
 function appVersion(): ?string {
-    $out = @shell_exec('git -C ' . escapeshellarg(__DIR__) . ' log -1 --format=%ct 2>&1');
-    $ts  = ($out !== null && ctype_digit(trim($out))) ? (int)trim($out) : null;
-    return $ts ? 'v0.' . date('ymdHi', $ts) : null;
+    // วิธีที่ 1: shell_exec (ใช้งานได้บนเซิร์ฟเวอร์จริง)
+    if (function_exists('shell_exec')) {
+        $out = @shell_exec('git -C ' . escapeshellarg(__DIR__) . ' log -1 --format=%ct 2>&1');
+        if ($out !== null && ctype_digit(trim($out)))
+            return 'v0.' . date('ymdHi', (int)trim($out));
+    }
+    // วิธีที่ 2: อ่านจาก .git/logs/HEAD โดยตรง (ทำงานได้แม้ shell_exec ถูก disable)
+    $logFile = __DIR__ . '/.git/logs/HEAD';
+    if (is_file($logFile)) {
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $last  = end($lines);
+        // format: <old> <new> <name> <email> <timestamp> <tz> <action> <msg>
+        if ($last && preg_match('/>\s+(\d{10,})\s+[+-]\d{4}/', $last, $m))
+            return 'v0.' . date('ymdHi', (int)$m[1]);
+    }
+    return null;
 }
 
 // ส่งข้อมูลผู้ใช้ปัจจุบันมาพร้อม HTML เพื่อลด round-trip
