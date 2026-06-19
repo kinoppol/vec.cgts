@@ -298,7 +298,9 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
     } catch(e) { alert(e.message); }
   };
 
-  const visible = users.filter(u => {
+  const [showInactive, setShowInactive] = useState(false);
+
+  const filtered = users.filter(u => {
     if (filterRole && u.role !== filterRole) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -306,6 +308,71 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
     }
     return true;
   });
+  const activeUsers   = filtered.filter(u => u.active);
+  const inactiveUsers = filtered.filter(u => !u.active);
+
+  const UserRow = ({ u }) => (
+    <tr key={u.id}>
+      <td>
+        <div className="vcenter" style={{gap:10}}>
+          <Avatar user={{...u, init: u.init || u.username[0].toUpperCase()}} size="sm"/>
+          <div>
+            <div style={{fontWeight:600}}>{u.display_name}</div>
+            <div className="faint tiny">{u.username}</div>
+          </div>
+        </div>
+      </td>
+      <td><span className={'badge ' + (ROLE_BADGE[u.role]||'badge')}>
+        {roleLabel(u.role, roleLabels)}
+      </span></td>
+      <td>
+        {u.can_manage_users ? <span className="badge badge-info"><Icon name="shieldCheck" style={{width:11,height:11}}/> จัดการผู้ใช้</span> : <span className="faint tiny">—</span>}
+      </td>
+      <td>
+        <div className="vcenter" style={{gap:6,justifyContent:'flex-end'}}>
+          <button className="icon-btn" title="แก้ไข"
+            onClick={() => setModal({type:'edit', user:u})}>
+            <Icon name="edit" style={{width:15,height:15}}/>
+          </button>
+          <button className="icon-btn" title="รีเซ็ตรหัสผ่าน"
+            onClick={() => setModal({type:'reset', user:u})}>
+            <Icon name="lock" style={{width:15,height:15}}/>
+          </button>
+          {u.id !== currentUser.id && (
+            u.active
+              ? <button className="icon-btn" title="ปิดใช้งาน"
+                  onClick={() => deactivate(u)} style={{color:'var(--danger)'}}>
+                  <Icon name="x" style={{width:15,height:15}}/>
+                </button>
+              : <button className="icon-btn" title="เปิดใช้งานอีกครั้ง"
+                  onClick={() => reactivate(u)} style={{color:'var(--ok)'}}>
+                  <Icon name="checkCircle" style={{width:15,height:15}}/>
+                </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
+  const UsersTable = ({ rows, emptyText }) => (
+    <div className="table-wrap">
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>ผู้ใช้</th>
+            <th>บทบาท</th>
+            <th>สิทธิ์พิเศษ</th>
+            <th style={{width:120}}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0
+            ? <tr><td colSpan={4} style={{textAlign:'center',padding:32,color:'var(--ink-3)'}}>{emptyText}</td></tr>
+            : rows.map(u => <UserRow key={u.id} u={u}/>)}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div className="fade-in">
@@ -323,78 +390,34 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
           <option value="">ทุกบทบาท</option>
           {roleOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
-        <span className="faint sm">{visible.length} บัญชี</span>
+        <span className="faint sm">{activeUsers.length} บัญชีที่ใช้งาน</span>
       </div>
 
+      {/* ตารางผู้ใช้ที่ใช้งานได้ */}
       <div className="card">
-        {loading ? <div style={{padding:40,textAlign:'center'}}><LoadingSpinner/></div> : (
-          <div className="table-wrap">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>ผู้ใช้</th>
-                  <th>บทบาท</th>
-                  <th>สิทธิ์พิเศษ</th>
-                  <th>สถานะ</th>
-                  <th style={{width:140}}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.length === 0 && (
-                  <tr><td colSpan={5} style={{textAlign:'center',padding:32,color:'var(--ink-3)'}}>ไม่พบผู้ใช้</td></tr>
-                )}
-                {visible.map(u => (
-                  <tr key={u.id} style={{opacity: u.active ? 1 : 0.45}}>
-                    <td>
-                      <div className="vcenter" style={{gap:10}}>
-                        <Avatar user={{...u, init: u.init || u.username[0].toUpperCase()}} size="sm"/>
-                        <div>
-                          <div style={{fontWeight:600}}>{u.display_name}</div>
-                          <div className="faint tiny">{u.username}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span className={'badge ' + (ROLE_BADGE[u.role]||'badge')}>
-                      {roleLabel(u.role, roleLabels)}
-                    </span></td>
-                    <td>
-                      {u.can_manage_users ? <span className="badge badge-info"><Icon name="shieldCheck" style={{width:11,height:11}}/> จัดการผู้ใช้</span> : <span className="faint tiny">—</span>}
-                    </td>
-                    <td>
-                      {u.active
-                        ? <span className="badge badge-ok">ใช้งานได้</span>
-                        : <span className="badge">ปิดใช้งาน</span>}
-                    </td>
-                    <td>
-                      <div className="vcenter" style={{gap:6,justifyContent:'flex-end'}}>
-                        <button className="icon-btn" title="แก้ไข"
-                          onClick={() => setModal({type:'edit', user:u})}>
-                          <Icon name="edit" style={{width:15,height:15}}/>
-                        </button>
-                        <button className="icon-btn" title="รีเซ็ตรหัสผ่าน"
-                          onClick={() => setModal({type:'reset', user:u})}>
-                          <Icon name="lock" style={{width:15,height:15}}/>
-                        </button>
-                        {u.id !== currentUser.id && (
-                          u.active
-                            ? <button className="icon-btn" title="ปิดใช้งาน"
-                                onClick={() => deactivate(u)} style={{color:'var(--danger)'}}>
-                                <Icon name="x" style={{width:15,height:15}}/>
-                              </button>
-                            : <button className="icon-btn" title="เปิดใช้งาน"
-                                onClick={() => reactivate(u)} style={{color:'var(--ok)'}}>
-                                <Icon name="checkCircle" style={{width:15,height:15}}/>
-                              </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {loading
+          ? <div style={{padding:40,textAlign:'center'}}><LoadingSpinner/></div>
+          : <UsersTable rows={activeUsers} emptyText="ไม่พบผู้ใช้"/>}
       </div>
+
+      {/* ส่วนผู้ใช้ที่ปิดใช้งานแล้ว */}
+      {!loading && (
+        <div style={{marginTop:16}}>
+          <button
+            className="btn btn-ghost btn-sm vcenter"
+            style={{gap:6,color:'var(--ink-3)',fontSize:13}}
+            onClick={() => setShowInactive(v => !v)}
+          >
+            <Icon name={showInactive ? 'chevronDown' : 'chevronRight'} style={{width:14,height:14}}/>
+            บัญชีที่ปิดใช้งานแล้ว ({inactiveUsers.length})
+          </button>
+          {showInactive && (
+            <div className="card" style={{marginTop:8,opacity:0.75}}>
+              <UsersTable rows={inactiveUsers} emptyText="ไม่มีบัญชีที่ปิดใช้งาน"/>
+            </div>
+          )}
+        </div>
+      )}
 
       {modal?.type === 'add' && (
         <UserModal officers={officers} roleLabels={roleLabels}
