@@ -11,7 +11,7 @@ $db     = getDB();
 ---------------------------------------------------------------- */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT id, username, display_name, role, init, officer_id,
+        "SELECT id, username, display_name, role, init, job_title, group_name, officer_id,
                 active, can_manage_users, avatar_path, created_at
          FROM users ORDER BY role, display_name"
     )->fetchAll();
@@ -28,6 +28,8 @@ if ($method === 'POST') {
     $password     = $b['password']    ?? '';
     $role         = $b['role']        ?? 'officer';
     $init         = trim($b['init']   ?? '');
+    $job_title    = trim($b['job_title']  ?? '');
+    $group_name   = trim($b['group_name'] ?? '');
     $officer_id   = $b['officer_id']  ?: null;
     $can_mgr      = !empty($b['can_manage_users']) ? 1 : 0;
 
@@ -45,9 +47,9 @@ if ($method === 'POST') {
 
     try {
         $db->prepare(
-            "INSERT INTO users (username, password_hash, display_name, role, init, officer_id, can_manage_users)
-             VALUES (?,?,?,?,?,?,?)"
-        )->execute([$username, $hash, $display_name, $role, $init ?: null, $officer_id, $can_mgr]);
+            "INSERT INTO users (username, password_hash, display_name, role, init, job_title, group_name, officer_id, can_manage_users)
+             VALUES (?,?,?,?,?,?,?,?,?)"
+        )->execute([$username, $hash, $display_name, $role, $init ?: null, $job_title ?: null, $group_name ?: null, $officer_id, $can_mgr]);
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'Duplicate')) err("ชื่อผู้ใช้ '{$username}' มีอยู่แล้ว");
         throw $e;
@@ -55,7 +57,7 @@ if ($method === 'POST') {
 
     $newId = (int)$db->lastInsertId();
     audit('user_create', (string)$newId, "สร้างบัญชี {$username}");
-    $row = $db->prepare('SELECT id,username,display_name,role,init,officer_id,active,can_manage_users FROM users WHERE id=?');
+    $row = $db->prepare('SELECT id,username,display_name,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
     $row->execute([$newId]);
     json_out($row->fetch(), 201);
 }
@@ -75,7 +77,7 @@ if ($method === 'PATCH' && $id) {
     // ป้องกันแก้ admin ถ้าไม่ใช่ admin
     if ($cur['role'] === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์แก้ไขบัญชี admin', 403);
 
-    $allowed = ['display_name','role','init','officer_id','active','can_manage_users'];
+    $allowed = ['display_name','role','init','job_title','group_name','officer_id','active','can_manage_users'];
     $sets = []; $vals = [];
     foreach ($allowed as $col) {
         if (!array_key_exists($col, $b)) continue;
@@ -92,7 +94,7 @@ if ($method === 'PATCH' && $id) {
     $db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=?')->execute($vals);
     audit('user_update', (string)$id, implode(', ', array_keys(array_intersect_key($b, array_flip($allowed)))));
 
-    $row = $db->prepare('SELECT id,username,display_name,role,init,officer_id,active,can_manage_users FROM users WHERE id=?');
+    $row = $db->prepare('SELECT id,username,display_name,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
     $row->execute([$id]);
     json_out($row->fetch());
 }

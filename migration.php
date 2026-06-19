@@ -109,6 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         ");
         $log[] = ['ok' => true, 'msg' => 'สร้าง / ยืนยันตาราง sla_settings พร้อมข้อมูลเริ่มต้น 8 หมวด สำเร็จ'];
 
+        /* ---- ขั้นตอนที่ 5: เพิ่มคอลัมน์ job_title, group_name ใน users ---- */
+        $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title  VARCHAR(200) DEFAULT NULL AFTER init");
+        $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS group_name VARCHAR(200) DEFAULT NULL AFTER job_title");
+        $log[] = ['ok' => true, 'msg' => 'เพิ่มคอลัมน์ job_title, group_name ใน users สำเร็จ'];
+
         ob_end_clean();
         echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
 
@@ -145,9 +150,13 @@ try {
         $status['sla'] = (int)$pdo->query("SELECT COUNT(*) FROM sla_settings")->fetchColumn();
     }
 
+    // ตรวจคอลัมน์ job_title, group_name
+    $cols = $pdo->query("SHOW COLUMNS FROM users WHERE Field IN ('job_title','group_name')")->fetchAll();
+    $status['profile_cols'] = count($cols) >= 2;
+
 } catch (Throwable) {}
 
-$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8;
+$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8 && $status['profile_cols'];
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -336,6 +345,21 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $statu
           </div>
           <span class="step-badge <?= $status['sla'] >= 8 ? 'badge-done' : 'badge-pending' ?>">
             <?= $status['sla'] >= 8 ? "✓ มีข้อมูล {$status['sla']} หมวดแล้ว" : "⏳ พบ {$status['sla']} หมวด (ต้องการ 8)" ?>
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step-row">
+        <div class="step-num <?= $status['profile_cols'] ? 'done' : '' ?>">
+          <?= $status['profile_cols'] ? '✓' : '5' ?>
+        </div>
+        <div class="step-body">
+          <div class="step-title">เพิ่มคอลัมน์ <code>job_title</code> และ <code>group_name</code> ใน <code>users</code></div>
+          <div class="step-desc">เก็บข้อมูลตำแหน่งและชื่อกลุ่ม/หน่วยงานของผู้ใช้แต่ละบัญชี<br>
+            จัดการได้โดย Admin ในหน้า "จัดการผู้ใช้งาน"</div>
+          <span class="step-badge <?= $status['profile_cols'] ? 'badge-done' : 'badge-pending' ?>">
+            <?= $status['profile_cols'] ? '✓ มีคอลัมน์นี้แล้ว' : '⏳ ยังไม่ได้เพิ่ม' ?>
           </span>
         </div>
       </div>

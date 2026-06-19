@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
   display_name  VARCHAR(200) NOT NULL,
   role             ENUM('officer','dir_legal','dir_admin','secretary','deputy_secretary','admin') NOT NULL DEFAULT 'officer',
   init             VARCHAR(10)  DEFAULT NULL,
+  job_title        VARCHAR(200) DEFAULT NULL,
+  group_name       VARCHAR(200) DEFAULT NULL,
   officer_id       VARCHAR(10)  DEFAULT NULL,
   active           TINYINT(1)   NOT NULL DEFAULT 1,
   can_manage_users TINYINT(1)   NOT NULL DEFAULT 0,

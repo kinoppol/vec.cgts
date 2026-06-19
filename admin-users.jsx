@@ -36,7 +36,7 @@ function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
     username:'', display_name:'', role:'officer',
-    init:'', officer_id:'', can_manage_users:false, active:true, password:''
+    init:'', job_title:'', group_name:'', officer_id:'', can_manage_users:false, active:true, password:''
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
@@ -78,6 +78,7 @@ function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
         saved = await apiFetch('/api/users.php', { method:'POST', body: JSON.stringify(form) });
       } else {
         const patch = { display_name:form.display_name, role:form.role, init:form.init,
+                        job_title:form.job_title||'', group_name:form.group_name||'',
                         officer_id:form.officer_id||null, active:form.active?1:0,
                         can_manage_users:form.can_manage_users?1:0 };
         saved = await apiFetch('/api/users.php?id='+user.id, { method:'PATCH', body: JSON.stringify(patch) });
@@ -133,6 +134,19 @@ function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
           <div className="field">
             <label>ชื่อแสดง <span className="req">*</span></label>
             <input className="input" value={form.display_name} onChange={e=>set('display_name',e.target.value)} required/>
+          </div>
+
+          <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
+            <div className="field">
+              <label>ตำแหน่ง</label>
+              <input className="input" value={form.job_title||''} onChange={e=>set('job_title',e.target.value)}
+                placeholder="เช่น นิติกรชำนาญการ"/>
+            </div>
+            <div className="field">
+              <label>ชื่อกลุ่ม / หน่วยงาน</label>
+              <input className="input" value={form.group_name||''} onChange={e=>set('group_name',e.target.value)}
+                placeholder="เช่น กลุ่มนิติการ"/>
+            </div>
           </div>
 
           {isNew && (
@@ -338,6 +352,11 @@ function UserManagementPage({ currentUser, officers }) {
                         <div>
                           <div style={{fontWeight:600}}>{u.display_name}</div>
                           <div className="faint tiny">{u.username}</div>
+                          {(u.job_title || u.group_name) && (
+                            <div className="faint tiny" style={{marginTop:1}}>
+                              {[u.job_title, u.group_name].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
