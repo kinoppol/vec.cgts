@@ -106,10 +106,11 @@ function canManageUsers(user) {
 function navFor(role, counts, user) {
   if (role === "admin") return [
     {sec:"ระบบ"},
-    {v:"users",     ic:"users",    l:"จัดการผู้ใช้"},
-    {v:"dashboard", ic:"pie",      l:"ภาพรวม"},
-    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
-    {v:"reports",   ic:"chart",    l:"รายงาน"},
+    {v:"users",     ic:"users",       l:"จัดการผู้ใช้"},
+    {v:"todos",     ic:"checkCircle", l:"รายการที่ต้องทำ"},
+    {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
+    {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
+    {v:"reports",   ic:"chart",       l:"รายงาน"},
   ];
   if (role === "officer") return [
     {sec:"การดำเนินงาน"},
@@ -354,6 +355,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
+    todos:"รายการที่ต้องทำ",
   }[view] || "";
 
   let content;
@@ -377,6 +379,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <ReportCenter role={role}/>;
   } else if (view === "users" && canManageUsers(user)) {
     content = <UserManagementPage currentUser={user} officers={officers}/>;
+  } else if (view === "todos") {
+    content = <TodoPage/>;
   }
 
   const [showProfile, setShowProfile] = useState(false);
@@ -491,6 +495,213 @@ function ReportCenter({ role }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ---------------- Todo list (Admin) ---------------- */
+function formatDuration(createdAt, completedAt) {
+  const diff = Math.max(0, Math.round((new Date(completedAt) - new Date(createdAt)) / 60000));
+  if (diff < 60) return diff + ' นาที';
+  const h = Math.floor(diff / 60), m = diff % 60;
+  if (h < 24) return h + ' ชั่วโมง' + (m ? ' ' + m + ' นาที' : '');
+  const d = Math.floor(h / 24), hr = h % 24;
+  return d + ' วัน' + (hr ? ' ' + hr + ' ชั่วโมง' : '');
+}
+
+function fmtDt(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('th-TH', { year:'numeric', month:'short', day:'numeric' })
+       + ' ' + d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+}
+
+function TodoItem({ todo, onToggle, onDelete, onEdit }) {
+  const [expanded, setExpanded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(todo.title);
+  const [editDetail, setEditDetail] = useState(todo.detail || '');
+
+  const toggle = async () => {
+    setBusy(true);
+    await onToggle(todo).catch(() => {});
+    setBusy(false);
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    if (!editTitle.trim()) return;
+    await onEdit(todo.id, { title: editTitle.trim(), detail: editDetail.trim() });
+    setEditing(false);
+  };
+
+  return (
+    <div className="card" style={{padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start",opacity:todo.done ? .72 : 1,transition:"opacity .2s"}}>
+      <button onClick={toggle} disabled={busy} aria-label={todo.done ? "ยังไม่เสร็จ" : "ทำเสร็จแล้ว"}
+        style={{flexShrink:0,marginTop:2,width:20,height:20,borderRadius:5,border:"2px solid " + (todo.done ? "var(--ok)" : "var(--line)"),
+          background:todo.done ? "var(--ok)" : "transparent",color:"#fff",cursor:"pointer",display:"grid",placeItems:"center",padding:0,transition:"all .18s"}}>
+        {todo.done && <Icon name="check" style={{width:11,height:11}}/>}
+      </button>
+
+      <div style={{flex:1,minWidth:0}}>
+        {editing ? (
+          <form onSubmit={saveEdit} style={{display:"flex",flexDirection:"column",gap:8}}>
+            <input className="input" value={editTitle} onChange={e=>setEditTitle(e.target.value)} autoFocus required
+              style={{fontWeight:600,fontSize:15}}/>
+            <textarea className="input" value={editDetail} onChange={e=>setEditDetail(e.target.value)} rows={2}
+              placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" style={{resize:"vertical",fontSize:13}}/>
+            <div className="vcenter" style={{gap:8}}>
+              <button type="submit" className="btn btn-primary btn-sm">บันทึก</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={()=>setEditing(false)}>ยกเลิก</button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="vcenter" style={{gap:8,flexWrap:"wrap"}}>
+              <span style={{fontWeight:600,fontSize:15,textDecoration:todo.done ? "line-through" : "none",color:todo.done ? "var(--ink-3)" : "var(--ink)"}}>{todo.title}</span>
+              {todo.detail && (
+                <button className="btn btn-ghost btn-sm" style={{padding:"0 6px",height:22,fontSize:12}} onClick={()=>setExpanded(v=>!v)}>
+                  {expanded ? "ซ่อน" : "รายละเอียด"}
+                </button>
+              )}
+            </div>
+            {todo.detail && expanded && (
+              <p className="sm muted" style={{margin:"6px 0 0",whiteSpace:"pre-wrap",lineHeight:1.7}}>{todo.detail}</p>
+            )}
+            <div className="vcenter" style={{gap:12,marginTop:6,flexWrap:"wrap"}}>
+              <span className="tiny faint vcenter" style={{gap:4}}><Icon name="plus" style={{width:11,height:11}}/>เพิ่ม {fmtDt(todo.created_at)}</span>
+              {todo.done && todo.completed_at && (
+                <>
+                  <span className="tiny faint vcenter" style={{gap:4,color:"var(--ok)"}}><Icon name="check" style={{width:11,height:11}}/>เสร็จ {fmtDt(todo.completed_at)}</span>
+                  <span className="tiny badge badge-ok" style={{padding:"1px 7px"}}>ใช้เวลา {formatDuration(todo.created_at, todo.completed_at)}</span>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {!editing && (
+        <div className="vcenter" style={{gap:4,flexShrink:0}}>
+          <button className="icon-btn" style={{width:28,height:28}} title="แก้ไข" onClick={()=>{ setEditing(true); setEditTitle(todo.title); setEditDetail(todo.detail||''); }}>
+            <Icon name="edit" style={{width:14,height:14}}/>
+          </button>
+          <button className="icon-btn" style={{width:28,height:28,color:"var(--danger)"}} title="ลบ"
+            onClick={()=>{ if(confirm('ลบรายการ "' + todo.title + '" ออกจากรายการหรือไม่?')) onDelete(todo.id); }}>
+            <Icon name="x" style={{width:14,height:14}}/>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TodoPage() {
+  const [todos,   setTodos]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter,  setFilter]  = useState('pending');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle,  setNewTitle]  = useState('');
+  const [newDetail, setNewDetail] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    api.listTodos().then(setTodos).catch(e=>setErr(e.message)).finally(()=>setLoading(false));
+  }, []);
+
+  const addTodo = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setAdding(true); setErr('');
+    try {
+      const created = await api.createTodo({ title: newTitle.trim(), detail: newDetail.trim() });
+      setTodos(ts => [created, ...ts]);
+      setNewTitle(''); setNewDetail(''); setShowAdd(false);
+      setFilter('pending');
+    } catch(e) { setErr(e.message); }
+    setAdding(false);
+  };
+
+  const toggleDone = async (todo) => {
+    const updated = await api.patchTodo(todo.id, { done: !todo.done });
+    setTodos(ts => ts.map(t => t.id === todo.id ? updated : t));
+  };
+
+  const editTodo = async (id, patch) => {
+    const updated = await api.patchTodo(id, patch);
+    setTodos(ts => ts.map(t => t.id === id ? updated : t));
+  };
+
+  const deleteTodo = async (id) => {
+    await api.deleteTodo(id).catch(() => {});
+    setTodos(ts => ts.filter(t => t.id !== id));
+  };
+
+  const counts = {
+    all:     todos.length,
+    pending: todos.filter(t=>!t.done).length,
+    done:    todos.filter(t=>!!t.done).length,
+  };
+  const filtered = todos.filter(t =>
+    filter === 'all' ? true : filter === 'done' ? !!t.done : !t.done
+  );
+
+  return (
+    <div className="fade-in" style={{maxWidth:760}}>
+      <PageHead title="รายการที่ต้องทำ" sub="บันทึกงานที่ต้องดำเนินการ และติดตามเวลาที่ใช้">
+        <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(v=>!v)}>
+          <Icon name="plus" style={{width:15,height:15}}/> เพิ่มรายการ
+        </button>
+      </PageHead>
+
+      {err && <div className="notice notice-err" style={{marginBottom:16}}><Icon name="alert"/><div>{err}</div></div>}
+
+      {showAdd && (
+        <div className="card card-pad" style={{marginBottom:16}}>
+          <form onSubmit={addTodo} style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div className="field">
+              <label>ชื่องาน <span className="req">*</span></label>
+              <input className="input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="ระบุชื่องานที่ต้องทำ" autoFocus required/>
+            </div>
+            <div className="field">
+              <label>รายละเอียด</label>
+              <textarea className="input" value={newDetail} onChange={e=>setNewDetail(e.target.value)} rows={2}
+                placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" style={{resize:"vertical"}}/>
+            </div>
+            <div className="btn-row">
+              <button type="button" className="btn btn-ghost" onClick={()=>{ setShowAdd(false); setNewTitle(''); setNewDetail(''); }}>ยกเลิก</button>
+              <button type="submit" className="btn btn-primary" disabled={adding || !newTitle.trim()}>
+                {adding ? <LoadingSpinner/> : <><Icon name="plus" style={{width:15,height:15}}/> เพิ่ม</>}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="vcenter" style={{gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        {[['pending','รอดำเนินการ'],['done','เสร็จแล้ว'],['all','ทั้งหมด']].map(([k,l])=>(
+          <button key={k} onClick={()=>setFilter(k)}
+            className={"btn btn-sm " + (filter===k ? "btn-primary" : "btn-ghost")}
+            style={{padding:"4px 14px"}}>
+            {l} <span className={"badge " + (filter===k?"badge-maroon":"")} style={{marginLeft:4,padding:"1px 6px",fontSize:11}}>{counts[k]}</span>
+          </button>
+        ))}
+      </div>
+
+      {loading ? <LoadingSpinner/> : filtered.length === 0 ? (
+        <div className="card card-pad" style={{textAlign:"center",color:"var(--ink-3)",padding:"40px 24px"}}>
+          <Icon name="checkCircle" style={{width:36,height:36,marginBottom:10,opacity:.35}}/>
+          <div className="sm">{filter==='done' ? 'ยังไม่มีรายการที่เสร็จแล้ว' : filter==='pending' ? 'ไม่มีรายการที่รอดำเนินการ' : 'ยังไม่มีรายการ'}</div>
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtered.map(todo => (
+            <TodoItem key={todo.id} todo={todo} onToggle={toggleDone} onDelete={deleteTodo} onEdit={editTodo}/>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
