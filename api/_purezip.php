@@ -54,8 +54,8 @@ class PureZip {
         return $local . $cd . $eocd;
     }
 
-    /** อ่าน entry จาก ZIP binary string ตามชื่อไฟล์ */
-    public static function getFromName(string $zip, string $entryName): string|false {
+    /** อ่าน entry จาก ZIP binary string ตามชื่อไฟล์ — คืน string หรือ false */
+    public static function getFromName(string $zip, string $entryName) {
         $len = strlen($zip);
         $eocdOff = false;
         for ($i = $len - 22; $i >= max(0, $len - 65580); $i--) {
