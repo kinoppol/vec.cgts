@@ -166,7 +166,7 @@ function ComplaintForm({ go }) {
   const canNext = () => {
     if(step===0) return !!(data.identity && data.type && data.track && data.cat &&
       data.email.trim() && (data.identity==="anon" || data.name.trim()));
-    if(step===1) return !!(data.subject.trim() && data.detail.trim().length>10);
+    if(step===1) return !!(data.subject.trim() && data.detail.trim().length>=10);
     if(step===2) return !!data.pdpa;
     return true;
   };
