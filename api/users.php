@@ -27,14 +27,25 @@ if ($method === 'POST') {
     $display_name = trim($b['display_name'] ?? '');
     $password     = $b['password']    ?? '';
     $role         = $b['role']        ?? 'officer';
-    $init         = trim($b['init']   ?? '');
-    $job_title    = trim($b['job_title']  ?? '');
-    $group_name   = trim($b['group_name'] ?? '');
     $officer_id   = $b['officer_id']  ?: null;
     $can_mgr      = !empty($b['can_manage_users']) ? 1 : 0;
 
+    // ถ้าเชื่อมกับบุคลากร ดึง display_name/init/job_title/group_name จาก officers อัตโนมัติ
+    $init = null; $job_title = null; $group_name = null;
+    if ($officer_id) {
+        $off = $db->prepare('SELECT name, init, job_title, group_name FROM officers WHERE id=?');
+        $off->execute([$officer_id]);
+        $off = $off->fetch();
+        if ($off) {
+            if ($display_name === '') $display_name = $off['name'];
+            $init       = $off['init']       ?: null;
+            $job_title  = $off['job_title']  ?: null;
+            $group_name = $off['group_name'] ?: null;
+        }
+    }
+
     if ($username === '')     err('กรุณาระบุชื่อผู้ใช้');
-    if ($display_name === '') err('กรุณาระบุชื่อแสดง');
+    if ($display_name === '') err('กรุณาระบุชื่อแสดง (หรือเลือกบุคลากรที่เชื่อมโยง)');
     if (strlen($password) < 6) err('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
     $validRoles = ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
@@ -76,6 +87,19 @@ if ($method === 'PATCH' && $id) {
 
     // ป้องกันแก้ admin ถ้าไม่ใช่ admin
     if ($cur['role'] === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์แก้ไขบัญชี admin', 403);
+
+    // ถ้า officer_id เปลี่ยน ดึง display_name/init/job_title/group_name จาก officers อัตโนมัติ
+    if (array_key_exists('officer_id', $b) && $b['officer_id'] && $b['officer_id'] != $cur['officer_id']) {
+        $off = $db->prepare('SELECT name, init, job_title, group_name FROM officers WHERE id=?');
+        $off->execute([$b['officer_id']]);
+        $off = $off->fetch();
+        if ($off) {
+            if (empty($b['display_name'])) $b['display_name'] = $off['name'];
+            $b['init']       = $off['init']       ?: null;
+            $b['job_title']  = $off['job_title']  ?: null;
+            $b['group_name'] = $off['group_name'] ?: null;
+        }
+    }
 
     $allowed = ['display_name','role','init','job_title','group_name','officer_id','active','can_manage_users'];
     $sets = []; $vals = [];

@@ -6,7 +6,16 @@ const EMPTY_OFFICER = {
   id: '', name: '', job_title: '', duty: '', group_name: '', init: '', active: 1,
 };
 
-/* ── Modal เพิ่ม / แก้ไข นิติกร ─────────────────────────── */
+/* สร้าง ID ถัดไปจากรายการที่มีอยู่ (o1, o2, … → oN+1) */
+function nextOfficer(officers) {
+  const nums = officers
+    .map(o => parseInt((o.id || '').replace(/^o/, ''), 10))
+    .filter(n => !isNaN(n));
+  const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return { ...EMPTY_OFFICER, id: `o${nextNum}`, _new: true };
+}
+
+/* ── Modal เพิ่ม / แก้ไข บุคลากร ─────────────────────────── */
 function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) {
   const isNew = !officer?.id || officer._new;
   const [form, setForm] = React.useState({ ...EMPTY_OFFICER, ...(officer || {}) });
@@ -16,7 +25,7 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
   const set = (k, v) => setForm(s => ({ ...s, [k]: v }));
 
   async function save() {
-    if (!form.id.trim())   { setErr('กรุณาระบุรหัสนิติกร'); return; }
+    if (!form.id.trim())   { setErr('ไม่สามารถระบุรหัสบุคลากรได้'); return; }
     if (!form.name.trim()) { setErr('กรุณาระบุชื่อ-นามสกุล'); return; }
     setBusy(true); setErr('');
     try {
@@ -35,7 +44,7 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
         <div className="modal-h">
           <div className="vcenter">
             <Icon name="users" style={{width:20,height:20,color:'var(--maroon)'}}/>
-            <h3 style={{fontSize:17}}>{isNew ? 'เพิ่มนิติกร' : 'แก้ไขข้อมูลนิติกร'}</h3>
+            <h3 style={{fontSize:17}}>{isNew ? 'เพิ่มบุคลากร' : 'แก้ไขข้อมูลบุคลากร'}</h3>
           </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
@@ -45,11 +54,10 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
 
           <div className="grid" style={{gridTemplateColumns:'1fr 1fr',gap:12}}>
             <label className="lbl">
-              รหัสนิติกร <span style={{color:'var(--red)'}}>*</span>
-              <input className="input" value={form.id} disabled={!isNew}
-                placeholder="เช่น o10"
-                onChange={e=>set('id', e.target.value)}
-                style={!isNew ? {background:'var(--surface-2)',cursor:'default'} : {}}/>
+              รหัสบุคลากร
+              <input className="input" value={form.id} disabled
+                style={{background:'var(--surface-2)',cursor:'default',color:'var(--ink-3)'}}/>
+              {isNew && <span className="tiny muted">สร้างอัตโนมัติ</span>}
             </label>
             <label className="lbl">
               ตัวย่อ (init)
@@ -113,7 +121,7 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
   );
 }
 
-/* ── หน้าหลัก จัดการนิติกร ──────────────────────────────── */
+/* ── หน้าหลัก จัดการบุคลากร ──────────────────────────────── */
 function OfficerManagePage() {
   const [officers, setOfficers]         = React.useState([]);
   const [loading, setLoading]           = React.useState(true);
@@ -167,9 +175,9 @@ function OfficerManagePage() {
 
   return (
     <div className="fade-in">
-      <PageHead title="จัดการข้อมูลนิติกร" sub="เพิ่ม แก้ไข และบริหารรายชื่อนิติกร/ผู้รับผิดชอบสำนวน">
-        <button className="btn btn-primary" onClick={()=>setModal({...EMPTY_OFFICER, _new:true})}>
-          <Icon name="filePlus" style={{width:16,height:16}}/> เพิ่มนิติกร
+      <PageHead title="จัดการข้อมูลบุคลากร" sub="เพิ่ม แก้ไข และบริหารรายชื่อบุคลากร/ผู้รับผิดชอบสำนวน">
+        <button className="btn btn-primary" onClick={()=>setModal(nextOfficer(officers))}>
+          <Icon name="filePlus" style={{width:16,height:16}}/> เพิ่มบุคลากร
         </button>
       </PageHead>
 

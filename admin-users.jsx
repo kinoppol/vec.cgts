@@ -36,12 +36,12 @@ function LookupSelect({ value, items, placeholder, onChange, style }) {
 }
 
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onSave, onAvatarChange, onClose }) {
+function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose }) {
   const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
     username:'', display_name:'', role:'officer',
-    init:'', job_title:'', group_name:'', officer_id:'', can_manage_users:false, active:true, password:''
+    officer_id:'', can_manage_users:false, active:true, password:''
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
@@ -49,6 +49,15 @@ function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onS
   const fileRef = useRef(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  /* เมื่อเลือกบุคลากร ให้ auto-fill display_name จากชื่อบุคลากร */
+  const handleOfficerChange = (oid) => {
+    set('officer_id', oid);
+    if (oid) {
+      const off = (officers||[]).find(o => o.id === oid);
+      if (off) set('display_name', off.name);
+    }
+  };
 
   const pickAvatar = async e => {
     const file = e.target.files?.[0];
@@ -82,8 +91,7 @@ function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onS
       if (isNew) {
         saved = await apiFetch('/api/users.php', { method:'POST', body: JSON.stringify(form) });
       } else {
-        const patch = { display_name:form.display_name, role:form.role, init:form.init,
-                        job_title:form.job_title||'', group_name:form.group_name||'',
+        const patch = { display_name:form.display_name, role:form.role,
                         officer_id:form.officer_id||null, active:form.active?1:0,
                         can_manage_users:form.can_manage_users?1:0 };
         saved = await apiFetch('/api/users.php?id='+user.id, { method:'PATCH', body: JSON.stringify(patch) });
@@ -93,9 +101,11 @@ function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onS
     setSaving(false);
   };
 
+  const linkedOfficer = (officers||[]).find(o => o.id === form.officer_id);
+
   return (
     <div style={OVERLAY_STYLE} onClick={onClose}>
-      <div style={{...BOX_STYLE_BASE, maxWidth:520}} onClick={e=>e.stopPropagation()}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:480}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
           <h3 style={{margin:0,fontSize:17}}>{isNew ? 'เพิ่มผู้ใช้ใหม่' : 'แก้ไขผู้ใช้'}</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
@@ -124,36 +134,10 @@ function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onS
             </div>
           )}
 
-          <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
-            <div className="field">
-              <label>ชื่อผู้ใช้ <span className="req">*</span></label>
-              <input className="input" value={form.username} onChange={e=>set('username',e.target.value)}
-                disabled={!isNew} required placeholder="a-z, 0-9, _"/>
-            </div>
-            <div className="field">
-              <label>ตัวย่อ</label>
-              <input className="input" value={form.init||''} onChange={e=>set('init',e.target.value)} maxLength={5} placeholder="เช่น วว"/>
-            </div>
-          </div>
-
           <div className="field">
-            <label>ชื่อแสดง <span className="req">*</span></label>
-            <input className="input" value={form.display_name} onChange={e=>set('display_name',e.target.value)} required/>
-          </div>
-
-          <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
-            <div className="field">
-              <label>ตำแหน่ง</label>
-              <LookupSelect value={form.job_title||''} items={lookupTitles||[]}
-                placeholder="— เลือกตำแหน่ง —"
-                onChange={v=>set('job_title',v)}/>
-            </div>
-            <div className="field">
-              <label>ชื่อกลุ่ม / หน่วยงาน</label>
-              <LookupSelect value={form.group_name||''} items={lookupGroups||[]}
-                placeholder="— เลือกกลุ่มงาน —"
-                onChange={v=>set('group_name',v)}/>
-            </div>
+            <label>ชื่อผู้ใช้ <span className="req">*</span></label>
+            <input className="input" value={form.username} onChange={e=>set('username',e.target.value)}
+              disabled={!isNew} required placeholder="a-z, 0-9, _"/>
           </div>
 
           {isNew && (
@@ -173,13 +157,20 @@ function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onS
               </select>
             </div>
             <div className="field">
-              <label>เชื่อมกับนิติกร</label>
-              <select className="input" value={form.officer_id||''} onChange={e=>set('officer_id',e.target.value)}>
-                <option value="">— ไม่มี —</option>
+              <label>เชื่อมโยงกับบุคลากร</label>
+              <select className="input" value={form.officer_id||''} onChange={e=>handleOfficerChange(e.target.value)}>
+                <option value="">— ไม่ระบุ —</option>
                 {(officers||[]).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
             </div>
           </div>
+
+          {linkedOfficer && (
+            <div className="notice" style={{background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:13}}>
+              <Icon name="users" style={{width:14,height:14,color:'var(--maroon)',flexShrink:0}}/>
+              <span className="muted">ชื่อแสดง ตำแหน่ง และกลุ่มงานดึงจากข้อมูลบุคลากรโดยอัตโนมัติ</span>
+            </div>
+          )}
 
           <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
             <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
@@ -270,8 +261,6 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [lookupGroups, setLookupGroups] = useState([]);
-  const [lookupTitles, setLookupTitles] = useState([]);
   const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset', user?}
   const [search, setSearch]     = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -282,11 +271,7 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       .then(setUsers).catch(console.error)
       .finally(() => setLoading(false));
   };
-  useEffect(() => {
-    load();
-    api.getLookups('group_name').then(setLookupGroups).catch(()=>{});
-    api.getLookups('job_title').then(setLookupTitles).catch(()=>{});
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const handleSave = (saved, isNew) => {
     setUsers(us => isNew ? [...us, saved] : us.map(u => u.id === saved.id ? saved : u));
@@ -366,11 +351,6 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
                         <div>
                           <div style={{fontWeight:600}}>{u.display_name}</div>
                           <div className="faint tiny">{u.username}</div>
-                          {(u.job_title || u.group_name) && (
-                            <div className="faint tiny" style={{marginTop:1}}>
-                              {[u.job_title, u.group_name].filter(Boolean).join(' · ')}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -418,12 +398,10 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
 
       {modal?.type === 'add' && (
         <UserModal officers={officers} roleLabels={roleLabels}
-          lookupGroups={lookupGroups} lookupTitles={lookupTitles}
           onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
         <UserModal user={modal.user} officers={officers} roleLabels={roleLabels}
-          lookupGroups={lookupGroups} lookupTitles={lookupTitles}
           onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (

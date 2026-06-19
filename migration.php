@@ -463,7 +463,7 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $statu
           <div class="step-title">เพิ่มคอลัมน์ <code>duty</code> และ <code>active</code> ใน <code>officers</code></div>
           <div class="step-desc">
             <code>duty</code> — หน้าที่/ตำแหน่งในหน้าที่ (กรณีมีตำแหน่งบริหารเพิ่มเติม)<br>
-            <code>active</code> — สถานะปฏิบัติงาน (0 = ไม่ active) จัดการได้ในเมนู "จัดการนิติกร"
+            <code>active</code> — สถานะปฏิบัติงาน (0 = ไม่ active) จัดการได้ในเมนู "จัดการบุคลากร"
           </div>
           <span class="step-badge <?= !empty($status['officer_cols']) ? 'badge-done' : 'badge-pending' ?>">
             <?= !empty($status['officer_cols']) ? '✓ มีคอลัมน์นี้แล้ว' : '⏳ ยังไม่ได้เพิ่ม' ?>

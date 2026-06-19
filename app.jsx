@@ -101,7 +101,7 @@ function navFor(role, counts, user) {
   if (role === "admin") return [
     {sec:"ระบบ"},
     {v:"users",        ic:"users",       l:"จัดการผู้ใช้"},
-    {v:"officers-mgt", ic:"gavel",      l:"จัดการนิติกร"},
+    {v:"officers-mgt", ic:"gavel",      l:"จัดการบุคลากร"},
     {v:"lookup",       ic:"filter",     l:"รายการอ้างอิง"},
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
@@ -356,7 +356,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
-    "officers-mgt":"จัดการนิติกร", lookup:"รายการอ้างอิง",
+    "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง",
   }[view] || "";
 
   let content;
