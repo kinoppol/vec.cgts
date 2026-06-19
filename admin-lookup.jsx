@@ -119,12 +119,37 @@ function LookupSection({ cat, label, icon, desc }) {
 
 /* ── หน้าหลัก ────────────────────────────────────────────── */
 function LookupManagePage() {
+  const [exporting, setExporting] = React.useState(false);
+
+  const doExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/lookup.php?action=export', { credentials: 'same-origin' });
+      if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || 'ส่งออกไม่สำเร็จ'); }
+      const blob = await res.blob();
+      const cd   = res.headers.get('Content-Disposition') || '';
+      const m    = cd.match(/filename="([^"]+)"/);
+      const name = m ? m[1] : 'lookups.zip';
+      const a    = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) { alert(e.message); }
+    setExporting(false);
+  };
+
   return (
     <div className="fade-in">
-      <PageHead title="จัดการรายการอ้างอิง" sub="ชื่อกลุ่มงาน และ ชื่อตำแหน่ง ที่ใช้เป็นตัวเลือก dropdown ในฟอร์มต่าง ๆ"/>
+      <PageHead title="จัดการรายการอ้างอิง" sub="ชื่อกลุ่มงาน และ ชื่อตำแหน่ง ที่ใช้เป็นตัวเลือก dropdown ในฟอร์มต่าง ๆ">
+        <button className="btn btn-outline" onClick={doExport} disabled={exporting}>
+          <Icon name="download" style={{width:15,height:15}}/>
+          {exporting ? 'กำลังส่งออก…' : 'ส่งออก ZIP'}
+        </button>
+      </PageHead>
       <div className="notice notice-info" style={{marginBottom:18}}>
         <Icon name="info"/>
-        <div>รายการที่เพิ่มที่นี่จะปรากฏเป็นตัวเลือกในฟอร์มเพิ่ม/แก้ไข <b>ผู้ใช้งาน</b> และ <b>นิติกร</b> ทันที</div>
+        <div>รายการที่เพิ่มที่นี่จะปรากฏเป็นตัวเลือกในฟอร์มเพิ่ม/แก้ไข <b>ผู้ใช้งาน</b> และ <b>บุคลากร</b> ทันที</div>
       </div>
       <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'flex-start'}}>
         {LOOKUP_CATS.map(c => <LookupSection key={c.cat} {...c}/>)}

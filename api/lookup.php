@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/_purezip.php';
 $actor  = require_auth();
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
@@ -10,6 +11,46 @@ $VALID_CATS = ['group_name', 'job_title'];
 function needAdmin($actor) {
     if ($actor['role'] !== 'admin' && empty($actor['can_manage_users']))
         err('ไม่มีสิทธิ์จัดการรายการอ้างอิง', 403);
+}
+
+/* ── GET ?action=export — ส่งออก ZIP ────────────────────── */
+if ($method === 'GET' && ($_GET['action'] ?? '') === 'export') {
+    needAdmin($actor);
+
+    $rows = $db->query(
+        "SELECT id, category, name, sort_order, active
+         FROM lookup_items
+         ORDER BY category, sort_order, name"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $bycat = [];
+    foreach ($rows as $r) {
+        $bycat[$r['category']][] = [
+            'id'         => (int)$r['id'],
+            'name'       => $r['name'],
+            'sort_order' => (int)$r['sort_order'],
+            'active'     => (int)$r['active'],
+        ];
+    }
+
+    $zip = new PureZip();
+    $zip->addFromString('lookups.json',
+        json_encode([
+            'exported_at' => date('c'),
+            'categories'  => $bycat,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+
+    $bytes = $zip->bytes();
+    audit('lookup_export', 'all', count($rows) . ' items');
+
+    $filename = 'lookups_' . date('Ymd_His') . '.zip';
+    ob_end_clean();
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Length: ' . strlen($bytes));
+    header('Cache-Control: no-store');
+    echo $bytes;
+    exit;
 }
 
 /* ── GET ?cat= — รายการในหมวดนั้น ───────────────────────── */
