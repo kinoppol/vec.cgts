@@ -228,6 +228,8 @@ function ComplaintForm({ go }) {
   );
 }
 
+const filterEmail = v => v.replace(/[^\x21-\x7E]/g, '').replace(/\s/g, '');
+
 function Step1({ data, set }) {
   const types = [
     {v:"complaint", t:"ร้องเรียน", d:"แจ้งเรื่องการกระทำที่ไม่ถูกต้อง ทุจริต หรือประพฤติมิชอบ"},
@@ -270,7 +272,7 @@ function Step1({ data, set }) {
             <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div className="field">
                 <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
-                <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
+                <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",filterEmail(e.target.value))} />
               </div>
               <div className="field">
                 <label>เบอร์โทรศัพท์</label>
@@ -281,7 +283,7 @@ function Step1({ data, set }) {
           {data.identity==="anon" &&
             <div className="field">
               <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
-              <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
+              <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",filterEmail(e.target.value))} />
               <span className="help">ใช้รับแจ้งสถานะและรับหมายเลขติดตามเรื่อง — จะไม่เปิดเผยต่อผู้ถูกร้อง</span>
             </div>}
         </div>}
