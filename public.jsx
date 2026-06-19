@@ -350,23 +350,22 @@ function Step3({ data, set }) {
         ? <div className="notice notice-warn"><Icon name="user"/><div>ท่านเลือกยื่นแบบ <b>ไม่ประสงค์ออกนาม</b> — ไม่ต้องระบุชื่อ-นามสกุล ระบุเพียงอีเมลเพื่อติดต่อกลับและแจ้งผล (อีเมลจะถูกปกปิดจากผู้ถูกร้อง)</div></div>
         : <div className="notice notice-info"><Icon name="shieldCheck"/><div>ข้อมูลของท่านจะถูกเก็บเป็นความลับ เปิดเผยเฉพาะเจ้าหน้าที่ผู้รับผิดชอบตามสิทธิ์เท่านั้น</div></div>}
 
-      {data.identity!=="anon" &&
+      {data.identity!=="anon" && <>
         <div className="field">
           <label>ชื่อ–นามสกุล ผู้ร้อง <span className="req">*</span></label>
           <input className="input" placeholder="ระบุชื่อจริง" value={data.name} onChange={e=>set("name",e.target.value)} />
-        </div>}
+        </div>
+        <div className="field">
+          <label>ตำแหน่ง</label>
+          <input className="input" placeholder="เช่น ครู / เจ้าหน้าที่ / นักศึกษา (ถ้ามี)" value={data.position||""} onChange={e=>set("position",e.target.value)} />
+        </div>
+      </>}
 
       <div className="field">
         <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
         <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
         <span className="help">ใช้รับแจ้งสถานะและรับหมายเลขติดตามเรื่อง</span>
       </div>
-
-      {data.identity!=="anon" &&
-        <div className="field">
-          <label>เบอร์โทรศัพท์</label>
-          <input className="input" placeholder="08x-xxx-xxxx (ถ้ามี)" value={data.phone} onChange={e=>set("phone",e.target.value)} />
-        </div>}
 
       <hr className="hr"/>
       <div className={"check "+(data.pdpa?"on":"")} onClick={()=>set("pdpa",!data.pdpa)} style={{alignItems:"flex-start"}}>
@@ -390,8 +389,8 @@ function Step4({ data }) {
         <dt>หน่วยงานเกี่ยวข้อง</dt><dd>{data.agency||"—"}</dd>
         <dt>รายละเอียด</dt><dd style={{fontWeight:400,color:"var(--ink-2)"}}>{data.detail||"—"}</dd>
         <dt>ไฟล์แนบ</dt><dd>{data.files.length?data.files.map(f=>f.n).join(", "):"ไม่มี"}</dd>
-        <dt>ผู้ร้อง</dt><dd>{data.identity==="anon"?"ไม่ประสงค์ออกนาม":(data.name||"—")}</dd>
-        <dt>ช่องทางติดต่อ</dt><dd>{data.email}{data.phone?" · "+data.phone:""}</dd>
+        <dt>ผู้ร้อง</dt><dd>{data.identity==="anon"?"ไม่ประสงค์ออกนาม":(data.name||"—")}{data.position?" · "+data.position:""}</dd>
+        <dt>อีเมลติดต่อกลับ</dt><dd>{data.email||"—"}</dd>
       </dl>
     </div>
   );
