@@ -42,6 +42,15 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
+-- role_labels: ชื่อแสดงสำหรับบทบาท (ปรับแต่งได้)
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS role_labels (
+  role  VARCHAR(50)  NOT NULL,
+  label VARCHAR(200) NOT NULL,
+  PRIMARY KEY (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
 -- cases: สำนวน/เรื่องร้องเรียน
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cases (

@@ -25,6 +25,14 @@ if (!empty($_SESSION['user_id'])) {
         $initialUser = $stmt->fetch() ?: null;
     } catch (Throwable) {}
 }
+
+// โหลดชื่อบทบาทจาก DB (fallback เป็น {} ถ้าตารางยังไม่มี)
+$initialRoleLabels = [];
+try {
+    $db   = getDB();
+    $rows = $db->query('SELECT role, label FROM role_labels')->fetchAll();
+    foreach ($rows as $r) $initialRoleLabels[$r['role']] = $r['label'];
+} catch (Throwable) {}
 ?>
 <!doctype html>
 <html lang="th">
@@ -42,9 +50,10 @@ if (!empty($_SESSION['user_id'])) {
 <div id="root"></div>
 <!-- ข้อมูลผู้ใช้เริ่มต้น (server-injected) -->
 <script>
-window.__INITIAL_USER__ = <?= json_encode($initialUser, JSON_UNESCAPED_UNICODE) ?>;
-window.__APP_BASE__ = <?= json_encode(rtrim(dirname($_SERVER['PHP_SELF']), '/\\'), JSON_UNESCAPED_UNICODE) ?>;
-window.__APP_VERSION__ = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE) ?>;
+window.__INITIAL_USER__  = <?= json_encode($initialUser,      JSON_UNESCAPED_UNICODE) ?>;
+window.__ROLE_LABELS__   = <?= json_encode($initialRoleLabels, JSON_UNESCAPED_UNICODE) ?>;
+window.__APP_BASE__      = <?= json_encode(rtrim(dirname($_SERVER['PHP_SELF']), '/\\'), JSON_UNESCAPED_UNICODE) ?>;
+window.__APP_VERSION__   = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
@@ -58,7 +67,7 @@ window.__APP_VERSION__ = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE) ?
         crossorigin="anonymous"></script>
 
 <?php
-$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','app'];
+$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','admin-roles','app'];
 foreach ($jsxFiles as $f):
     $mt = filemtime(__DIR__ . "/{$f}.jsx");
 ?>

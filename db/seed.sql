@@ -165,6 +165,18 @@ INSERT INTO sla_settings (track, cat, days, note) VALUES
 ON DUPLICATE KEY UPDATE days=VALUES(days);
 
 -- ----------------------------------------------------------------
+-- role_labels (ชื่อบทบาทเริ่มต้น)
+-- ----------------------------------------------------------------
+INSERT INTO role_labels (role, label) VALUES
+('officer',          'เจ้าหน้าที่นิติการ / ธุรการ'),
+('dir_legal',        'ผอ.กลุ่มนิติการ'),
+('dir_admin',        'ผอ.สำนักอำนวยการ'),
+('secretary',        'เลขาธิการ สอศ.'),
+('deputy_secretary', 'รองเลขาธิการ สอศ.'),
+('admin',            'ผู้ดูแลระบบ')
+ON DUPLICATE KEY UPDATE label=VALUES(label);
+
+-- ----------------------------------------------------------------
 -- Case files
 -- ----------------------------------------------------------------
 INSERT INTO case_files (case_id, filename, size_label, cls) VALUES

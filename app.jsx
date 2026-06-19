@@ -92,14 +92,6 @@ function AdminLogin({ go, onLogin }) {
 }
 
 /* ---------------- Admin shell ---------------- */
-const ROLE_LABELS = {
-  officer:          "เจ้าหน้าที่นิติการ / ธุรการ",
-  dir_legal:        "ผอ.กลุ่มนิติการ",
-  dir_admin:        "ผอ.สำนักอำนวยการ",
-  secretary:        "เลขาธิการ สอศ.",
-  deputy_secretary: "รองเลขาธิการ สอศ.",
-  admin:            "ผู้ดูแลระบบ",
-};
 
 function canManageUsers(user) {
   return user?.role === 'admin' || !!user?.can_manage_users;
@@ -109,6 +101,7 @@ function navFor(role, counts, user) {
   if (role === "admin") return [
     {sec:"ระบบ"},
     {v:"users",     ic:"users",       l:"จัดการผู้ใช้"},
+    {v:"roles",     ic:"flag",        l:"ชื่อบทบาท"},
     {v:"todos",     ic:"checkCircle", l:"รายการที่ต้องทำ"},
     {v:"sla",       ic:"settings",    l:"ตั้งค่า SLA"},
     {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
@@ -281,7 +274,7 @@ function ProfileModal({ user, onSave, onClose }) {
 }
 
 /* ---------------- User menu (dropdown) ---------------- */
-function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
+function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -304,7 +297,7 @@ function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
         ) : (
           <div style={{flex:1,minWidth:0}}>
             <div className="sm" style={{fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.display_name}</div>
-            <div className="faint tiny">{ROLE_LABELS[role]}</div>
+            <div className="faint tiny">{roleLabel(role, roleLabels)}</div>
           </div>
         )}
         <Icon name="chevD" style={{width:14,height:14,flexShrink:0,opacity:.6}}/>
@@ -325,11 +318,12 @@ function UserMenu({ user, role, onEditProfile, onLogout, size = "md" }) {
 
 function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const role = user.role;
-  const [view, setView]         = useState("dashboard");
-  const [sel,  setSel]          = useState(null);
-  const [cases, setCases]       = useState([]);
-  const [officers, setOfficers] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [view, setView]             = useState("dashboard");
+  const [sel,  setSel]              = useState(null);
+  const [cases, setCases]           = useState([]);
+  const [officers, setOfficers]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [roleLabels, setRoleLabels] = useState(window.__ROLE_LABELS__ || {});
 
   useEffect(() => {
     Promise.all([api.getCases(), api.getOfficers()])
@@ -359,7 +353,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
-    todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA",
+    todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
   }[view] || "";
 
   let content;
@@ -382,7 +376,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "reports") {
     content = <ReportCenter role={role}/>;
   } else if (view === "users" && canManageUsers(user)) {
-    content = <UserManagementPage currentUser={user} officers={officers}/>;
+    content = <UserManagementPage currentUser={user} officers={officers} roleLabels={roleLabels}/>;
+  } else if (view === "roles" && role === "admin") {
+    content = <RoleLabelsPage roleLabels={roleLabels} onUpdate={setRoleLabels}/>;
   } else if (view === "todos") {
     content = <TodoPage/>;
   } else if (view === "sla" && (role === "admin" || role === "dir_legal")) {
@@ -427,13 +423,13 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       <main>
         <div className="topbar">
           <div className="vcenter" style={{gap:12}}>
-            <span className="badge badge-maroon"><Icon name="shield" style={{width:13,height:13}}/> {ROLE_LABELS[role]}</span>
+            <span className="badge badge-maroon"><Icon name="shield" style={{width:13,height:13}}/> {roleLabel(role, roleLabels)}</span>
             <span className="faint sm">/ {sectionTitle}</span>
           </div>
           <div className="vcenter" style={{gap:12}}>
             <ThemeToggle theme={theme} setTheme={setTheme}/>
             <button className="icon-btn" style={{position:"relative"}}><Icon name="bell"/><span style={{position:"absolute",top:8,right:9,width:7,height:7,borderRadius:"50%",background:"var(--danger)"}}></span></button>
-            <UserMenu user={user} role={role} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} size="sm"/>
+            <UserMenu user={user} role={role} roleLabels={roleLabels} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} size="sm"/>
           </div>
         </div>
         <div className="content">{content}</div>

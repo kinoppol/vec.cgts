@@ -2,14 +2,6 @@
    admin-users.jsx — จัดการผู้ใช้งานระบบ
    ============================================================ */
 
-const ROLE_OPTS = [
-  { v:'officer',          l:'เจ้าหน้าที่นิติการ / ธุรการ' },
-  { v:'dir_legal',        l:'ผอ.กลุ่มนิติการ' },
-  { v:'dir_admin',        l:'ผอ.สำนักอำนวยการ' },
-  { v:'secretary',        l:'เลขาธิการ สอศ.' },
-  { v:'deputy_secretary', l:'รองเลขาธิการ สอศ.' },
-  { v:'admin',            l:'ผู้ดูแลระบบ' },
-];
 const ROLE_BADGE = {
   officer:          'badge',
   dir_legal:        'badge-info',
@@ -32,7 +24,8 @@ const BOX_STYLE_BASE = {
 };
 
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
+function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose }) {
+  const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
     username:'', display_name:'', role:'officer',
@@ -162,7 +155,7 @@ function UserModal({ user, officers, onSave, onAvatarChange, onClose }) {
             <div className="field">
               <label>บทบาท</label>
               <select className="input" value={form.role} onChange={e=>set('role',e.target.value)}>
-                {ROLE_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+                {roleOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
               </select>
             </div>
             <div className="field">
@@ -259,7 +252,8 @@ function ResetPassModal({ user, onClose }) {
 }
 
 /* ---------- หน้าหลัก ---------- */
-function UserManagementPage({ currentUser, officers }) {
+function UserManagementPage({ currentUser, officers, roleLabels }) {
+  const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset', user?}
@@ -322,7 +316,7 @@ function UserManagementPage({ currentUser, officers }) {
           value={search} onChange={e=>setSearch(e.target.value)}/>
         <select className="input" style={{maxWidth:200}} value={filterRole} onChange={e=>setFilterRole(e.target.value)}>
           <option value="">ทุกบทบาท</option>
-          {ROLE_OPTS.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+          {roleOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
         <span className="faint sm">{visible.length} บัญชี</span>
       </div>
@@ -361,7 +355,7 @@ function UserManagementPage({ currentUser, officers }) {
                       </div>
                     </td>
                     <td><span className={'badge ' + (ROLE_BADGE[u.role]||'badge')}>
-                      {ROLE_OPTS.find(r=>r.v===u.role)?.l || u.role}
+                      {roleLabel(u.role, roleLabels)}
                     </span></td>
                     <td>
                       {u.can_manage_users ? <span className="badge badge-info"><Icon name="shieldCheck" style={{width:11,height:11}}/> จัดการผู้ใช้</span> : <span className="faint tiny">—</span>}
@@ -403,10 +397,10 @@ function UserManagementPage({ currentUser, officers }) {
       </div>
 
       {modal?.type === 'add' && (
-        <UserModal officers={officers} onSave={handleSave} onClose={() => setModal(null)}/>
+        <UserModal officers={officers} roleLabels={roleLabels} onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
-        <UserModal user={modal.user} officers={officers} onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
+        <UserModal user={modal.user} officers={officers} roleLabels={roleLabels} onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (
         <ResetPassModal user={modal.user} onClose={() => setModal(null)}/>

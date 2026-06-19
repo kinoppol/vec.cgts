@@ -138,6 +138,8 @@ const api = {
   deleteTodo:     (id)    => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
   getSlaSettings: ()      => apiFetch('/api/sla.php'),
   saveSlaSettings:(data)  => apiFetch('/api/sla.php', { method:'POST', body: JSON.stringify(data) }),
+  getRoleLabels:  ()      => apiFetch('/api/role_labels.php'),
+  saveRoleLabel:  (data)  => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)
@@ -180,8 +182,21 @@ function LoadingSpinner() {
   );
 }
 
+/* ---------------- Role label helpers ---------------- */
+const DEFAULT_ROLE_LABELS = {
+  officer:          'เจ้าหน้าที่นิติการ / ธุรการ',
+  dir_legal:        'ผอ.กลุ่มนิติการ',
+  dir_admin:        'ผอ.สำนักอำนวยการ',
+  secretary:        'เลขาธิการ สอศ.',
+  deputy_secretary: 'รองเลขาธิการ สอศ.',
+  admin:            'ผู้ดูแลระบบ',
+};
+const ROLE_ORDER = ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+function roleLabel(role, rl) { return (rl && rl[role]) || DEFAULT_ROLE_LABELS[role] || role; }
+
 Object.assign(window, {
   React, useState, useEffect, useRef, useMemo, useCallback, createContext, useContext,
   Icon, P, STATUS, STEPS, TRACKS, CHANNELS, CLASS,
   api, apiFetch, officerById, thDate, StatusBadge, SLAText, PriBadge, LoadingSpinner, avatarUrl,
+  DEFAULT_ROLE_LABELS, ROLE_ORDER, roleLabel,
 });

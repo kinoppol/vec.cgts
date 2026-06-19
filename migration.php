@@ -114,6 +114,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS group_name VARCHAR(200) DEFAULT NULL AFTER job_title");
         $log[] = ['ok' => true, 'msg' => 'เพิ่มคอลัมน์ job_title, group_name ใน users สำเร็จ'];
 
+        /* ---- ขั้นตอนที่ 6: สร้างตาราง role_labels + ข้อมูลเริ่มต้น ---- */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS role_labels (
+              role  VARCHAR(50)  NOT NULL,
+              label VARCHAR(200) NOT NULL,
+              PRIMARY KEY (role)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            INSERT INTO role_labels (role, label) VALUES
+              ('officer',          'เจ้าหน้าที่นิติการ / ธุรการ'),
+              ('dir_legal',        'ผอ.กลุ่มนิติการ'),
+              ('dir_admin',        'ผอ.สำนักอำนวยการ'),
+              ('secretary',        'เลขาธิการ สอศ.'),
+              ('deputy_secretary', 'รองเลขาธิการ สอศ.'),
+              ('admin',            'ผู้ดูแลระบบ')
+            ON DUPLICATE KEY UPDATE label=VALUES(label)
+        ");
+        $log[] = ['ok' => true, 'msg' => 'สร้าง / ยืนยันตาราง role_labels พร้อมข้อมูลเริ่มต้น 6 บทบาท สำเร็จ'];
+
         ob_end_clean();
         echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
 
@@ -154,9 +174,18 @@ try {
     $cols = $pdo->query("SHOW COLUMNS FROM users WHERE Field IN ('job_title','group_name')")->fetchAll();
     $status['profile_cols'] = count($cols) >= 2;
 
+    // ตรวจ role_labels
+    $r3 = $pdo->query("SHOW TABLES LIKE 'role_labels'")->fetch();
+    if ($r3) {
+        $status['role_labels'] = (int)$pdo->query("SELECT COUNT(*) FROM role_labels")->fetchColumn();
+    } else {
+        $status['role_labels'] = 0;
+    }
+
 } catch (Throwable) {}
 
-$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8 && $status['profile_cols'];
+$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8
+        && $status['profile_cols'] && $status['role_labels'] >= 6;
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -360,6 +389,23 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $statu
             จัดการได้โดย Admin ในหน้า "จัดการผู้ใช้งาน"</div>
           <span class="step-badge <?= $status['profile_cols'] ? 'badge-done' : 'badge-pending' ?>">
             <?= $status['profile_cols'] ? '✓ มีคอลัมน์นี้แล้ว' : '⏳ ยังไม่ได้เพิ่ม' ?>
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step-row">
+        <div class="step-num <?= $status['role_labels'] >= 6 ? 'done' : '' ?>">
+          <?= $status['role_labels'] >= 6 ? '✓' : '6' ?>
+        </div>
+        <div class="step-body">
+          <div class="step-title">สร้างตาราง <code>role_labels</code> พร้อมชื่อบทบาทเริ่มต้น</div>
+          <div class="step-desc">
+            เก็บชื่อที่แสดงสำหรับแต่ละบทบาทผู้ใช้งาน (6 บทบาท)<br>
+            ปรับได้โดย <b>ผู้ดูแลระบบ</b> ในเมนู "ชื่อบทบาท"
+          </div>
+          <span class="step-badge <?= $status['role_labels'] >= 6 ? 'badge-done' : 'badge-pending' ?>">
+            <?= $status['role_labels'] >= 6 ? "✓ มีข้อมูล {$status['role_labels']} บทบาทแล้ว" : "⏳ พบ {$status['role_labels']} บทบาท (ต้องการ 6)" ?>
           </span>
         </div>
       </div>
