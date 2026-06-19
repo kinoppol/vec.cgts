@@ -23,8 +23,20 @@ const BOX_STYLE_BASE = {
   width:'100%', maxHeight:'90vh',
 };
 
+/* ---------- helper: select ที่รองรับค่าเดิมที่ไม่อยู่ใน list ---------- */
+function LookupSelect({ value, items, placeholder, onChange, style }) {
+  const inList = items.some(x => x.name === value);
+  return (
+    <select className="input" value={value || ''} onChange={e => onChange(e.target.value)} style={style}>
+      <option value="">{placeholder || '— เลือก —'}</option>
+      {!inList && value && <option value={value}>{value} (ค่าเดิม)</option>}
+      {items.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}
+    </select>
+  );
+}
+
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose }) {
+function UserModal({ user, officers, roleLabels, lookupGroups, lookupTitles, onSave, onAvatarChange, onClose }) {
   const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
@@ -132,13 +144,15 @@ function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose
           <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
             <div className="field">
               <label>ตำแหน่ง</label>
-              <input className="input" value={form.job_title||''} onChange={e=>set('job_title',e.target.value)}
-                placeholder="เช่น นิติกรชำนาญการ"/>
+              <LookupSelect value={form.job_title||''} items={lookupTitles||[]}
+                placeholder="— เลือกตำแหน่ง —"
+                onChange={v=>set('job_title',v)}/>
             </div>
             <div className="field">
               <label>ชื่อกลุ่ม / หน่วยงาน</label>
-              <input className="input" value={form.group_name||''} onChange={e=>set('group_name',e.target.value)}
-                placeholder="เช่น กลุ่มนิติการ"/>
+              <LookupSelect value={form.group_name||''} items={lookupGroups||[]}
+                placeholder="— เลือกกลุ่มงาน —"
+                onChange={v=>set('group_name',v)}/>
             </div>
           </div>
 
@@ -254,8 +268,10 @@ function ResetPassModal({ user, onClose }) {
 /* ---------- หน้าหลัก ---------- */
 function UserManagementPage({ currentUser, officers, roleLabels }) {
   const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
-  const [users, setUsers]       = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [users, setUsers]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [lookupGroups, setLookupGroups] = useState([]);
+  const [lookupTitles, setLookupTitles] = useState([]);
   const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset', user?}
   const [search, setSearch]     = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -266,7 +282,11 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       .then(setUsers).catch(console.error)
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    api.getLookups('group_name').then(setLookupGroups).catch(()=>{});
+    api.getLookups('job_title').then(setLookupTitles).catch(()=>{});
+  }, []);
 
   const handleSave = (saved, isNew) => {
     setUsers(us => isNew ? [...us, saved] : us.map(u => u.id === saved.id ? saved : u));
@@ -397,10 +417,14 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       </div>
 
       {modal?.type === 'add' && (
-        <UserModal officers={officers} roleLabels={roleLabels} onSave={handleSave} onClose={() => setModal(null)}/>
+        <UserModal officers={officers} roleLabels={roleLabels}
+          lookupGroups={lookupGroups} lookupTitles={lookupTitles}
+          onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
-        <UserModal user={modal.user} officers={officers} roleLabels={roleLabels} onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
+        <UserModal user={modal.user} officers={officers} roleLabels={roleLabels}
+          lookupGroups={lookupGroups} lookupTitles={lookupTitles}
+          onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (
         <ResetPassModal user={modal.user} onClose={() => setModal(null)}/>
@@ -409,4 +433,4 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   );
 }
 
-Object.assign(window, { UserManagementPage });
+Object.assign(window, { LookupSelect, UserManagementPage });

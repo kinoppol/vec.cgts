@@ -44,6 +44,19 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
+-- lookup_items: รายการอ้างอิง (กลุ่มงาน / ตำแหน่ง) สำหรับ dropdown
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lookup_items (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  category   VARCHAR(50)  NOT NULL,  -- 'group_name' | 'job_title'
+  name       VARCHAR(200) NOT NULL,
+  sort_order SMALLINT     NOT NULL DEFAULT 0,
+  active     TINYINT(1)   NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  KEY idx_lookup_cat (category, active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
 -- role_labels: ชื่อแสดงสำหรับบทบาท (ปรับแต่งได้)
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS role_labels (

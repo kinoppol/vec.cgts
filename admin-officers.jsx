@@ -2,17 +2,12 @@
    admin-officers.jsx — หน้าจัดการข้อมูลนิติกร (Admin)
    ============================================================ */
 
-const GROUP_OPTS = [
-  { v: 'กลุ่มงานกฎหมายและระเบียบ', l: 'กลุ่มงานกฎหมายและระเบียบ (สายกฎหมาย)' },
-  { v: 'กลุ่มงานวินัย',             l: 'กลุ่มงานวินัย (สายวินัย)' },
-];
-
 const EMPTY_OFFICER = {
-  id: '', name: '', job_title: '', duty: '', group_name: 'กลุ่มงานกฎหมายและระเบียบ', init: '', active: 1,
+  id: '', name: '', job_title: '', duty: '', group_name: '', init: '', active: 1,
 };
 
 /* ── Modal เพิ่ม / แก้ไข นิติกร ─────────────────────────── */
-function OfficerModal({ officer, onSave, onClose }) {
+function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) {
   const isNew = !officer?.id || officer._new;
   const [form, setForm] = React.useState({ ...EMPTY_OFFICER, ...(officer || {}) });
   const [busy, setBusy] = React.useState(false);
@@ -71,8 +66,14 @@ function OfficerModal({ officer, onSave, onClose }) {
 
           <label className="lbl">
             ตำแหน่ง (job_title)
-            <input className="input" value={form.job_title} placeholder="นิติกรปฏิบัติการ"
-              onChange={e=>set('job_title', e.target.value)}/>
+            {lookupTitles && lookupTitles.length > 0 ? (
+              <LookupSelect value={form.job_title||''} items={lookupTitles}
+                placeholder="— เลือกตำแหน่ง —"
+                onChange={v=>set('job_title', v)}/>
+            ) : (
+              <input className="input" value={form.job_title} placeholder="นิติกรปฏิบัติการ"
+                onChange={e=>set('job_title', e.target.value)}/>
+            )}
           </label>
 
           <label className="lbl">
@@ -84,9 +85,14 @@ function OfficerModal({ officer, onSave, onClose }) {
 
           <label className="lbl">
             กลุ่มงาน (สำหรับกรองสายงาน)
-            <select className="input" value={form.group_name} onChange={e=>set('group_name', e.target.value)}>
-              {GROUP_OPTS.map(g=><option key={g.v} value={g.v}>{g.l}</option>)}
-            </select>
+            {lookupGroups && lookupGroups.length > 0 ? (
+              <LookupSelect value={form.group_name||''} items={lookupGroups}
+                placeholder="— เลือกกลุ่มงาน —"
+                onChange={v=>set('group_name', v)}/>
+            ) : (
+              <input className="input" value={form.group_name} placeholder="กลุ่มงาน..."
+                onChange={e=>set('group_name', e.target.value)}/>
+            )}
           </label>
 
           <label className="lbl" style={{flexDirection:'row',alignItems:'center',gap:10,cursor:'pointer'}}>
@@ -109,16 +115,24 @@ function OfficerModal({ officer, onSave, onClose }) {
 
 /* ── หน้าหลัก จัดการนิติกร ──────────────────────────────── */
 function OfficerManagePage() {
-  const [officers, setOfficers] = React.useState([]);
-  const [loading, setLoading]   = React.useState(true);
-  const [modal, setModal]       = React.useState(null);   // null | officer obj | {_new:true}
-  const [q, setQ]               = React.useState('');
-  const [grpFilter, setGrpFilter] = React.useState('');
+  const [officers, setOfficers]         = React.useState([]);
+  const [loading, setLoading]           = React.useState(true);
+  const [modal, setModal]               = React.useState(null);
+  const [q, setQ]                       = React.useState('');
+  const [grpFilter, setGrpFilter]       = React.useState('');
   const [showInactive, setShowInactive] = React.useState(false);
-  const [busy, setBusy]         = React.useState('');
+  const [busy, setBusy]                 = React.useState('');
+  const [lookupGroups, setLookupGroups] = React.useState([]);
+  const [lookupTitles, setLookupTitles] = React.useState([]);
 
   React.useEffect(() => {
-    api.listAllOfficers().then(data => { setOfficers(data); setLoading(false); });
+    Promise.all([
+      api.listAllOfficers(),
+      api.getLookups('group_name'),
+      api.getLookups('job_title'),
+    ]).then(([data, g, t]) => {
+      setOfficers(data); setLookupGroups(g); setLookupTitles(t); setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   function handleSaved(saved) {
@@ -253,6 +267,8 @@ function OfficerManagePage() {
       {modal && (
         <OfficerModal
           officer={modal}
+          lookupGroups={lookupGroups}
+          lookupTitles={lookupTitles}
           onSave={handleSaved}
           onClose={()=>setModal(null)}
         />

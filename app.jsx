@@ -102,6 +102,7 @@ function navFor(role, counts, user) {
     {sec:"ระบบ"},
     {v:"users",        ic:"users",       l:"จัดการผู้ใช้"},
     {v:"officers-mgt", ic:"gavel",      l:"จัดการนิติกร"},
+    {v:"lookup",       ic:"filter",     l:"รายการอ้างอิง"},
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",       ic:"settings",    l:"ตั้งค่า SLA"},
@@ -354,7 +355,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
-    todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท", "officers-mgt":"จัดการนิติกร",
+    todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
+    "officers-mgt":"จัดการนิติกร", lookup:"รายการอ้างอิง",
   }[view] || "";
 
   let content;
@@ -380,6 +382,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <UserManagementPage currentUser={user} officers={officers} roleLabels={roleLabels}/>;
   } else if (view === "officers-mgt" && role === "admin") {
     content = <OfficerManagePage/>;
+  } else if (view === "lookup" && role === "admin") {
+    content = <LookupManagePage/>;
   } else if (view === "roles" && role === "admin") {
     content = <RoleLabelsPage roleLabels={roleLabels} onUpdate={setRoleLabels}/>;
   } else if (view === "todos") {

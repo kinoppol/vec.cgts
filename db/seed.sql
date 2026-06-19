@@ -168,6 +168,20 @@ INSERT INTO sla_settings (track, cat, days, note) VALUES
 ON DUPLICATE KEY UPDATE days=VALUES(days);
 
 -- ----------------------------------------------------------------
+-- lookup_items (รายการอ้างอิง dropdown)
+-- ----------------------------------------------------------------
+INSERT INTO lookup_items (category, name, sort_order) VALUES
+('group_name', 'กลุ่มงานกฎหมายและระเบียบ', 1),
+('group_name', 'กลุ่มงานวินัย',             2),
+('group_name', 'ฝ่ายบริหารงานทั่วไป',       3),
+('job_title',  'นิติกรชำนาญการพิเศษ',       1),
+('job_title',  'นิติกรชำนาญการ',            2),
+('job_title',  'นิติกรปฏิบัติการ',          3),
+('job_title',  'พนักงานบริหารทั่วไป',       4),
+('job_title',  'นักวิชาการศึกษา',           5)
+ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order);
+
+-- ----------------------------------------------------------------
 -- role_labels (ชื่อบทบาทเริ่มต้น)
 -- ----------------------------------------------------------------
 INSERT INTO role_labels (role, label) VALUES

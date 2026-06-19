@@ -139,6 +139,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         $pdo->exec("ALTER TABLE officers ADD COLUMN IF NOT EXISTS active TINYINT(1)   NOT NULL DEFAULT 1 AFTER init");
         $log[] = ['ok' => true, 'msg' => 'เพิ่มคอลัมน์ duty, active ใน officers สำเร็จ'];
 
+        /* ---- ขั้นตอนที่ 8: สร้างตาราง lookup_items + ข้อมูลเริ่มต้น ---- */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS lookup_items (
+              id         INT          NOT NULL AUTO_INCREMENT,
+              category   VARCHAR(50)  NOT NULL,
+              name       VARCHAR(200) NOT NULL,
+              sort_order SMALLINT     NOT NULL DEFAULT 0,
+              active     TINYINT(1)   NOT NULL DEFAULT 1,
+              PRIMARY KEY (id),
+              KEY idx_lookup_cat (category, active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            INSERT INTO lookup_items (category, name, sort_order) VALUES
+              ('group_name', 'กลุ่มงานกฎหมายและระเบียบ', 1),
+              ('group_name', 'กลุ่มงานวินัย',             2),
+              ('group_name', 'ฝ่ายบริหารงานทั่วไป',       3),
+              ('job_title',  'นิติกรชำนาญการพิเศษ',       1),
+              ('job_title',  'นิติกรชำนาญการ',            2),
+              ('job_title',  'นิติกรปฏิบัติการ',          3),
+              ('job_title',  'พนักงานบริหารทั่วไป',       4),
+              ('job_title',  'นักวิชาการศึกษา',           5)
+            ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order)
+        ");
+        $log[] = ['ok' => true, 'msg' => 'สร้าง / ยืนยันตาราง lookup_items พร้อมข้อมูลเริ่มต้น 8 รายการ สำเร็จ'];
+
         ob_end_clean();
         echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
 
@@ -191,10 +217,19 @@ try {
     $ocols = $pdo->query("SHOW COLUMNS FROM officers WHERE Field IN ('duty','active')")->fetchAll();
     $status['officer_cols'] = count($ocols) >= 2;
 
+    // ตรวจ lookup_items
+    $r4 = $pdo->query("SHOW TABLES LIKE 'lookup_items'")->fetch();
+    if ($r4) {
+        $status['lookup_items'] = (int)$pdo->query("SELECT COUNT(*) FROM lookup_items WHERE active=1")->fetchColumn();
+    } else {
+        $status['lookup_items'] = 0;
+    }
+
 } catch (Throwable) {}
 
 $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8
-        && $status['profile_cols'] && $status['role_labels'] >= 6 && $status['officer_cols'];
+        && $status['profile_cols'] && $status['role_labels'] >= 6
+        && $status['officer_cols'] && $status['lookup_items'] >= 8;
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -432,6 +467,23 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $statu
           </div>
           <span class="step-badge <?= !empty($status['officer_cols']) ? 'badge-done' : 'badge-pending' ?>">
             <?= !empty($status['officer_cols']) ? '✓ มีคอลัมน์นี้แล้ว' : '⏳ ยังไม่ได้เพิ่ม' ?>
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step-row">
+        <div class="step-num <?= $status['lookup_items'] >= 8 ? 'done' : '' ?>">
+          <?= $status['lookup_items'] >= 8 ? '✓' : '8' ?>
+        </div>
+        <div class="step-body">
+          <div class="step-title">สร้างตาราง <code>lookup_items</code> พร้อมรายการอ้างอิงเริ่มต้น</div>
+          <div class="step-desc">
+            เก็บรายการ dropdown สำหรับ <b>ชื่อกลุ่มงาน</b> (3 รายการ) และ <b>ชื่อตำแหน่ง</b> (5 รายการ)<br>
+            จัดการได้โดย <b>ผู้ดูแลระบบ</b> ในเมนู "รายการอ้างอิง"
+          </div>
+          <span class="step-badge <?= $status['lookup_items'] >= 8 ? 'badge-done' : 'badge-pending' ?>">
+            <?= $status['lookup_items'] >= 8 ? "✓ มีรายการ {$status['lookup_items']} รายการแล้ว" : "⏳ พบ {$status['lookup_items']} รายการ (ต้องการ 8)" ?>
           </span>
         </div>
       </div>
