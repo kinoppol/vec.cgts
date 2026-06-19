@@ -307,7 +307,8 @@ function AssignModal({ c, officers, close, onAssign }) {
                 <span className="avatar">{o.init}</span>
                 <div style={{flex:1}}>
                   <div className="between"><div className="ct">{o.name}</div><span className="badge">{o.load} เรื่องในมือ</span></div>
-                  <div className="cd">{o.role}</div>
+                  <div className="cd">{o.duty || o.role}</div>
+                  {o.duty && <div className="cd" style={{fontSize:11,opacity:.7}}>{o.role}</div>}
                 </div>
               </div>
             ))}

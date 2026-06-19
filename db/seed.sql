@@ -3,15 +3,17 @@ USE vec_cgts;
 -- ----------------------------------------------------------------
 -- Officers (นิติกร)
 -- ----------------------------------------------------------------
-INSERT INTO officers (id, name, job_title, group_name, init) VALUES
-('o1', 'นางสาวเยาวริดา พิณสายแก้ว',       'นิติกรชำนาญการพิเศษ',      'กลุ่มงานกฎหมายและระเบียบ', 'ยร'),
-('o2', 'นายณวณ เจริญหลาย',                 'นิติกรชำนาญการปฏิบัติการ', 'กลุ่มงานกฎหมายและระเบียบ', 'ณว'),
-('o3', 'นายศิวกร เพชรสีเงิน',              'นิติกรชำนาญการปฏิบัติการ', 'กลุ่มงานกฎหมายและระเบียบ', 'ศก'),
-('o4', 'นางสาวภานิชา จันทราทิพย์',         'นิติกรชำนาญการปฏิบัติการ', 'กลุ่มงานวินัย',             'ภน'),
-('o5', 'นางสาวจิดาภา ทองศรีสังข์',         'พนักงานบริหารทั่วไป',      'กลุ่มงานวินัย',             'จด'),
-('o6', 'นางสาวกาญจนา อนันต์โก',            'พนักงานบริหารทั่วไป',      'กลุ่มงานวินัย',             'กญ'),
-('o7', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',  'พนักงานบริหารทั่วไป',      'กลุ่มงานวินัย',             'ชก')
-ON DUPLICATE KEY UPDATE name=VALUES(name), job_title=VALUES(job_title), group_name=VALUES(group_name), init=VALUES(init);
+INSERT INTO officers (id, name, job_title, duty, group_name, init, active) VALUES
+('o1', 'นางสาวเยาวริดา พิณสายแก้ว',      'นิติกรชำนาญการพิเศษ',      NULL,                                                                                          'กลุ่มงานกฎหมายและระเบียบ', 'ยร', 0),
+('o2', 'นายณวณ เจริญหลาย',               'นิติกรปฏิบัติการ',          'ผู้อำนวยการกลุ่มงานนิติกรรมสัญญาและคดี',                                                     'กลุ่มงานกฎหมายและระเบียบ', 'ณว', 1),
+('o3', 'นายศิวกร เพ็ชรสีเงิน',            'นิติกรปฏิบัติการ',          'ผู้อำนวยการกลุ่มงานพัฒนากฎหมาย',                                                             'กลุ่มงานกฎหมายและระเบียบ', 'ศก', 1),
+('o4', 'นางสาวภานิชา จันทราทิพย์',        'นิติกรปฏิบัติการ',          NULL,                                                                                          'กลุ่มงานกฎหมายและระเบียบ', 'ภน', 1),
+('o5', 'นางสาวจิดาภา ทองศรีสังข์',        'พนักงานบริหารทั่วไป',       NULL,                                                                                          'กลุ่มงานวินัย',             'จด', 1),
+('o6', 'นางสาวกาญจนา อนันต์โท',           'พนักงานบริหารทั่วไป',       NULL,                                                                                          'กลุ่มงานวินัย',             'กญ', 1),
+('o7', 'นางสาวโชติกา วิริยะจีระพิพัฒน์', 'พนักงานบริหารทั่วไป',       NULL,                                                                                          'กลุ่มงานวินัย',             'ชก', 1),
+('o8', 'นายวรวุฒิ ดำขำ',                  'นิติกรชำนาญการพิเศษ',       'ผู้อำนวยการสำนักนิติการ / ผู้อำนวยการกลุ่มงานวินัย อุทธรณ์ ร้องทุกข์',                    'กลุ่มงานวินัย',             'วว', 1),
+('o9', 'นางสาวกรกรรณ ใยชันธ์',            'นิติกรปฏิบัติการ',          NULL,                                                                                          'กลุ่มงานวินัย',             'กก', 1)
+ON DUPLICATE KEY UPDATE name=VALUES(name), job_title=VALUES(job_title), duty=VALUES(duty), group_name=VALUES(group_name), init=VALUES(init), active=VALUES(active);
 
 -- ----------------------------------------------------------------
 -- Users (บัญชีผู้ใช้งาน) — password = "password" (bcrypt)
@@ -23,14 +25,15 @@ INSERT INTO users (username, password_hash, display_name, role, init, officer_id
 ('sanga',       '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายสง่า แต่เชื้อสาย',                 'deputy_secretary', 'สง', NULL, 0),
 ('narongchai',  '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณรงค์ชัย เจริญรุจิทรัพย์',        'deputy_secretary', 'ณช', NULL, 0),
 ('dir_admin',   '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้อำนวยการสำนักอำนวยการ',           'dir_admin',        'ผอ', NULL, 0),
-('wornwut',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวรวุฒิ ดำขา',                     'dir_legal',        'วว', NULL, 0),
+('wornwut',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวรวุฒิ ดำขำ',                     'dir_legal',        'วว', 'o8', 0),
 ('yawrata',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวเยาวริดา พิณสายแก้ว',          'officer',          'ยร', 'o1', 0),
 ('nawan',       '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณวณ เจริญหลาย',                   'officer',          'ณว', 'o2', 0),
-('siwakorn',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายศิวกร เพชรสีเงิน',                'officer',          'ศก', 'o3', 0),
+('siwakorn',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายศิวกร เพ็ชรสีเงิน',               'officer',          'ศก', 'o3', 0),
 ('panisa',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวภานิชา จันทราทิพย์',           'officer',          'ภน', 'o4', 0),
 ('jidapa',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวจิดาภา ทองศรีสังข์',           'officer',          'จด', 'o5', 0),
-('kanjana',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกาญจนา อนันต์โก',              'officer',          'กญ', 'o6', 0),
-('chotika',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',    'officer',          'ชก', 'o7', 0)
+('kanjana',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกาญจนา อนันต์โท',              'officer',          'กญ', 'o6', 0),
+('chotika',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',    'officer',          'ชก', 'o7', 0),
+('korrakarn',   '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกรกรรณ ใยชันธ์',               'officer',          'กก', 'o9', 0)
 ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), init=VALUES(init), officer_id=VALUES(officer_id), can_manage_users=VALUES(can_manage_users);
 
 -- ----------------------------------------------------------------

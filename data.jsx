@@ -138,8 +138,12 @@ const api = {
   deleteTodo:     (id)    => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
   getSlaSettings: ()      => apiFetch('/api/sla.php'),
   saveSlaSettings:(data)  => apiFetch('/api/sla.php', { method:'POST', body: JSON.stringify(data) }),
-  getRoleLabels:  ()      => apiFetch('/api/role_labels.php'),
-  saveRoleLabel:  (data)  => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
+  getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),
+  saveRoleLabel:     (data)     => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
+  listAllOfficers:   ()         => apiFetch('/api/officers.php?all=1'),
+  createOfficer:     (data)     => apiFetch('/api/officers.php', { method:'POST', body: JSON.stringify(data) }),
+  updateOfficer:     (id, data) => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
+  deactivateOfficer: (id)       => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)

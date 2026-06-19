@@ -134,6 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         ");
         $log[] = ['ok' => true, 'msg' => 'สร้าง / ยืนยันตาราง role_labels พร้อมข้อมูลเริ่มต้น 6 บทบาท สำเร็จ'];
 
+        /* ---- ขั้นตอนที่ 7: เพิ่มคอลัมน์ duty และ active ใน officers ---- */
+        $pdo->exec("ALTER TABLE officers ADD COLUMN IF NOT EXISTS duty   VARCHAR(200) DEFAULT NULL AFTER job_title");
+        $pdo->exec("ALTER TABLE officers ADD COLUMN IF NOT EXISTS active TINYINT(1)   NOT NULL DEFAULT 1 AFTER init");
+        $log[] = ['ok' => true, 'msg' => 'เพิ่มคอลัมน์ duty, active ใน officers สำเร็จ'];
+
         ob_end_clean();
         echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
 
@@ -182,10 +187,14 @@ try {
         $status['role_labels'] = 0;
     }
 
+    // ตรวจคอลัมน์ duty, active ใน officers
+    $ocols = $pdo->query("SHOW COLUMNS FROM officers WHERE Field IN ('duty','active')")->fetchAll();
+    $status['officer_cols'] = count($ocols) >= 2;
+
 } catch (Throwable) {}
 
 $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8
-        && $status['profile_cols'] && $status['role_labels'] >= 6;
+        && $status['profile_cols'] && $status['role_labels'] >= 6 && $status['officer_cols'];
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -406,6 +415,23 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $statu
           </div>
           <span class="step-badge <?= $status['role_labels'] >= 6 ? 'badge-done' : 'badge-pending' ?>">
             <?= $status['role_labels'] >= 6 ? "✓ มีข้อมูล {$status['role_labels']} บทบาทแล้ว" : "⏳ พบ {$status['role_labels']} บทบาท (ต้องการ 6)" ?>
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step-row">
+        <div class="step-num <?= !empty($status['officer_cols']) ? 'done' : '' ?>">
+          <?= !empty($status['officer_cols']) ? '✓' : '7' ?>
+        </div>
+        <div class="step-body">
+          <div class="step-title">เพิ่มคอลัมน์ <code>duty</code> และ <code>active</code> ใน <code>officers</code></div>
+          <div class="step-desc">
+            <code>duty</code> — หน้าที่/ตำแหน่งในหน้าที่ (กรณีมีตำแหน่งบริหารเพิ่มเติม)<br>
+            <code>active</code> — สถานะปฏิบัติงาน (0 = ไม่ active) จัดการได้ในเมนู "จัดการนิติกร"
+          </div>
+          <span class="step-badge <?= !empty($status['officer_cols']) ? 'badge-done' : 'badge-pending' ?>">
+            <?= !empty($status['officer_cols']) ? '✓ มีคอลัมน์นี้แล้ว' : '⏳ ยังไม่ได้เพิ่ม' ?>
           </span>
         </div>
       </div>

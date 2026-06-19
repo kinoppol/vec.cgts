@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS officers (
   id         VARCHAR(10)  NOT NULL,
   name       VARCHAR(200) NOT NULL,
   job_title  VARCHAR(100) DEFAULT NULL,
+  duty       VARCHAR(200) DEFAULT NULL,
   group_name VARCHAR(200) DEFAULT NULL,
   init       VARCHAR(10)  DEFAULT NULL,
+  active     TINYINT(1)   NOT NULL DEFAULT 1,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
