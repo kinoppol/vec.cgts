@@ -236,23 +236,23 @@ function Step1({ data, set }) {
     <div className="grid" style={{gap:24}}>
       <div>
         <h3 style={{fontSize:16,marginBottom:4}}>1. เลือกวิธีการยื่นเรื่อง</h3>
-        <p className="muted sm" style={{marginBottom:14}}>เพื่อความน่าเชื่อถือและลดสแปม แนะนำให้ยืนยันตัวตน แต่ท่านสามารถเลือกไม่ประสงค์ออกนามได้</p>
+        <p className="muted sm" style={{marginBottom:14}}>ระบุตัวตนเพื่อความน่าเชื่อถือ หรือเลือกไม่ประสงค์ออกนามได้ — ทั้งสองกรณีต้องให้อีเมลสำหรับติดต่อกลับ</p>
         <div className="choices" style={{gridTemplateColumns:"1fr 1fr"}}>
-          <div className={"choice "+(data.identity==="google"?"active":"")} onClick={()=>set("identity","google")}>
+          <div className={"choice "+(data.identity==="named"?"active":"")} onClick={()=>set("identity","named")}>
             <span className="radio"></span>
-            <Icon name="google" style={{width:20,height:20,flex:"none",marginTop:1}}/>
-            <div style={{flex:1,minWidth:0}}><div className="ct">ยืนยันตัวตน</div><div className="cd">เข้าสู่ระบบด้วยบัญชี Google ของท่าน</div></div>
+            <Icon name="shieldCheck" style={{width:20,height:20,flex:"none",marginTop:1,color:"var(--maroon)"}}/>
+            <div style={{flex:1,minWidth:0}}><div className="ct">ระบุตัวตน</div><div className="cd">ระบุชื่อ–นามสกุล และอีเมลสำหรับติดต่อกลับ</div></div>
           </div>
           <div className={"choice "+(data.identity==="anon"?"active":"")} onClick={()=>set("identity","anon")}>
             <span className="radio"></span>
             <Icon name="user" style={{width:20,height:20,flex:"none",marginTop:1,color:"var(--maroon)"}}/>
-            <div style={{flex:1,minWidth:0}}><div className="ct">ไม่ประสงค์ออกนาม</div><div className="cd">ไม่เปิดเผยชื่อ แต่ต้องระบุช่องทางติดต่อกลับ</div></div>
+            <div style={{flex:1,minWidth:0}}><div className="ct">ไม่ประสงค์ออกนาม</div><div className="cd">ไม่เปิดเผยชื่อ ระบุเพียงอีเมลสำหรับติดต่อกลับ</div></div>
           </div>
         </div>
-        {data.identity==="google" &&
-          <div className="notice notice-ok" style={{marginTop:12}}><Icon name="checkCircle"/><div>จำลองการเข้าสู่ระบบสำเร็จในฐานะ <b>ผู้ใช้ที่ยืนยันตัวตน</b> — ข้อมูลบัญชีจะถูกผูกกับเรื่องโดยอัตโนมัติ</div></div>}
+        {data.identity==="named" &&
+          <div className="notice notice-info" style={{marginTop:12}}><Icon name="shieldCheck"/><div>ข้อมูลของท่านจะถูกเก็บเป็นความลับ เปิดเผยเฉพาะเจ้าหน้าที่ผู้รับผิดชอบตามสิทธิ์เท่านั้น</div></div>}
         {data.identity==="anon" &&
-          <div className="notice notice-warn" style={{marginTop:12}}><Icon name="info"/><div>การยื่นแบบไม่ประสงค์ออกนามจะถูกตรวจสอบความน่าเชื่อถือเข้มข้นขึ้น และต้องผ่านการยืนยันว่าไม่ใช่บอท (CAPTCHA)</div></div>}
+          <div className="notice notice-warn" style={{marginTop:12}}><Icon name="info"/><div>การยื่นแบบไม่ประสงค์ออกนามจะถูกตรวจสอบความน่าเชื่อถือเข้มข้นขึ้น และอาจมีการขอข้อมูลเพิ่มเติมผ่านอีเมล</div></div>}
       </div>
 
       <hr className="hr"/>
@@ -347,7 +347,7 @@ function Step3({ data, set }) {
   return (
     <div className="grid" style={{gap:18}}>
       {data.identity==="anon"
-        ? <div className="notice notice-warn"><Icon name="user"/><div>ท่านเลือกยื่นแบบ <b>ไม่ประสงค์ออกนาม</b> — ไม่ต้องระบุชื่อ แต่ต้องให้ช่องทางติดต่อกลับเพื่อแจ้งผลและขอข้อมูลเพิ่มเติม (ข้อมูลติดต่อจะถูกปกปิดจากผู้ถูกร้อง)</div></div>
+        ? <div className="notice notice-warn"><Icon name="user"/><div>ท่านเลือกยื่นแบบ <b>ไม่ประสงค์ออกนาม</b> — ไม่ต้องระบุชื่อ-นามสกุล ระบุเพียงอีเมลเพื่อติดต่อกลับและแจ้งผล (อีเมลจะถูกปกปิดจากผู้ถูกร้อง)</div></div>
         : <div className="notice notice-info"><Icon name="shieldCheck"/><div>ข้อมูลของท่านจะถูกเก็บเป็นความลับ เปิดเผยเฉพาะเจ้าหน้าที่ผู้รับผิดชอบตามสิทธิ์เท่านั้น</div></div>}
 
       {data.identity!=="anon" &&
@@ -356,28 +356,23 @@ function Step3({ data, set }) {
           <input className="input" placeholder="ระบุชื่อจริง" value={data.name} onChange={e=>set("name",e.target.value)} />
         </div>}
 
-      <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
-        <div className="field">
-          <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
-          <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
-          <span className="help">ใช้ยืนยันและติดตามสถานะเรื่อง</span>
-        </div>
+      <div className="field">
+        <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
+        <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
+        <span className="help">ใช้รับแจ้งสถานะและรับหมายเลขติดตามเรื่อง</span>
+      </div>
+
+      {data.identity!=="anon" &&
         <div className="field">
           <label>เบอร์โทรศัพท์</label>
           <input className="input" placeholder="08x-xxx-xxxx (ถ้ามี)" value={data.phone} onChange={e=>set("phone",e.target.value)} />
-        </div>
-      </div>
+        </div>}
 
       <hr className="hr"/>
       <div className={"check "+(data.pdpa?"on":"")} onClick={()=>set("pdpa",!data.pdpa)} style={{alignItems:"flex-start"}}>
         <span className="box"><Icon name="check"/></span>
         <span>ข้าพเจ้ายินยอมให้สำนักงานคณะกรรมการการอาชีวศึกษาเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลข้างต้น เพื่อวัตถุประสงค์ในการพิจารณาและดำเนินการเรื่องร้องเรียน–ร้องทุกข์เท่านั้น ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 <span className="req">*</span></span>
       </div>
-      {data.identity==="anon" &&
-        <div className="card" style={{padding:"14px 16px",background:"var(--surface-2)",display:"flex",gap:12,alignItems:"center"}}>
-          <span className="check on" style={{pointerEvents:"none"}}><span className="box"><Icon name="check"/></span></span>
-          <span className="sm muted">ยืนยันว่าไม่ใช่บอท (CAPTCHA จำลองผ่านแล้ว)</span>
-        </div>}
     </div>
   );
 }
@@ -388,7 +383,7 @@ function Step4({ data }) {
     <div className="grid" style={{gap:20}}>
       <div className="notice notice-info"><Icon name="info"/><div>โปรดตรวจทานข้อมูลก่อนยืนยัน เมื่อยื่นแล้วระบบจะออกรหัสติดตาม (Ticket) และส่งอีเมลยืนยันให้ท่าน</div></div>
       <dl className="kv">
-        <dt>วิธีการยื่น</dt><dd>{data.identity==="google"?"ยืนยันตัวตน (Google)":"ไม่ประสงค์ออกนาม"}</dd>
+        <dt>วิธีการยื่น</dt><dd>{data.identity==="named"?"ระบุตัวตน":"ไม่ประสงค์ออกนาม"}</dd>
         <dt>ประเภทเรื่อง</dt><dd>{typeLabel}</dd>
         <dt>สายงาน</dt><dd>{data.track?TRACKS[data.track].label+" · "+data.cat:"—"}</dd>
         <dt>หัวข้อเรื่อง</dt><dd>{data.subject||"—"}</dd>
