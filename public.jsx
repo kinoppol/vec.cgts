@@ -161,7 +161,7 @@ function ComplaintForm({ go }) {
   });
   const [ticket, setTicket] = useState("");
   const set = (k,v) => setData(d=>({...d,[k]:v}));
-  const steps = ["วิธียื่น & ข้อมูลผู้ร้อง","รายละเอียดเรื่อง","ยืนยันตัวเอง & ยินยอม","ทบทวนและยืนยัน"];
+  const steps = ["วิธียื่น & ข้อมูลผู้ร้อง","รายละเอียดเรื่อง","ยินยอม PDPA","ทบทวนและยืนยัน"];
 
   const canNext = () => {
     if(step===0) return !!(data.identity && data.type && data.track && data.cat &&
