@@ -151,6 +151,20 @@ INSERT INTO case_events (case_id, title, actor, moment, detail, ev_status, icon,
 ('CMP-2568-0108','พิจารณาอุทธรณ์','สมหญิง วินัยธรรม','กำลังดำเนินการ','','active','clock',3);
 
 -- ----------------------------------------------------------------
+-- SLA settings (ค่าเริ่มต้น)
+-- ----------------------------------------------------------------
+INSERT INTO sla_settings (track, cat, days, note) VALUES
+('discipline', 'งานร้องเรียน',          90, NULL),
+('discipline', 'งานวินัย',             120, NULL),
+('discipline', 'งานอุทธรณ์',            60, NULL),
+('discipline', 'งานร้องทุกข์',          90, NULL),
+('legal',      'ระเบียบ/กฎหมาย/คำสั่ง', 30, NULL),
+('legal',      'นิติกรรมสัญญา',         30, NULL),
+('legal',      'คดีปกครอง/แพ่ง/อาญา',  60, NULL),
+('legal',      'ความรับผิดทางละเมิด',   90, NULL)
+ON DUPLICATE KEY UPDATE days=VALUES(days);
+
+-- ----------------------------------------------------------------
 -- Case files
 -- ----------------------------------------------------------------
 INSERT INTO case_files (case_id, filename, size_label, cls) VALUES

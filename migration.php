@@ -7,6 +7,7 @@
  *   1. สร้างตาราง todo_items (รายการที่ต้องทำ สำหรับ admin)
  *   2. เพิ่ม ENUM role: secretary, deputy_secretary
  *   3. เพิ่มผู้ใช้ เลขาธิการ และ รองเลขาธิการ สอศ. (ถ้ายังไม่มี)
+ *   4. สร้างตาราง sla_settings พร้อมข้อมูลเริ่มต้น
  */
 
 date_default_timezone_set('Asia/Bangkok');
@@ -79,6 +80,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
         }
         $log[] = ['ok' => true, 'msg' => 'เพิ่ม / อัปเดตผู้ใช้ 4 บัญชี (เลขาธิการ + รองเลขาธิการ) สำเร็จ'];
 
+        /* ---- ขั้นตอนที่ 4: ตาราง sla_settings + ข้อมูลเริ่มต้น ---- */
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS sla_settings (
+              id          INT          NOT NULL AUTO_INCREMENT,
+              track       ENUM('discipline','legal') NOT NULL,
+              cat         VARCHAR(100) NOT NULL,
+              days        INT          NOT NULL DEFAULT 30,
+              note        VARCHAR(300) DEFAULT NULL,
+              updated_by  INT          DEFAULT NULL,
+              updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uq_sla_track_cat (track, cat),
+              CONSTRAINT fk_sla_user FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        $pdo->exec("
+            INSERT INTO sla_settings (track, cat, days, note) VALUES
+              ('discipline','งานร้องเรียน',           90, NULL),
+              ('discipline','งานวินัย',               120, NULL),
+              ('discipline','งานอุทธรณ์',              60, NULL),
+              ('discipline','งานร้องทุกข์',            90, NULL),
+              ('legal','ระเบียบ/กฎหมาย/คำสั่ง',       30, NULL),
+              ('legal','นิติกรรมสัญญา',                30, NULL),
+              ('legal','คดีปกครอง/แพ่ง/อาญา',         60, NULL),
+              ('legal','ความรับผิดทางละเมิด',          90, NULL)
+            ON DUPLICATE KEY UPDATE days=VALUES(days)
+        ");
+        $log[] = ['ok' => true, 'msg' => 'สร้าง / ยืนยันตาราง sla_settings พร้อมข้อมูลเริ่มต้น 8 หมวด สำเร็จ'];
+
         ob_end_clean();
         echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
 
@@ -93,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'migra
 /* --------------------------------------------------------
    ตรวจสอบสถานะปัจจุบัน (เพื่อแสดงก่อนรัน)
 -------------------------------------------------------- */
-$status = ['todo' => false, 'enum' => false, 'users' => 0];
+$status = ['todo' => false, 'enum' => false, 'users' => 0, 'sla' => 0];
 try {
     $pdo = getDB();
 
@@ -109,9 +139,15 @@ try {
     $cnt = $pdo->query("SELECT COUNT(*) FROM users WHERE role IN ('secretary','deputy_secretary')")->fetchColumn();
     $status['users'] = (int)$cnt;
 
+    // ตรวจ sla_settings
+    $r2 = $pdo->query("SHOW TABLES LIKE 'sla_settings'")->fetch();
+    if ($r2) {
+        $status['sla'] = (int)$pdo->query("SELECT COUNT(*) FROM sla_settings")->fetchColumn();
+    }
+
 } catch (Throwable) {}
 
-$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4;
+$allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4 && $status['sla'] >= 8;
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -282,6 +318,24 @@ $allDone = $status['todo'] && $status['enum'] && $status['users'] >= 4;
           </div>
           <span class="step-badge <?= $status['users'] >= 4 ? 'badge-done' : 'badge-pending' ?>">
             <?= $status['users'] >= 4 ? "✓ มีผู้ใช้ {$status['users']} บัญชีแล้ว" : "⏳ พบ {$status['users']} บัญชี (ต้องการ 4)" ?>
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-row">
+        <div class="step-num <?= $status['sla'] >= 8 ? 'done' : '' ?>">
+          <?= $status['sla'] >= 8 ? '✓' : '4' ?>
+        </div>
+        <div class="step-body">
+          <div class="step-title">สร้างตาราง <code>sla_settings</code> พร้อมข้อมูลเริ่มต้น</div>
+          <div class="step-desc">
+            ตั้งค่าระยะเวลา SLA (จำนวนวัน) สำหรับแต่ละสายงานและหมวดงาน<br>
+            ค่าเริ่มต้น 8 หมวด: งานร้องเรียน/วินัย/อุทธรณ์/ร้องทุกข์ และ ระเบียบ/สัญญา/คดี/ละเมิด<br>
+            ปรับได้โดย <b>ผอ.กลุ่มนิติการ</b> และ <b>ผู้ดูแลระบบ</b> ในเมนู "ตั้งค่า SLA"
+          </div>
+          <span class="step-badge <?= $status['sla'] >= 8 ? 'badge-done' : 'badge-pending' ?>">
+            <?= $status['sla'] >= 8 ? "✓ มีข้อมูล {$status['sla']} หมวดแล้ว" : "⏳ พบ {$status['sla']} หมวด (ต้องการ 8)" ?>
           </span>
         </div>
       </div>

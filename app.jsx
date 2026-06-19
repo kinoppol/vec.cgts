@@ -110,6 +110,7 @@ function navFor(role, counts, user) {
     {sec:"ระบบ"},
     {v:"users",     ic:"users",       l:"จัดการผู้ใช้"},
     {v:"todos",     ic:"checkCircle", l:"รายการที่ต้องทำ"},
+    {v:"sla",       ic:"settings",    l:"ตั้งค่า SLA"},
     {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
     {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
     {v:"reports",   ic:"chart",       l:"รายงาน"},
@@ -130,6 +131,7 @@ function navFor(role, counts, user) {
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
     {sec:"ระบบ"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
+    {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
   ];
   return [
     {sec:"ภาพรวมผู้บริหาร"},
@@ -357,7 +359,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
-    todos:"รายการที่ต้องทำ",
+    todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA",
   }[view] || "";
 
   let content;
@@ -383,6 +385,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <UserManagementPage currentUser={user} officers={officers}/>;
   } else if (view === "todos") {
     content = <TodoPage/>;
+  } else if (view === "sla" && (role === "admin" || role === "dir_legal")) {
+    content = <SlaSettingsPage currentUser={user}/>;
   }
 
   const [showProfile, setShowProfile] = useState(false);

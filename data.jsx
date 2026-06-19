@@ -132,10 +132,12 @@ const api = {
   updateCase:  (id, data) => apiFetch('/api/cases.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
   getOfficers: ()         => apiFetch('/api/officers.php'),
   trackCase:   (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
-  listTodos:   ()         => apiFetch('/api/todos.php'),
-  createTodo:  (data)     => apiFetch('/api/todos.php', { method:'POST', body: JSON.stringify(data) }),
+  listTodos:      ()       => apiFetch('/api/todos.php'),
+  createTodo:     (data)  => apiFetch('/api/todos.php', { method:'POST', body: JSON.stringify(data) }),
   patchTodo:   (id, data) => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
-  deleteTodo:  (id)       => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
+  deleteTodo:     (id)    => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
+  getSlaSettings: ()      => apiFetch('/api/sla.php'),
+  saveSlaSettings:(data)  => apiFetch('/api/sla.php', { method:'POST', body: JSON.stringify(data) }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)

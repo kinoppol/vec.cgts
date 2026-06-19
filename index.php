@@ -58,7 +58,7 @@ window.__APP_VERSION__ = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE) ?
         crossorigin="anonymous"></script>
 
 <?php
-$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','app'];
+$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','app'];
 foreach ($jsxFiles as $f):
     $mt = filemtime(__DIR__ . "/{$f}.jsx");
 ?>

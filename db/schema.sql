@@ -122,6 +122,22 @@ CREATE TABLE IF NOT EXISTS todo_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
+-- sla_settings: ตั้งค่าระยะเวลา SLA รายสายงาน/หมวด
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sla_settings (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  track       ENUM('discipline','legal') NOT NULL,
+  cat         VARCHAR(100) NOT NULL,
+  days        INT          NOT NULL DEFAULT 30,
+  note        VARCHAR(300) DEFAULT NULL,
+  updated_by  INT          DEFAULT NULL,
+  updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_sla_track_cat (track, cat),
+  CONSTRAINT fk_sla_user FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
 -- audit_log: บันทึกการเข้าถึง (PDPA compliance)
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_log (
