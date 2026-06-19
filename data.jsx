@@ -134,7 +134,7 @@ const api = {
   createCase:  (data)     => apiFetch('/api/cases.php', { method:'POST', body: JSON.stringify(data) }),
   updateCase:  (id, data) => apiFetch('/api/cases.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
   getOfficers: ()         => apiFetch('/api/officers.php'),
-  trackCase:   (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
+  trackCase:   (id, email='') => apiFetch('/api/cases.php?id=' + encodeURIComponent(id) + (email ? '&email=' + encodeURIComponent(email) : '')),
   listTodos:      ()       => apiFetch('/api/todos.php'),
   createTodo:     (data)  => apiFetch('/api/todos.php', { method:'POST', body: JSON.stringify(data) }),
   patchTodo:   (id, data) => apiFetch('/api/todos.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),

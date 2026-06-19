@@ -477,12 +477,23 @@ function TrackStatus({ go, preset }) {
     if (preset?.ticket) doSearch(preset.ticket);
   }, []);
 
+  const maskSubject = (s, emailOk) => {
+    if (!s) return "—";
+    const chars = [...s]; // รองรับ Unicode/ภาษาไทย
+    const len = chars.length;
+    if (len <= 3) return chars[0] + "●".repeat(len - 1);
+    // แสดง 3 ตัวแรก + ●●● + 2 ตัวสุดท้าย ถ้าอีเมลถูก แสดงเพิ่มอีกเล็กน้อย
+    const show = emailOk ? Math.min(5, Math.floor(len * 0.3)) : 3;
+    const tail = emailOk ? 3 : 2;
+    return chars.slice(0, show).join('') + "●●●" + chars.slice(-tail).join('');
+  };
+
   const doSearch = async (overrideCode) => {
     const q = (overrideCode || code).trim();
     if (!q) return;
     setLoading(true); setNotFound(false); setSearched(false);
     try {
-      const data = await api.trackCase(q);
+      const data = await api.trackCase(q, email.trim());
       setResult(data); setSearched(true);
     } catch {
       setNotFound(true); setSearched(true); setResult(null);
@@ -519,6 +530,13 @@ function TrackStatus({ go, preset }) {
             </div>
             <StatusBadge s={result.status}/>
           </div>
+          {result.subject &&
+            <div style={{marginTop:10,padding:"10px 14px",background:"var(--surface-2)",borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+              <Icon name="file" style={{width:16,height:16,color:"var(--maroon)",flex:"none"}}/>
+              <span className="sm" style={{color:"var(--ink-2)"}}>หัวข้อเรื่อง:</span>
+              <span style={{fontWeight:600,letterSpacing:"0.03em"}}>{maskSubject(result.subject, result.email_ok)}</span>
+              {!result.email_ok && <span className="muted tiny" style={{marginLeft:"auto"}}>ระบุอีเมลที่ถูกต้องเพื่อดูเพิ่มเติม</span>}
+            </div>}
           <hr className="hr" style={{margin:"18px 0"}}/>
           <div className="stepper" style={{marginBottom:8}}>
             {pubSteps.map((s,i)=>{

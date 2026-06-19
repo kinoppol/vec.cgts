@@ -45,13 +45,21 @@ if ($method === 'GET' && $id !== '') {
     // ตรวจสอบสิทธิ์: ถ้าไม่ใช่เจ้าหน้าที่ ให้เห็นเฉพาะสถานะ
     $isStaff = !empty($_SESSION['user_id']);
     if (!$isStaff) {
-        // Public: คืนแค่ข้อมูลจำเป็นสำหรับติดตามสถานะ
+        // ตรวจ email ถ้าส่งมา (optional — ถ้าไม่ตรงยังคืนข้อมูลได้ แต่ subject จะถูก mask เพิ่ม)
+        $emailOk = false;
+        $qEmail  = trim($_GET['email'] ?? '');
+        if ($qEmail !== '' && $row['contact'] !== null) {
+            $emailOk = strtolower($qEmail) === strtolower($row['contact']);
+        }
+        // Public: คืนข้อมูลจำเป็นสำหรับติดตามสถานะ + subject (ให้ frontend mask)
         json_out([
-            'id'      => $row['id'],
-            'status'  => $row['status'],
-            'channel' => $row['channel'],
-            'received'=> $row['received_date'],
-            'sla'     => $row['sla'],
+            'id'       => $row['id'],
+            'status'   => $row['status'],
+            'channel'  => $row['channel'],
+            'received' => $row['received_date'],
+            'sla'      => $row['sla'],
+            'subject'  => $row['subject'],
+            'email_ok' => $emailOk,
         ]);
     }
 
