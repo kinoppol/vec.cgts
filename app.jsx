@@ -99,40 +99,37 @@ function canManageUsers(user) {
 
 function navFor(role, counts, user) {
   if (role === "admin") return [
+    {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
+    {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
+    {v:"reports",   ic:"chart",       l:"รายงาน"},
     {sec:"ระบบ"},
     {v:"users",        ic:"users",       l:"จัดการผู้ใช้"},
     {v:"officers-mgt", ic:"gavel",      l:"จัดการบุคลากร"},
     {v:"lookup",       ic:"filter",     l:"รายการอ้างอิง"},
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
-    {v:"sla",       ic:"settings",    l:"ตั้งค่า SLA"},
-    {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
-    {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
-    {v:"reports",   ic:"chart",       l:"รายงาน"},
+    {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
   ];
   if (role === "officer") return [
-    {sec:"การดำเนินงาน"},
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
+    {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"จัดการเรื่อง", count:counts.newQ},
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
-    {sec:"ระบบ"},
     {v:"reports",   ic:"chart",    l:"รายงาน"},
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
   if (role === "dir_legal") return [
-    {sec:"กำกับงานสอบสวน"},
-    {v:"dashboard", ic:"gavel",    l:"ติดตามการสอบสวน"},
+    {v:"dashboard", ic:"gavel",    l:"ภาพรวม"},
+    {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
-    {sec:"ระบบ"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
     {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
   ];
   return [
-    {sec:"ภาพรวมผู้บริหาร"},
-    {v:"dashboard", ic:"pie",      l:"ภาพรวมสำนัก"},
+    {v:"dashboard", ic:"pie",      l:"ภาพรวม"},
+    {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
-    {sec:"ระบบ"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
   ];
 }
