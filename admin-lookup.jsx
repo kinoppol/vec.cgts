@@ -132,7 +132,7 @@ function LookupImportModal({ onDone, onClose }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('/api/lookup.php?action=import', { method:'POST', credentials:'same-origin', body:fd });
+      const res = await fetch('api/lookup.php?action=import', { method:'POST', credentials:'same-origin', body:fd });
       const j   = await res.json();
       if (!res.ok) throw new Error(j.error || 'นำเข้าไม่สำเร็จ');
       setResult(j);
@@ -198,7 +198,7 @@ function LookupManagePage() {
   const doExport = async () => {
     setExporting(true);
     try {
-      const res = await fetch('/api/lookup.php?action=export', { credentials: 'same-origin' });
+      const res = await fetch('api/lookup.php?action=export', { credentials: 'same-origin' });
       if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || 'ส่งออกไม่สำเร็จ'); }
       const blob = await res.blob();
       const cd   = res.headers.get('Content-Disposition') || '';
