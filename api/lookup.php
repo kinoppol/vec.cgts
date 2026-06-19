@@ -68,6 +68,61 @@ if ($method === 'GET') {
     json_out($stmt->fetchAll());
 }
 
+/* ── POST ?action=import — นำเข้าจาก ZIP ────────────────── */
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'import') {
+    needAdmin($actor);
+
+    if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK)
+        err('กรุณาเลือกไฟล์ ZIP ที่ต้องการนำเข้า');
+
+    $file = $_FILES['file'];
+    if ($file['size'] > 5 * 1024 * 1024) err('ไฟล์ ZIP ขนาดใหญ่เกิน 5 MB');
+
+    $fh    = fopen($file['tmp_name'], 'rb');
+    $magic = fread($fh, 4);
+    fclose($fh);
+    if ($magic !== "PK\x03\x04") err('ไฟล์ที่อัปโหลดไม่ใช่ ZIP');
+
+    $zipData = file_get_contents($file['tmp_name']);
+    $json    = PureZip::getFromName($zipData, 'lookups.json');
+    if ($json === false) err('ไม่พบ lookups.json — กรุณาใช้ไฟล์ที่ส่งออกจากระบบนี้เท่านั้น');
+
+    $data = json_decode($json, true);
+    if (!isset($data['categories']) || !is_array($data['categories']))
+        err('lookups.json ไม่ถูกต้อง');
+
+    global $VALID_CATS;
+    $stmt = $db->prepare(
+        "INSERT INTO lookup_items (category, name, sort_order, active)
+         VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order), active=VALUES(active)"
+    );
+
+    $imported = 0; $skipped = 0; $errors = [];
+
+    foreach ($data['categories'] as $cat => $items) {
+        if (!in_array($cat, $VALID_CATS)) { $errors[] = "category '{$cat}' ไม่รองรับ — ข้าม"; continue; }
+        if (!is_array($items)) continue;
+        foreach ($items as $idx => $item) {
+            $name = trim($item['name'] ?? '');
+            if (!$name) { $skipped++; continue; }
+            try {
+                $stmt->execute([
+                    $cat, $name,
+                    (int)($item['sort_order'] ?? 0),
+                    isset($item['active']) ? (int)$item['active'] : 1,
+                ]);
+                $imported++;
+            } catch (PDOException $e) {
+                $errors[] = "{$cat}/{$name}: " . $e->getMessage();
+            }
+        }
+    }
+
+    audit('lookup_import', 'all', "นำเข้า {$imported} รายการ");
+    json_out(['ok' => true, 'imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
+}
+
 /* ── POST — เพิ่มรายการ ──────────────────────────────────── */
 if ($method === 'POST') {
     global $VALID_CATS;
