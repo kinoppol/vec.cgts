@@ -121,11 +121,103 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
   );
 }
 
+/* ── Modal นำเข้าบุคลากรจาก ZIP ─────────────────────────── */
+function ImportModal({ onDone, onClose }) {
+  const [file, setFile]     = React.useState(null);
+  const [busy, setBusy]     = React.useState(false);
+  const [result, setResult] = React.useState(null);
+  const [err, setErr]       = React.useState('');
+  const fileRef             = React.useRef(null);
+
+  async function doImport() {
+    if (!file) { setErr('กรุณาเลือกไฟล์ ZIP'); return; }
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('api/officers_transfer.php', { method:'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'นำเข้าล้มเหลว');
+      setResult(data);
+      onDone();
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter">
+            <Icon name="upload" style={{width:20,height:20,color:'var(--maroon)'}}/>
+            <h3 style={{fontSize:17}}>นำเข้าข้อมูลบุคลากร</h3>
+          </div>
+          <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b" style={{display:'flex',flexDirection:'column',gap:14}}>
+          {!result ? (
+            <>
+              <div className="notice" style={{background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',fontSize:13,gap:8}}>
+                <Icon name="alert" style={{width:14,height:14,color:'var(--warn)',flexShrink:0}}/>
+                <span>ใช้ไฟล์ ZIP ที่ส่งออกจากระบบนี้เท่านั้น ข้อมูลที่มีอยู่แล้วจะถูกอัปเดต (UPSERT)</span>
+              </div>
+              {err && <div className="notice notice-warn"><Icon name="alert"/><span>{err}</span></div>}
+              <label className="lbl">
+                ไฟล์ ZIP <span style={{color:'var(--red)'}}>*</span>
+                <div className="vcenter" style={{gap:8}}>
+                  <input ref={fileRef} type="file" accept=".zip,application/zip" style={{display:'none'}}
+                    onChange={e=>setFile(e.target.files?.[0]||null)}/>
+                  <button className="btn btn-outline" type="button" onClick={()=>fileRef.current?.click()}>
+                    <Icon name="paperclip" style={{width:15,height:15}}/> เลือกไฟล์
+                  </button>
+                  <span className="sm muted">{file ? file.name : 'ยังไม่ได้เลือก'}</span>
+                </div>
+              </label>
+            </>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div className="notice notice-ok">
+                <Icon name="checkCircle" style={{width:18,height:18}}/>
+                <div>
+                  <div style={{fontWeight:600}}>นำเข้าสำเร็จ</div>
+                  <div className="sm">บุคลากร {result.imported} รายการ · ภาพ {result.avatars_imported} รูป</div>
+                </div>
+              </div>
+              {result.errors?.length > 0 && (
+                <div className="notice notice-warn" style={{flexDirection:'column',alignItems:'flex-start',gap:4}}>
+                  <div className="vcenter" style={{gap:6}}><Icon name="alert" style={{width:14,height:14}}/><b>พบข้อผิดพลาด {result.errors.length} รายการ</b></div>
+                  <ul style={{margin:'4px 0 0 18px',padding:0,fontSize:12}}>
+                    {result.errors.map((e,i)=><li key={i}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="modal-f">
+          {!result ? (
+            <>
+              <button className="btn btn-outline" onClick={onClose}>ยกเลิก</button>
+              <button className="btn btn-primary" disabled={busy||!file} onClick={doImport}>
+                <Icon name="upload" style={{width:15,height:15}}/> {busy ? 'กำลังนำเข้า…' : 'นำเข้า'}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-primary" onClick={onClose}>ปิด</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── หน้าหลัก จัดการบุคลากร ──────────────────────────────── */
 function OfficerManagePage() {
   const [officers, setOfficers]         = React.useState([]);
   const [loading, setLoading]           = React.useState(true);
   const [modal, setModal]               = React.useState(null);
+  const [showImport, setShowImport]     = React.useState(false);
+  const [exporting, setExporting]       = React.useState(false);
   const [q, setQ]                       = React.useState('');
   const [grpFilter, setGrpFilter]       = React.useState('');
   const [showInactive, setShowInactive] = React.useState(false);
@@ -149,6 +241,22 @@ function OfficerManagePage() {
       return idx >= 0 ? prev.map(o => o.id === saved.id ? saved : o) : [...prev, saved];
     });
     setModal(null);
+  }
+
+  async function doExport() {
+    setExporting(true);
+    try {
+      const res = await fetch('api/officers_transfer.php');
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error||'ส่งออกล้มเหลว'); }
+      const blob = await res.blob();
+      const cd   = res.headers.get('Content-Disposition') || '';
+      const name = (cd.match(/filename="([^"]+)"/) || [])[1] || 'officers.zip';
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch(e) { alert(e.message); }
+    finally { setExporting(false); }
   }
 
   async function toggleActive(o) {
@@ -176,9 +284,17 @@ function OfficerManagePage() {
   return (
     <div className="fade-in">
       <PageHead title="จัดการข้อมูลบุคลากร" sub="เพิ่ม แก้ไข และบริหารรายชื่อบุคลากร/ผู้รับผิดชอบสำนวน">
-        <button className="btn btn-primary" onClick={()=>setModal(nextOfficer(officers))}>
-          <Icon name="filePlus" style={{width:16,height:16}}/> เพิ่มบุคลากร
-        </button>
+        <div className="vcenter" style={{gap:8}}>
+          <button className="btn btn-outline" disabled={exporting} onClick={doExport}>
+            <Icon name="download" style={{width:15,height:15}}/> {exporting ? 'กำลังส่งออก…' : 'ส่งออก ZIP'}
+          </button>
+          <button className="btn btn-outline" onClick={()=>setShowImport(true)}>
+            <Icon name="upload" style={{width:15,height:15}}/> นำเข้า ZIP
+          </button>
+          <button className="btn btn-primary" onClick={()=>setModal(nextOfficer(officers))}>
+            <Icon name="filePlus" style={{width:16,height:16}}/> เพิ่มบุคลากร
+          </button>
+        </div>
       </PageHead>
 
       {/* filter bar */}
@@ -279,6 +395,16 @@ function OfficerManagePage() {
           lookupTitles={lookupTitles}
           onSave={handleSaved}
           onClose={()=>setModal(null)}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          onDone={() => {
+            // โหลดรายการบุคลากรใหม่หลังนำเข้าสำเร็จ
+            api.listAllOfficers().then(setOfficers).catch(()=>{});
+          }}
+          onClose={()=>setShowImport(false)}
         />
       )}
     </div>
