@@ -93,10 +93,12 @@ function AdminLogin({ go, onLogin }) {
 
 /* ---------------- Admin shell ---------------- */
 const ROLE_LABELS = {
-  officer:   "เจ้าหน้าที่นิติการ / ธุรการ",
-  dir_legal: "ผอ.กลุ่มนิติการ",
-  dir_admin: "ผอ.สำนักอำนวยการ",
-  admin:     "ผู้ดูแลระบบ",
+  officer:          "เจ้าหน้าที่นิติการ / ธุรการ",
+  dir_legal:        "ผอ.กลุ่มนิติการ",
+  dir_admin:        "ผอ.สำนักอำนวยการ",
+  secretary:        "เลขาธิการ สอศ.",
+  deputy_secretary: "รองเลขาธิการ สอศ.",
+  admin:            "ผู้ดูแลระบบ",
 };
 
 function canManageUsers(user) {
@@ -479,7 +481,7 @@ function ReportCenter({ role }) {
   ];
   return (
     <div className="fade-in">
-      <PageHead title={role==="dir_admin"?"รายงานผู้บริหาร":"ศูนย์รายงาน"} sub="ออกรายงานราชการ พร้อมหัวกระดาษ ลายน้ำ 'สำเนา' และปกปิดข้อมูลส่วนบุคคลอัตโนมัติ"/>
+      <PageHead title={["dir_admin","secretary","deputy_secretary"].includes(role)?"รายงานผู้บริหาร":"ศูนย์รายงาน"} sub="ออกรายงานราชการ พร้อมหัวกระดาษ ลายน้ำ 'สำเนา' และปกปิดข้อมูลส่วนบุคคลอัตโนมัติ"/>
       <div className="grid" style={{gridTemplateColumns:"repeat(2,1fr)"}}>
         {reports.map((r,i) => (
           <div key={i} className="card card-pad" style={{display:"flex",gap:16,alignItems:"flex-start"}}>

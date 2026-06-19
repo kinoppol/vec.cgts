@@ -35,7 +35,7 @@ if ($method === 'POST') {
     if ($display_name === '') err('กรุณาระบุชื่อแสดง');
     if (strlen($password) < 6) err('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
-    $validRoles = ['officer','dir_legal','dir_admin','admin'];
+    $validRoles = ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
     if (!in_array($role, $validRoles)) err('role ไม่ถูกต้อง');
 
     // ป้องกัน non-admin สร้าง admin
@@ -80,7 +80,7 @@ if ($method === 'PATCH' && $id) {
     foreach ($allowed as $col) {
         if (!array_key_exists($col, $b)) continue;
         if ($col === 'role') {
-            if (!in_array($b[$col], ['officer','dir_legal','dir_admin','admin'])) err('role ไม่ถูกต้อง');
+            if (!in_array($b[$col], ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'])) err('role ไม่ถูกต้อง');
             if ($b[$col] === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์ตั้ง role admin', 403);
         }
         $sets[] = "`{$col}` = ?";

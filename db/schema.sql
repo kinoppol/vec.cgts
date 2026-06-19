@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(100) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name  VARCHAR(200) NOT NULL,
-  role             ENUM('officer','dir_legal','dir_admin','admin') NOT NULL DEFAULT 'officer',
+  role             ENUM('officer','dir_legal','dir_admin','secretary','deputy_secretary','admin') NOT NULL DEFAULT 'officer',
   init             VARCHAR(10)  DEFAULT NULL,
   officer_id       VARCHAR(10)  DEFAULT NULL,
   active           TINYINT(1)   NOT NULL DEFAULT 1,

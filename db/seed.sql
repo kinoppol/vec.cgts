@@ -17,16 +17,20 @@ ON DUPLICATE KEY UPDATE name=VALUES(name), job_title=VALUES(job_title), group_na
 -- Users (บัญชีผู้ใช้งาน) — password = "password" (bcrypt)
 -- ----------------------------------------------------------------
 INSERT INTO users (username, password_hash, display_name, role, init, officer_id, can_manage_users) VALUES
-('admin',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้ดูแลระบบ',                        'admin',     'AD', NULL, 1),
-('dir_admin',  '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้อำนวยการสำนักอำนวยการ',          'dir_admin', 'ผอ', NULL, 0),
-('wornwut',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวรวุฒิ ดำขา',                    'dir_legal', 'วว', NULL, 0),
-('yawrata',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวเยาวริดา พิณสายแก้ว',         'officer',   'ยร', 'o1', 0),
-('nawan',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณวณ เจริญหลาย',                  'officer',   'ณว', 'o2', 0),
-('siwakorn',   '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายศิวกร เพชรสีเงิน',               'officer',   'ศก', 'o3', 0),
-('panisa',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวภานิชา จันทราทิพย์',          'officer',   'ภน', 'o4', 0),
-('jidapa',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวจิดาภา ทองศรีสังข์',          'officer',   'จด', 'o5', 0),
-('kanjana',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกาญจนา อนันต์โก',             'officer',   'กญ', 'o6', 0),
-('chotika',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',   'officer',   'ชก', 'o7', 0)
+('admin',       '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้ดูแลระบบ',                         'admin',            'AD', NULL, 1),
+('yospol',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายยศพล เวณุโกเศศ',                   'secretary',        'ยศ', NULL, 0),
+('withawat',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวิทวัส ปัญจมะวัต',                 'deputy_secretary', 'วท', NULL, 0),
+('sanga',       '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายสง่า แต่เชื้อสาย',                 'deputy_secretary', 'สง', NULL, 0),
+('narongchai',  '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณรงค์ชัย เจริญรุจิทรัพย์',        'deputy_secretary', 'ณช', NULL, 0),
+('dir_admin',   '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'ผู้อำนวยการสำนักอำนวยการ',           'dir_admin',        'ผอ', NULL, 0),
+('wornwut',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายวรวุฒิ ดำขา',                     'dir_legal',        'วว', NULL, 0),
+('yawrata',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวเยาวริดา พิณสายแก้ว',          'officer',          'ยร', 'o1', 0),
+('nawan',       '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายณวณ เจริญหลาย',                   'officer',          'ณว', 'o2', 0),
+('siwakorn',    '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นายศิวกร เพชรสีเงิน',                'officer',          'ศก', 'o3', 0),
+('panisa',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวภานิชา จันทราทิพย์',           'officer',          'ภน', 'o4', 0),
+('jidapa',      '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวจิดาภา ทองศรีสังข์',           'officer',          'จด', 'o5', 0),
+('kanjana',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวกาญจนา อนันต์โก',              'officer',          'กญ', 'o6', 0),
+('chotika',     '$2y$12$K9qBp8lqXtbr6ek2PcCRSOoCQ3f9MFXqWqeGnxJLa7sVmNyqFwYxy', 'นางสาวโชติกา วิริยะจีระพิพัฒน์',    'officer',          'ชก', 'o7', 0)
 ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), role=VALUES(role), init=VALUES(init), officer_id=VALUES(officer_id), can_manage_users=VALUES(can_manage_users);
 
 -- ----------------------------------------------------------------

@@ -3,16 +3,20 @@
    ============================================================ */
 
 const ROLE_OPTS = [
-  { v:'officer',   l:'เจ้าหน้าที่นิติการ / ธุรการ' },
-  { v:'dir_legal', l:'ผอ.กลุ่มนิติการ' },
-  { v:'dir_admin', l:'ผอ.สำนักอำนวยการ' },
-  { v:'admin',     l:'ผู้ดูแลระบบ' },
+  { v:'officer',          l:'เจ้าหน้าที่นิติการ / ธุรการ' },
+  { v:'dir_legal',        l:'ผอ.กลุ่มนิติการ' },
+  { v:'dir_admin',        l:'ผอ.สำนักอำนวยการ' },
+  { v:'secretary',        l:'เลขาธิการ สอศ.' },
+  { v:'deputy_secretary', l:'รองเลขาธิการ สอศ.' },
+  { v:'admin',            l:'ผู้ดูแลระบบ' },
 ];
 const ROLE_BADGE = {
-  officer:   'badge',
-  dir_legal: 'badge-info',
-  dir_admin: 'badge-warn',
-  admin:     'badge-danger',
+  officer:          'badge',
+  dir_legal:        'badge-info',
+  dir_admin:        'badge-warn',
+  secretary:        'badge-maroon',
+  deputy_secretary: 'badge-maroon',
+  admin:            'badge-danger',
 };
 
 const OVERLAY_STYLE = {
