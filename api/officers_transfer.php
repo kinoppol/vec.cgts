@@ -2,8 +2,10 @@
 /**
  * officers_transfer.php — ส่งออก / นำเข้าข้อมูลบุคลากร (ZIP)
  *
- * GET  /api/officers_transfer.php          → ดาวน์โหลด ZIP
- * POST /api/officers_transfer.php          → นำเข้าจากไฟล์ ZIP
+ * GET  /api/officers_transfer.php   → ดาวน์โหลด ZIP
+ * POST /api/officers_transfer.php   → นำเข้าจากไฟล์ ZIP
+ *
+ * ใช้ PureZip (pure-PHP) จึงไม่ต้องการ ext-zip / ZipArchive
  */
 require_once __DIR__ . '/_common.php';
 
@@ -19,12 +21,108 @@ function needAdmin($actor): void {
 $avatarDir = __DIR__ . '/../uploads/avatars';
 
 /* ================================================================
+   PureZip — ZIP writer + reader ไม่ต้องใช้ ZipArchive
+   รองรับ method 0 (STORE) และ method 8 (DEFLATE via gzdeflate)
+   ================================================================ */
+class PureZip {
+    private array $entries = [];
+
+    public function addFromString(string $name, string $data): void {
+        $this->entries[] = ['name' => $name, 'data' => $data];
+    }
+
+    public function addFile(string $path, string $name): bool {
+        $data = @file_get_contents($path);
+        if ($data === false) return false;
+        $this->entries[] = ['name' => $name, 'data' => $data];
+        return true;
+    }
+
+    public function bytes(): string {
+        $local = '';
+        $cd    = '';
+
+        foreach ($this->entries as $e) {
+            $loff   = strlen($local);
+            $raw    = $e['data'];
+            $crc    = crc32($raw);
+            $rawLen = strlen($raw);
+            $dt     = self::dosTime(time());
+
+            // เลือก deflate ถ้าเล็กกว่า
+            $comp = function_exists('gzdeflate') ? gzdeflate($raw, 6) : false;
+            if ($comp !== false && strlen($comp) < $rawLen) {
+                $method = 8; $blob = $comp;
+            } else {
+                $method = 0; $blob = $raw;
+            }
+            $compLen = strlen($blob);
+            $nLen    = strlen($e['name']);
+
+            $lh = pack('VvvvVVVVvv',
+                0x04034b50, 20, 0, $method, $dt, $crc, $compLen, $rawLen, $nLen, 0);
+            $local .= $lh . $e['name'] . $blob;
+
+            $cd .= pack('VvvvvVVVVvvvvvVV',
+                0x02014b50, 20, 20, 0, $method, $dt, $crc, $compLen, $rawLen,
+                $nLen, 0, 0, 0, 0, 0, $loff) . $e['name'];
+        }
+
+        $cdOff = strlen($local);
+        $cdSz  = strlen($cd);
+        $n     = count($this->entries);
+        $eocd  = pack('VvvvvVVv', 0x06054b50, 0, 0, $n, $n, $cdSz, $cdOff, 0);
+
+        return $local . $cd . $eocd;
+    }
+
+    /** อ่าน entry ชื่อ $entryName จาก ZIP binary string */
+    public static function getFromName(string $zip, string $entryName): string|false {
+        $len = strlen($zip);
+        $eocdOff = false;
+        for ($i = $len - 22; $i >= max(0, $len - 65580); $i--) {
+            if (substr($zip, $i, 4) === "\x50\x4b\x05\x06") {
+                $eocdOff = $i; break;
+            }
+        }
+        if ($eocdOff === false) return false;
+
+        $e = unpack('vtotal/VcdSz/VcdOff', substr($zip, $eocdOff + 10, 10));
+        $pos = $e['cdOff'];
+
+        for ($i = 0; $i < $e['total']; $i++) {
+            if (substr($zip, $pos, 4) !== "\x50\x4b\x01\x02") break;
+            $h = unpack('vmethod/Vdt/Vcrc/VcompLen/VrawLen/vnLen/vexLen/vcomLen/vdisk/vint/Vext/Vloff',
+                substr($zip, $pos + 10, 36));
+            $name = substr($zip, $pos + 46, $h['nLen']);
+            $pos += 46 + $h['nLen'] + $h['exLen'] + $h['comLen'];
+
+            if ($name !== $entryName) continue;
+
+            $lh   = unpack('vnLen/vexLen', substr($zip, $h['loff'] + 26, 4));
+            $dOff = $h['loff'] + 30 + $lh['nLen'] + $lh['exLen'];
+            $blob = substr($zip, $dOff, $h['compLen']);
+
+            if ($h['method'] === 0) return $blob;
+            if ($h['method'] === 8) return function_exists('gzinflate') ? @gzinflate($blob) : false;
+            return false;
+        }
+        return false;
+    }
+
+    private static function dosTime(int $ts): int {
+        $d = getdate($ts);
+        return (($d['year'] - 1980) << 25) | ($d['mon'] << 21) | ($d['mday'] << 16)
+             | ($d['hours'] << 11) | ($d['minutes'] << 5) | ($d['seconds'] >> 1);
+    }
+}
+
+/* ================================================================
    GET — ส่งออกข้อมูลบุคลากรพร้อมภาพประจำตัวเป็น ZIP
    ================================================================ */
 if ($method === 'GET') {
     needAdmin($actor);
 
-    // ดึงข้อมูลบุคลากรทั้งหมด พร้อม avatar_path จาก users ที่เชื่อมโยง
     $rows = $db->query(
         "SELECT o.id, o.name, o.job_title, o.duty, o.group_name, o.init, o.active,
                 u.avatar_path
@@ -33,15 +131,9 @@ if ($method === 'GET') {
          ORDER BY o.id"
     )->fetchAll(PDO::FETCH_ASSOC);
 
-    if (!class_exists('ZipArchive'))
-        err('ZipArchive ไม่พร้อมใช้งานบนเซิร์ฟเวอร์นี้', 500);
-
-    $tmpFile = tempnam(sys_get_temp_dir(), 'officers_') . '.zip';
-    $zip = new ZipArchive();
-    if ($zip->open($tmpFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true)
-        err('ไม่สามารถสร้างไฟล์ ZIP ได้', 500);
-
+    $zip      = new PureZip();
     $officers = [];
+
     foreach ($rows as $row) {
         $entry = [
             'id'         => $row['id'],
@@ -54,11 +146,10 @@ if ($method === 'GET') {
             'avatar'     => null,
         ];
 
-        // ใส่ภาพในโฟลเดอร์ avatars/ ภายใน ZIP โดยตั้งชื่อตาม officer id
         if ($row['avatar_path']) {
             $src = __DIR__ . '/../' . $row['avatar_path'];
             if (is_file($src)) {
-                $ext = pathinfo($src, PATHINFO_EXTENSION);
+                $ext     = pathinfo($src, PATHINFO_EXTENSION);
                 $zipName = 'avatars/' . $row['id'] . '.' . $ext;
                 $zip->addFile($src, $zipName);
                 $entry['avatar'] = $zipName;
@@ -70,7 +161,8 @@ if ($method === 'GET') {
 
     $zip->addFromString('officers.json',
         json_encode($officers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
-    $zip->close();
+
+    $bytes = $zip->bytes();
 
     audit('officer_export', 'all', count($officers) . ' records');
 
@@ -78,10 +170,9 @@ if ($method === 'GET') {
     ob_end_clean();
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Content-Length: ' . filesize($tmpFile));
+    header('Content-Length: ' . strlen($bytes));
     header('Cache-Control: no-store');
-    readfile($tmpFile);
-    @unlink($tmpFile);
+    echo $bytes;
     exit;
 }
 
@@ -91,9 +182,6 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     needAdmin($actor);
 
-    if (!class_exists('ZipArchive'))
-        err('ZipArchive ไม่พร้อมใช้งานบนเซิร์ฟเวอร์นี้', 500);
-
     if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK)
         err('กรุณาเลือกไฟล์ ZIP ที่ต้องการนำเข้า');
 
@@ -101,19 +189,18 @@ if ($method === 'POST') {
     if ($file['size'] > 50 * 1024 * 1024)
         err('ไฟล์ ZIP ขนาดใหญ่เกิน 50 MB');
 
-    // ตรวจ magic bytes ว่าเป็น ZIP จริง (PK\x03\x04)
-    $fh = fopen($file['tmp_name'], 'rb');
+    // ตรวจ magic bytes (PK\x03\x04)
+    $fh    = fopen($file['tmp_name'], 'rb');
     $magic = fread($fh, 4);
     fclose($fh);
     if ($magic !== "PK\x03\x04")
         err('ไฟล์ที่อัปโหลดไม่ใช่ ZIP');
 
-    $zip = new ZipArchive();
-    if ($zip->open($file['tmp_name']) !== true)
-        err('ไม่สามารถเปิดไฟล์ ZIP ได้');
+    $zipData = file_get_contents($file['tmp_name']);
+    if ($zipData === false)
+        err('ไม่สามารถอ่านไฟล์ ZIP ได้');
 
-    // อ่าน officers.json จาก ZIP โดยตรง (ไม่ต้องแตกทั้งหมด)
-    $json = $zip->getFromName('officers.json');
+    $json = PureZip::getFromName($zipData, 'officers.json');
     if ($json === false)
         err('ไม่พบ officers.json ในไฟล์ ZIP — กรุณาใช้ไฟล์ที่ส่งออกจากระบบนี้เท่านั้น');
 
@@ -121,7 +208,6 @@ if ($method === 'POST') {
     if (!is_array($officers) || empty($officers))
         err('officers.json ไม่ถูกต้องหรือว่างเปล่า');
 
-    // สร้างโฟลเดอร์ avatars ถ้ายังไม่มี
     if (!is_dir($avatarDir))
         @mkdir($avatarDir, 0755, true);
 
@@ -132,12 +218,8 @@ if ($method === 'POST') {
            name=VALUES(name), job_title=VALUES(job_title), duty=VALUES(duty),
            group_name=VALUES(group_name), init=VALUES(init), active=VALUES(active)"
     );
-    $stmtAvatar = $db->prepare(
-        "UPDATE users SET avatar_path=? WHERE officer_id=?"
-    );
-    $stmtOldAvatar = $db->prepare(
-        "SELECT avatar_path FROM users WHERE officer_id=?"
-    );
+    $stmtAvatar    = $db->prepare("UPDATE users SET avatar_path=? WHERE officer_id=?");
+    $stmtOldAvatar = $db->prepare("SELECT avatar_path FROM users WHERE officer_id=?");
 
     $imported = 0; $avatarsImported = 0; $errors = [];
 
@@ -148,8 +230,6 @@ if ($method === 'POST') {
             $errors[] = "แถวที่ " . ($idx + 1) . ": ขาด id หรือ name";
             continue;
         }
-
-        // กรองอักขระอันตราย ป้องกัน path traversal
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $oid)) {
             $errors[] = "แถวที่ " . ($idx + 1) . ": รหัสบุคลากร '{$oid}' มีอักขระที่ไม่อนุญาต";
             continue;
@@ -157,8 +237,7 @@ if ($method === 'POST') {
 
         try {
             $stmtInsert->execute([
-                $oid,
-                $name,
+                $oid, $name,
                 $o['job_title']  ?: null,
                 $o['duty']       ?: null,
                 $o['group_name'] ?: null,
@@ -171,19 +250,16 @@ if ($method === 'POST') {
             continue;
         }
 
-        // นำเข้าภาพประจำตัว (ถ้ามี)
         if (!empty($o['avatar'])) {
-            // ป้องกัน path traversal ใน zipName
             $zipEntry = ltrim(str_replace('..', '', $o['avatar']), '/\\');
             if (!str_starts_with($zipEntry, 'avatars/')) {
                 $errors[] = "แถวที่ " . ($idx + 1) . " ({$oid}): avatar path ไม่ถูกต้อง";
                 continue;
             }
 
-            $imgData = $zip->getFromName($zipEntry);
-            if ($imgData === false) continue; // ไฟล์ภาพไม่อยู่ใน ZIP — ข้าม
+            $imgData = PureZip::getFromName($zipData, $zipEntry);
+            if ($imgData === false || $imgData === '') continue;
 
-            // ตรวจว่าเป็นภาพจริงด้วย getimagesizefromstring
             $imgInfo = @getimagesizefromstring($imgData);
             if ($imgInfo === false) {
                 $errors[] = "แถวที่ " . ($idx + 1) . " ({$oid}): ไฟล์ภาพไม่ถูกต้อง";
@@ -195,7 +271,6 @@ if ($method === 'POST') {
                 continue;
             }
 
-            // ลบภาพเดิมของ user ที่เชื่อมโยงกับบุคลากรนี้
             $stmtOldAvatar->execute([$oid]);
             $oldPath = $stmtOldAvatar->fetchColumn();
             if ($oldPath) {
@@ -206,21 +281,19 @@ if ($method === 'POST') {
             $newName = bin2hex(random_bytes(16)) . '.' . $extByMime[$imgInfo[2]];
             $newPath = $avatarDir . '/' . $newName;
             if (file_put_contents($newPath, $imgData) !== false) {
-                $webPath = 'uploads/avatars/' . $newName;
-                $stmtAvatar->execute([$webPath, $oid]);
+                $stmtAvatar->execute(['uploads/avatars/' . $newName, $oid]);
                 $avatarsImported++;
             }
         }
     }
 
-    $zip->close();
     audit('officer_import', 'all', "นำเข้า {$imported} รายการ, ภาพ {$avatarsImported} รูป");
 
     json_out([
-        'ok'              => true,
-        'imported'        => $imported,
-        'avatars_imported'=> $avatarsImported,
-        'errors'          => $errors,
+        'ok'               => true,
+        'imported'         => $imported,
+        'avatars_imported' => $avatarsImported,
+        'errors'           => $errors,
     ]);
 }
 
