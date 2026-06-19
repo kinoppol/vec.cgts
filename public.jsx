@@ -157,25 +157,26 @@ function ComplaintForm({ go }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState({
     identity:"", type:"", track:"", cat:"", subject:"", agency:"", detail:"",
-    files:[], name:"", email:"", phone:"", pdpa:false, contactPref:"email",
+    files:[], name:"", position:"", email:"", phone:"", pdpa:false, contactPref:"email",
   });
   const [ticket, setTicket] = useState("");
   const set = (k,v) => setData(d=>({...d,[k]:v}));
   const steps = ["วิธียื่น & ข้อมูลผู้ร้อง","รายละเอียดเรื่อง","ยืนยันตัวเอง & ยินยอม","ทบทวนและยืนยัน"];
 
   const canNext = () => {
-    if(step===0) return data.identity && data.type && data.track && data.cat
-      && data.email.trim() && (data.identity==="anon" || data.name.trim());
-    if(step===1) return data.subject.trim() && data.detail.trim().length>10;
-    if(step===2) return data.pdpa;
+    if(step===0) return !!(data.identity && data.type && data.track && data.cat &&
+      data.email.trim() && (data.identity==="anon" || data.name.trim()));
+    if(step===1) return !!(data.subject.trim() && data.detail.trim().length>10);
+    if(step===2) return !!data.pdpa;
     return true;
   };
+  const addFiles = (newFiles) => setData(d => ({...d, files:[...d.files, ...newFiles]}));
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
   const submit = async () => {
     setSubmitting(true); setSubmitErr("");
     try {
-      const res = await api.createCase({ ...data });
+      const res = await api.createCase({ ...data, tmp_files: data.files });
       setTicket(res.id); setStep(4);
     } catch(e) {
       setSubmitErr(e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่");
@@ -207,7 +208,7 @@ function ComplaintForm({ go }) {
 
       <div className="card card-pad" style={{padding:28}}>
         {step===0 && <Step1 data={data} set={set} />}
-        {step===1 && <Step2 data={data} set={set} />}
+        {step===1 && <Step2 data={data} set={set} addFiles={addFiles} />}
         {step===2 && <Step3 data={data} set={set} />}
         {step===3 && <Step4 data={data} />}
       </div>
@@ -325,12 +326,33 @@ function Step1({ data, set }) {
   );
 }
 
-function Step2({ data, set }) {
-  const addFiles = () => {
-    const samples = [["หลักฐานประกอบ.pdf","320 KB"],["ภาพถ่าย.jpg","1.2 MB"],["เอกสารแนบ.pdf","210 KB"]];
-    const s = samples[data.files.length % samples.length];
-    set("files",[...data.files,{n:s[0],s:s[1]}]);
+function Step2({ data, set, addFiles }) {
+  const fileRef = React.useRef();
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadErr, setUploadErr] = React.useState("");
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true); setUploadErr("");
+    const results = [];
+    for (const file of files) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch(_base + '/api/public_upload.php', {method:'POST', credentials:'same-origin', body:fd});
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'อัปโหลดล้มเหลว');
+        results.push({n: json.orig, s: json.size, tmp: json.tmp});
+      } catch(err) {
+        setUploadErr(err.message);
+      }
+    }
+    if (results.length) addFiles(results);
+    setUploading(false);
+    e.target.value = '';
   };
+
   return (
     <div className="grid" style={{gap:18}}>
       <div className="field">
@@ -351,11 +373,18 @@ function Step2({ data, set }) {
       </div>
       <div className="field">
         <label>แนบไฟล์หลักฐาน</label>
-        <div className="dropzone" onClick={addFiles}>
-          <Icon name="paperclip" style={{width:24,height:24,color:"var(--maroon)",margin:"0 auto 8px"}}/>
-          <div style={{fontWeight:600,fontSize:14}}>คลิกเพื่อแนบไฟล์ (จำลอง)</div>
-          <div className="help" style={{marginTop:4}}>รองรับ PDF, JPG, PNG, ZIP ขนาดไม่เกิน 20 MB ต่อไฟล์ · ไฟล์จะถูกตรวจไวรัสและเข้ารหัส</div>
+        <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.zip,.docx,.xlsx"
+          style={{display:"none"}} onChange={handleFiles} />
+        <div className="dropzone" onClick={()=>!uploading && fileRef.current.click()} style={{cursor:uploading?"not-allowed":"pointer"}}>
+          {uploading
+            ? <><LoadingSpinner/><div style={{marginTop:8,fontSize:14}}>กำลังอัปโหลด...</div></>
+            : <>
+                <Icon name="paperclip" style={{width:24,height:24,color:"var(--maroon)",margin:"0 auto 8px"}}/>
+                <div style={{fontWeight:600,fontSize:14}}>คลิกเพื่อแนบไฟล์</div>
+                <div className="help" style={{marginTop:4}}>รองรับ PDF, JPG, PNG, ZIP, DOCX, XLSX · ไม่เกิน 20 MB ต่อไฟล์</div>
+              </>}
         </div>
+        {uploadErr && <div className="notice notice-warn" style={{marginTop:8}}><Icon name="alert"/><div>{uploadErr}</div></div>}
         {data.files.length>0 &&
           <div className="grid" style={{gap:8,marginTop:10}}>
             {data.files.map((f,i)=>(
@@ -363,7 +392,8 @@ function Step2({ data, set }) {
                 <Icon name="file" style={{width:18,height:18,color:"var(--maroon)"}}/>
                 <span style={{fontWeight:500}}>{f.n}</span>
                 <span className="fmeta">{f.s}</span>
-                <button className="icon-btn" style={{width:28,height:28,marginLeft:"auto"}} onClick={(e)=>{e.stopPropagation();set("files",data.files.filter((_,j)=>j!==i));}}>
+                <button className="icon-btn" style={{width:28,height:28,marginLeft:"auto"}}
+                  onClick={(e)=>{e.stopPropagation();set("files",data.files.filter((_,j)=>j!==i));}}>
                   <Icon name="x" style={{width:14,height:14}}/>
                 </button>
               </div>

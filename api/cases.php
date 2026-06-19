@@ -154,6 +154,27 @@ if ($method === 'POST') {
         'done', 'inbox', 1,
     ]);
 
+    // ย้ายไฟล์ชั่วคราวที่อัปโหลดพร้อมฟอร์ม
+    $tmpFiles = $body['tmp_files'] ?? [];
+    if ($tmpFiles && is_array($tmpFiles)) {
+        $insFile = $db->prepare(
+            'INSERT INTO case_files (case_id, filename, stored_name, size_label, cls) VALUES (?,?,?,?,?)'
+        );
+        $tmpDir  = __DIR__ . '/../uploads/tmp/';
+        $destDir = __DIR__ . '/../uploads/';
+        foreach ($tmpFiles as $tf) {
+            $tmpName  = $tf['tmp']  ?? '';
+            $origName = $tf['orig'] ?? '';
+            $sizeLabel = $tf['size'] ?? '';
+            // ตรวจความปลอดภัย: ชื่อต้องเป็น hex32.ext เท่านั้น
+            if (!preg_match('/^[0-9a-f]{32}\.[a-z]{2,4}$/', $tmpName)) continue;
+            $src = $tmpDir . $tmpName;
+            if (!file_exists($src)) continue;
+            rename($src, $destDir . $tmpName);
+            $insFile->execute([$newId, $origName, $tmpName, $sizeLabel, 'public']);
+        }
+    }
+
     audit('create_case', $newId);
     json_out(['id' => $newId], 201);
 }
