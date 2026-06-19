@@ -161,12 +161,13 @@ function ComplaintForm({ go }) {
   });
   const [ticket, setTicket] = useState("");
   const set = (k,v) => setData(d=>({...d,[k]:v}));
-  const steps = ["วิธียื่น & ประเภท","รายละเอียดเรื่อง","ข้อมูลติดต่อ & ยินยอม","ทบทวนและยืนยัน"];
+  const steps = ["วิธียื่น & ข้อมูลผู้ร้อง","รายละเอียดเรื่อง","ยืนยันตัวเอง & ยินยอม","ทบทวนและยืนยัน"];
 
   const canNext = () => {
-    if(step===0) return data.identity && data.type && data.track && data.cat;
+    if(step===0) return data.identity && data.type && data.track && data.cat
+      && data.email.trim() && (data.identity==="anon" || data.name.trim());
     if(step===1) return data.subject.trim() && data.detail.trim().length>10;
-    if(step===2) return data.email.trim() && data.pdpa && (data.identity==="anon" || data.name.trim());
+    if(step===2) return data.pdpa;
     return true;
   };
   const [submitting, setSubmitting] = useState(false);
@@ -253,6 +254,36 @@ function Step1({ data, set }) {
           <div className="notice notice-info" style={{marginTop:12}}><Icon name="shieldCheck"/><div>ข้อมูลของท่านจะถูกเก็บเป็นความลับ เปิดเผยเฉพาะเจ้าหน้าที่ผู้รับผิดชอบตามสิทธิ์เท่านั้น</div></div>}
         {data.identity==="anon" &&
           <div className="notice notice-warn" style={{marginTop:12}}><Icon name="info"/><div>การยื่นแบบไม่ประสงค์ออกนามจะถูกตรวจสอบความน่าเชื่อถือเข้มข้นขึ้น และอาจมีการขอข้อมูลเพิ่มเติมผ่านอีเมล</div></div>}
+        {data.identity && <div className="grid" style={{gap:14,marginTop:16}}>
+          {data.identity==="named" && <>
+            <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div className="field">
+                <label>ชื่อ–นามสกุล <span className="req">*</span></label>
+                <input className="input" placeholder="ระบุชื่อจริง" value={data.name} onChange={e=>set("name",e.target.value)} />
+              </div>
+              <div className="field">
+                <label>ตำแหน่ง</label>
+                <input className="input" placeholder="เช่น ครู / เจ้าหน้าที่ / นักศึกษา" value={data.position||""} onChange={e=>set("position",e.target.value)} />
+              </div>
+            </div>
+            <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div className="field">
+                <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
+                <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
+              </div>
+              <div className="field">
+                <label>เบอร์โทรศัพท์</label>
+                <input className="input" placeholder="08x-xxx-xxxx (ถ้ามี)" value={data.phone} onChange={e=>set("phone",e.target.value)} />
+              </div>
+            </div>
+          </>}
+          {data.identity==="anon" &&
+            <div className="field">
+              <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
+              <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
+              <span className="help">ใช้รับแจ้งสถานะและรับหมายเลขติดตามเรื่อง — จะไม่เปิดเผยต่อผู้ถูกร้อง</span>
+            </div>}
+        </div>}
       </div>
 
       <hr className="hr"/>
@@ -346,28 +377,7 @@ function Step2({ data, set }) {
 function Step3({ data, set }) {
   return (
     <div className="grid" style={{gap:18}}>
-      {data.identity==="anon"
-        ? <div className="notice notice-warn"><Icon name="user"/><div>ท่านเลือกยื่นแบบ <b>ไม่ประสงค์ออกนาม</b> — ไม่ต้องระบุชื่อ-นามสกุล ระบุเพียงอีเมลเพื่อติดต่อกลับและแจ้งผล (อีเมลจะถูกปกปิดจากผู้ถูกร้อง)</div></div>
-        : <div className="notice notice-info"><Icon name="shieldCheck"/><div>ข้อมูลของท่านจะถูกเก็บเป็นความลับ เปิดเผยเฉพาะเจ้าหน้าที่ผู้รับผิดชอบตามสิทธิ์เท่านั้น</div></div>}
-
-      {data.identity!=="anon" && <>
-        <div className="field">
-          <label>ชื่อ–นามสกุล ผู้ร้อง <span className="req">*</span></label>
-          <input className="input" placeholder="ระบุชื่อจริง" value={data.name} onChange={e=>set("name",e.target.value)} />
-        </div>
-        <div className="field">
-          <label>ตำแหน่ง</label>
-          <input className="input" placeholder="เช่น ครู / เจ้าหน้าที่ / นักศึกษา (ถ้ามี)" value={data.position||""} onChange={e=>set("position",e.target.value)} />
-        </div>
-      </>}
-
-      <div className="field">
-        <label>อีเมลสำหรับติดต่อกลับ <span className="req">*</span></label>
-        <input className="input" type="email" placeholder="you@email.com" value={data.email} onChange={e=>set("email",e.target.value)} />
-        <span className="help">ใช้รับแจ้งสถานะและรับหมายเลขติดตามเรื่อง</span>
-      </div>
-
-      <hr className="hr"/>
+      <div className="notice notice-info"><Icon name="shieldCheck"/><div>โปรดอ่านและยินยอมการเก็บรวบรวมข้อมูลส่วนบุคคลก่อนดำเนินการต่อ</div></div>
       <div className={"check "+(data.pdpa?"on":"")} onClick={()=>set("pdpa",!data.pdpa)} style={{alignItems:"flex-start"}}>
         <span className="box"><Icon name="check"/></span>
         <span>ข้าพเจ้ายินยอมให้สำนักงานคณะกรรมการการอาชีวศึกษาเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลข้างต้น เพื่อวัตถุประสงค์ในการพิจารณาและดำเนินการเรื่องร้องเรียน–ร้องทุกข์เท่านั้น ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 <span className="req">*</span></span>
@@ -391,6 +401,7 @@ function Step4({ data }) {
         <dt>ไฟล์แนบ</dt><dd>{data.files.length?data.files.map(f=>f.n).join(", "):"ไม่มี"}</dd>
         <dt>ผู้ร้อง</dt><dd>{data.identity==="anon"?"ไม่ประสงค์ออกนาม":(data.name||"—")}{data.position?" · "+data.position:""}</dd>
         <dt>อีเมลติดต่อกลับ</dt><dd>{data.email||"—"}</dd>
+        {data.phone && <><dt>เบอร์โทรศัพท์</dt><dd>{data.phone}</dd></>}
       </dl>
     </div>
   );
