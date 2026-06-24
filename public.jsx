@@ -65,6 +65,113 @@ function PubFooter() {
   );
 }
 
+/* ---------------- สถิติสาธารณะ ---------------- */
+function PublicStats() {
+  const [stats, setStats] = React.useState(null);
+  const [err,   setErr]   = React.useState(false);
+
+  React.useEffect(() => {
+    api.getPublicStats()
+      .then(setStats)
+      .catch(() => setErr(true));
+  }, []);
+
+  if (err || !stats) return null;
+
+  const discipline = stats.by_track?.discipline ?? 0;
+  const legal      = stats.by_track?.legal ?? 0;
+  const trackTotal = discipline + legal || 1;
+  const discPct    = Math.round(discipline / trackTotal * 100);
+  const legalPct   = 100 - discPct;
+
+  const closedPct  = stats.total > 0 ? Math.round(stats.closed / stats.total * 100) : 0;
+
+  const KV = ({ icon, value, label, sub, color }) => (
+    <div className="card card-pad" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+      <div style={{width:40,height:40,borderRadius:'50%',background:`color-mix(in srgb,${color||'var(--maroon)'} 12%,transparent)`,
+        display:'grid',placeItems:'center',marginBottom:4}}>
+        <Icon name={icon} style={{width:20,height:20,color:color||'var(--maroon)'}}/>
+      </div>
+      <div style={{fontSize:32,fontWeight:700,lineHeight:1,color:color||'var(--maroon)'}}>{value}</div>
+      <div style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>{label}</div>
+      {sub && <div style={{fontSize:12,color:'var(--ink-3)'}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{marginTop:56}}>
+      <div style={{textAlign:'center',marginBottom:34}}>
+        <span className="badge badge-maroon">ความโปร่งใส</span>
+        <h2 style={{fontSize:26,marginTop:14}}>สถิติการดำเนินงาน</h2>
+        <p className="muted" style={{marginTop:8}}>ข้อมูลรวม ณ {stats.updated_at} น. · ไม่มีข้อมูลส่วนบุคคล</p>
+      </div>
+
+      {/* ตัวเลขหลัก */}
+      <div className="grid" style={{gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+        <KV icon="inbox"       value={stats.total.toLocaleString()}      label="เรื่องทั้งหมด"       sub={`ปีนี้ ${stats.this_year} เรื่อง`} />
+        <KV icon="checkCircle" value={stats.closed.toLocaleString()}     label="ดำเนินการแล้วเสร็จ"  sub={`${closedPct}% ของทั้งหมด`} color="var(--ok)" />
+        <KV icon="clock"       value={stats.active.toLocaleString()}     label="อยู่ระหว่างดำเนินการ" sub={`ค้างพิจารณา`} color="var(--info)" />
+        <KV icon="trend"       value={`${stats.on_time_pct}%`}           label="ทันกรอบเวลา SLA"      sub="ใน active cases" color={stats.on_time_pct>=80?'var(--ok)':stats.on_time_pct>=60?'var(--warn)':'var(--danger)'} />
+      </div>
+
+      {/* แถบสัดส่วนสายงาน + ช่องทาง */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginTop:16}}>
+
+        {/* สายงาน */}
+        <div className="card card-pad">
+          <div className="vcenter" style={{gap:8,marginBottom:16}}>
+            <Icon name="layers" style={{width:17,height:17,color:'var(--maroon)'}}/>
+            <span style={{fontWeight:600,fontSize:14}}>สัดส่วนตามสายงาน</span>
+          </div>
+          <div style={{display:'flex',borderRadius:8,overflow:'hidden',height:20,marginBottom:14}}>
+            <div style={{flex:discPct,background:'var(--maroon)',transition:'flex .4s'}}/>
+            <div style={{flex:legalPct,background:'var(--info)',transition:'flex .4s'}}/>
+          </div>
+          <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
+            <div className="vcenter" style={{gap:6}}>
+              <div style={{width:12,height:12,borderRadius:3,background:'var(--maroon)',flexShrink:0}}/>
+              <span style={{fontSize:13}}>สายวินัย</span>
+              <span style={{fontWeight:700,color:'var(--maroon)'}}>{discipline} เรื่อง ({discPct}%)</span>
+            </div>
+            <div className="vcenter" style={{gap:6}}>
+              <div style={{width:12,height:12,borderRadius:3,background:'var(--info)',flexShrink:0}}/>
+              <span style={{fontSize:13}}>สายกฎหมาย</span>
+              <span style={{fontWeight:700,color:'var(--info)'}}>{legal} เรื่อง ({legalPct}%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ช่องทางยื่น */}
+        <div className="card card-pad">
+          <div className="vcenter" style={{gap:8,marginBottom:14}}>
+            <Icon name="send" style={{width:17,height:17,color:'var(--maroon)'}}/>
+            <span style={{fontWeight:600,fontSize:14}}>ช่องทางที่ใช้ยื่นเรื่อง</span>
+          </div>
+          {stats.channels.length === 0
+            ? <p className="muted sm">ยังไม่มีข้อมูล</p>
+            : stats.channels.map((ch, i) => {
+                const max = stats.channels[0].count || 1;
+                const pct = Math.round(ch.count / max * 100);
+                return (
+                  <div key={i} style={{marginBottom:9}}>
+                    <div className="between" style={{fontSize:13,marginBottom:3}}>
+                      <span>{ch.name}</span>
+                      <span style={{fontWeight:600,color:'var(--maroon)'}}>{ch.count}</span>
+                    </div>
+                    <div style={{height:6,borderRadius:4,background:'var(--surface-2)',overflow:'hidden'}}>
+                      <div style={{height:'100%',width:pct+'%',background:'var(--maroon)',opacity:.7,borderRadius:4,transition:'width .4s'}}/>
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- หน้าแรก ---------------- */
 function PublicHome({ go }) {
   const features = [
@@ -127,6 +234,9 @@ function PublicHome({ go }) {
             ))}
           </div>
         </div>
+
+        {/* สถิติสาธารณะ */}
+        <PublicStats/>
 
         {/* CTA panel */}
         <div className="card" style={{marginTop:48,overflow:"hidden",display:"grid",gridTemplateColumns:"1.4fr 1fr"}}>
