@@ -719,12 +719,21 @@ function App() {
   const [screen, setScreen] = useState(
     window.__INITIAL_USER__ ? "admin" : "public"
   );
-  const [pub, setPub] = useState({ view:"home", params:null });
+  const [pub, setPub] = useState(() => {
+    if (!window.__INITIAL_USER__) {
+      const v = new URLSearchParams(window.location.search).get('view');
+      if (v === 'form' || v === 'track') return { view: v, params: null };
+    }
+    return { view: 'home', params: null };
+  });
 
   const go = (view, params) => {
     if (view === "login") { setScreen("login"); return; }
     if (view === "admin") { setScreen("admin"); return; }
     setScreen("public"); setPub({ view, params: params||null });
+    const base = (window.__APP_BASE__ || '').replace(/\/$/, '');
+    const url = view === 'home' ? base + '/' : base + '/?view=' + view;
+    history.pushState(null, '', url);
   };
 
   const handleLogin = (loggedUser) => {

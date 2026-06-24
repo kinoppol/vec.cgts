@@ -152,6 +152,34 @@ function PublicHome({ go }) {
   );
 }
 
+/* ---------------- ปุ่มแชร์ลิงก์ตรง ---------------- */
+function ShareFormButton() {
+  const [copied, setCopied] = React.useState(false);
+  const getLink = () => {
+    const base = (window.__APP_BASE__ || '').replace(/\/$/, '');
+    return window.location.origin + base + '/?view=form';
+  };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(getLink());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // fallback: prompt ให้ copy เอง
+      window.prompt('คัดลอกลิงก์นี้:', getLink());
+    }
+  };
+  return (
+    <button type="button" onClick={copy}
+      className={"btn btn-sm " + (copied ? "btn-outline" : "btn-ghost")}
+      title="คัดลอกลิงก์ตรงไปยังหน้ายื่นเรื่อง"
+      style={{flexShrink:0,marginTop:4,gap:6,transition:"all .2s"}}>
+      <Icon name={copied ? "checkCircle" : "share"} style={{width:15,height:15,color:copied?"var(--ok)":undefined}}/>
+      {copied ? "คัดลอกแล้ว!" : "คัดลอกลิงก์"}
+    </button>
+  );
+}
+
 /* ---------------- แบบฟอร์มยื่นเรื่อง ---------------- */
 function ComplaintForm({ go }) {
   const [step, setStep] = useState(0);
@@ -190,8 +218,14 @@ function ComplaintForm({ go }) {
   return (
     <div className="container fade-in" style={{maxWidth:780,padding:"34px 28px 80px"}}>
       <button className="btn btn-ghost btn-sm" onClick={()=>go("home")} style={{marginBottom:14}}><Icon name="chevL" style={{width:16,height:16}}/> กลับหน้าแรก</button>
-      <h1 style={{fontSize:26}}>ยื่นเรื่องร้องเรียน–ร้องทุกข์</h1>
-      <p className="muted" style={{marginTop:6,marginBottom:26}}>กรอกข้อมูลให้ครบถ้วนเพื่อให้เจ้าหน้าที่พิจารณาได้รวดเร็ว · ใช้เวลาประมาณ 5 นาที</p>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div>
+          <h1 style={{fontSize:26,margin:0}}>ยื่นเรื่องร้องเรียน–ร้องทุกข์</h1>
+          <p className="muted" style={{marginTop:6,marginBottom:0}}>กรอกข้อมูลให้ครบถ้วนเพื่อให้เจ้าหน้าที่พิจารณาได้รวดเร็ว · ใช้เวลาประมาณ 5 นาที</p>
+        </div>
+        <ShareFormButton/>
+      </div>
+      <div style={{marginBottom:26}}/>
 
       {/* stepper */}
       <div className="stepper" style={{marginBottom:30}}>
