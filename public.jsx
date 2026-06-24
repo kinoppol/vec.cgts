@@ -171,9 +171,12 @@ function ShareFormButton() {
   };
   return (
     <button type="button" onClick={copy}
-      className={"btn btn-sm " + (copied ? "btn-outline" : "btn-ghost")}
+      className="btn btn-sm"
       title="คัดลอกลิงก์ตรงไปยังหน้ายื่นเรื่อง"
-      style={{flexShrink:0,marginTop:4,gap:6,transition:"all .2s"}}>
+      style={{flexShrink:0,marginTop:4,gap:6,transition:"all .2s",
+        border:"1px solid var(--line)",borderRadius:"var(--r-md)",
+        background: copied ? "var(--ok-bg)" : "var(--surface)",
+        color: copied ? "var(--ok)" : "var(--ink-2)"}}>
       <Icon name={copied ? "checkCircle" : "link"} style={{width:15,height:15,color:copied?"var(--ok)":undefined}}/>
       {copied ? "คัดลอกแล้ว!" : "คัดลอกลิงก์หน้านี้"}
     </button>
