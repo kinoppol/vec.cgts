@@ -105,12 +105,12 @@ function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose
 
   return (
     <div style={OVERLAY_STYLE} onClick={onClose}>
-      <div style={{...BOX_STYLE_BASE, maxWidth:480}} onClick={e=>e.stopPropagation()}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:480, overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
           <h3 style={{margin:0,fontSize:17}}>{isNew ? 'เพิ่มผู้ใช้ใหม่' : 'แก้ไขผู้ใช้'}</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <form onSubmit={submit} style={{padding:'0 24px 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
+        <form id="user-form" onSubmit={submit} style={{padding:'0 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
 
           {!isNew && (
@@ -187,13 +187,13 @@ function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose
             )}
           </div>
 
-          <div className="btn-row" style={{marginTop:4}}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <LoadingSpinner/> : isNew ? 'เพิ่มผู้ใช้' : 'บันทึก'}
-            </button>
-          </div>
         </form>
+        <div className="modal-f">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+          <button type="submit" form="user-form" className="btn btn-primary" disabled={saving}>
+            {saving ? <LoadingSpinner/> : isNew ? 'เพิ่มผู้ใช้' : 'บันทึก'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -219,22 +219,19 @@ function ResetPassModal({ user, onClose }) {
 
   return (
     <div style={OVERLAY_STYLE} onClick={onClose}>
-      <div style={{...BOX_STYLE_BASE, maxWidth:400}} onClick={e=>e.stopPropagation()}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:400, overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
           <h3 style={{margin:0,fontSize:17}}>รีเซ็ตรหัสผ่าน</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <div style={{padding:'0 24px 24px'}}>
+        <div style={{padding:'0 24px',overflowY:'auto',flex:1,display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
           {done ? (
-            <div style={{textAlign:'center',padding:'16px 0'}}>
-              <div className="notice notice-ok"><Icon name="checkCircle"/>
-                <div>รีเซ็ตรหัสผ่านของ <b>{user.display_name}</b> สำเร็จแล้ว</div>
-              </div>
-              <button className="btn btn-primary" style={{marginTop:16}} onClick={onClose}>ปิด</button>
+            <div className="notice notice-ok"><Icon name="checkCircle"/>
+              <div>รีเซ็ตรหัสผ่านของ <b>{user.display_name}</b> สำเร็จแล้ว</div>
             </div>
           ) : (
-            <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
-              <p className="sm muted">ตั้งรหัสผ่านใหม่สำหรับ <b>{user.display_name}</b> ({user.username})</p>
+            <form id="reset-form" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+              <p className="sm muted" style={{margin:0}}>ตั้งรหัสผ่านใหม่สำหรับ <b>{user.display_name}</b> ({user.username})</p>
               {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
               <div className="field">
                 <label>รหัสผ่านใหม่ <span className="req">*</span></label>
@@ -242,14 +239,18 @@ function ResetPassModal({ user, onClose }) {
                   required minLength={6} autoComplete="new-password" autoFocus/>
                 <span className="hint">อย่างน้อย 6 ตัวอักษร</span>
               </div>
-              <div className="btn-row">
-                <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? <LoadingSpinner/> : 'รีเซ็ตรหัสผ่าน'}
-                </button>
-              </div>
             </form>
           )}
+        </div>
+        <div className="modal-f">
+          {done
+            ? <button type="button" className="btn btn-primary" onClick={onClose}>ปิด</button>
+            : <>
+                <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+                <button type="submit" form="reset-form" className="btn btn-primary" disabled={saving}>
+                  {saving ? <LoadingSpinner/> : 'รีเซ็ตรหัสผ่าน'}
+                </button>
+              </>}
         </div>
       </div>
     </div>

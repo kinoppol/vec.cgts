@@ -210,7 +210,7 @@ function ProfileModal({ user, onSave, onClose }) {
           <h3 style={{margin:0,fontSize:17}}>แก้ไขโปรไฟล์</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <form onSubmit={submit} style={{padding:"0 24px 24px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1}}>
+        <form id="profile-form" onSubmit={submit} style={{padding:"0 24px",display:"flex",flexDirection:"column",gap:14,overflowY:"auto",flex:1}}>
           {err && <div className="notice notice-err" style={{marginTop:16}}><Icon name="alert"/><div>{err}</div></div>}
 
           <div className="vcenter" style={{gap:16,marginTop:16}}>
@@ -260,13 +260,13 @@ function ProfileModal({ user, onSave, onClose }) {
             <span className="hint">อย่างน้อย 6 ตัวอักษร</span>
           </div>
 
-          <div className="btn-row" style={{marginTop:4}}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <LoadingSpinner/> : "บันทึก"}
-            </button>
-          </div>
         </form>
+        <div className="modal-f">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+          <button type="submit" form="profile-form" className="btn btn-primary" disabled={saving}>
+            {saving ? <LoadingSpinner/> : "บันทึก"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -142,16 +142,16 @@ function LookupImportModal({ onDone, onClose }) {
   };
 
   const OVERLAY = {position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24};
-  const BOX     = {background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:420};
+  const BOX     = {background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:420,display:'flex',flexDirection:'column',maxHeight:'90vh',overflow:'hidden'};
 
   return (
     <div style={OVERLAY} onClick={onClose}>
       <div style={BOX} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:'18px 22px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{padding:'18px 22px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <h3 style={{margin:0,fontSize:16}}>นำเข้ารายการอ้างอิง</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
           {err    && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
           {result && (
             <div className="notice notice-ok"><Icon name="checkCircle"/>
@@ -162,7 +162,7 @@ function LookupImportModal({ onDone, onClose }) {
             </div>
           )}
           {!result && (
-            <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+            <form id="lookup-import-form" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
               <div className="notice" style={{background:'var(--surface-2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:13}}>
                 <Icon name="info" style={{width:14,height:14,flexShrink:0}}/>
                 <span className="muted">รองรับเฉพาะไฟล์ ZIP ที่ส่งออกจากระบบนี้เท่านั้น รายการที่มีชื่อซ้ำจะถูกอัปเดตค่า sort_order และสถานะ</span>
@@ -172,17 +172,18 @@ function LookupImportModal({ onDone, onClose }) {
                 <input ref={fileRef} type="file" accept=".zip,application/zip" className="input"
                   onChange={e=>setFile(e.target.files?.[0]||null)} required/>
               </div>
-              <div className="btn-row">
-                <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-                <button type="submit" className="btn btn-primary" disabled={busy||!file}>
-                  {busy ? <LoadingSpinner/> : 'นำเข้า'}
-                </button>
-              </div>
             </form>
           )}
-          {result && (
-            <div className="btn-row"><button className="btn btn-primary" onClick={onClose}>ปิด</button></div>
-          )}
+        </div>
+        <div className="modal-f">
+          {result
+            ? <button type="button" className="btn btn-primary" onClick={onClose}>ปิด</button>
+            : <>
+                <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+                <button type="submit" form="lookup-import-form" className="btn btn-primary" disabled={busy||!file}>
+                  {busy ? <LoadingSpinner/> : 'นำเข้า'}
+                </button>
+              </>}
         </div>
       </div>
     </div>
