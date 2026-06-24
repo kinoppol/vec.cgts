@@ -99,7 +99,7 @@ function PublicStats() {
   );
 
   return (
-    <div style={{marginTop:56}}>
+    <div>
       <div style={{textAlign:'center',marginBottom:34}}>
         <span className="badge badge-maroon">ความโปร่งใส</span>
         <h2 style={{fontSize:26,marginTop:14}}>สถิติการดำเนินงาน</h2>
@@ -117,26 +117,60 @@ function PublicStats() {
       {/* แถบสัดส่วนสายงาน + ช่องทาง */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginTop:16}}>
 
-        {/* สายงาน */}
-        <div className="card card-pad">
-          <div className="vcenter" style={{gap:8,marginBottom:16}}>
+        {/* สายงาน — donut */}
+        <div className="card card-pad" style={{display:'flex',flexDirection:'column'}}>
+          <div className="vcenter" style={{gap:8,marginBottom:12}}>
             <Icon name="layers" style={{width:17,height:17,color:'var(--maroon)'}}/>
             <span style={{fontWeight:600,fontSize:14}}>สัดส่วนตามสายงาน</span>
           </div>
-          <div style={{display:'flex',borderRadius:8,overflow:'hidden',height:20,marginBottom:14}}>
-            <div style={{flex:discPct,background:'var(--maroon)',transition:'flex .4s'}}/>
-            <div style={{flex:legalPct,background:'var(--info)',transition:'flex .4s'}}/>
-          </div>
-          <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
-            <div className="vcenter" style={{gap:6}}>
-              <div style={{width:12,height:12,borderRadius:3,background:'var(--maroon)',flexShrink:0}}/>
-              <span style={{fontSize:13}}>สายวินัย</span>
-              <span style={{fontWeight:700,color:'var(--maroon)'}}>{discipline} เรื่อง ({discPct}%)</span>
-            </div>
-            <div className="vcenter" style={{gap:6}}>
-              <div style={{width:12,height:12,borderRadius:3,background:'var(--info)',flexShrink:0}}/>
-              <span style={{fontSize:13}}>สายกฎหมาย</span>
-              <span style={{fontWeight:700,color:'var(--info)'}}>{legal} เรื่อง ({legalPct}%)</span>
+          <div style={{display:'flex',alignItems:'center',gap:24,flex:1}}>
+            {/* donut SVG */}
+            {(() => {
+              const r = 54, cx = 70, cy = 70, stroke = 20;
+              const circ = 2 * Math.PI * r;
+              const discDash = circ * discPct / 100;
+              const legalDash = circ * legalPct / 100;
+              // discipline arc starts at top (rotate -90deg)
+              // legal arc follows immediately after discipline
+              const legalOffset = circ - discDash;
+              return (
+                <svg width={140} height={140} viewBox="0 0 140 140" style={{flexShrink:0}}>
+                  {/* track: discipline */}
+                  <circle cx={cx} cy={cy} r={r} fill="none"
+                    stroke="var(--maroon)" strokeWidth={stroke}
+                    strokeDasharray={`${discDash} ${circ - discDash}`}
+                    strokeDashoffset={circ / 4}
+                    strokeLinecap="butt"/>
+                  {/* track: legal */}
+                  <circle cx={cx} cy={cy} r={r} fill="none"
+                    stroke="var(--info)" strokeWidth={stroke}
+                    strokeDasharray={`${legalDash} ${circ - legalDash}`}
+                    strokeDashoffset={circ / 4 - discDash}
+                    strokeLinecap="butt"/>
+                  {/* center text */}
+                  <text x={cx} y={cy - 6} textAnchor="middle" fontSize="20" fontWeight="700"
+                    fill="var(--maroon)">{discPct}%</text>
+                  <text x={cx} y={cy + 14} textAnchor="middle" fontSize="10"
+                    fill="var(--ink-3)">สายวินัย</text>
+                </svg>
+              );
+            })()}
+            {/* legend */}
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div>
+                <div className="vcenter" style={{gap:6,marginBottom:2}}>
+                  <div style={{width:12,height:12,borderRadius:3,background:'var(--maroon)',flexShrink:0}}/>
+                  <span style={{fontSize:13}}>สายวินัย</span>
+                </div>
+                <div style={{fontWeight:700,fontSize:18,color:'var(--maroon)',marginLeft:18}}>{discipline} <span style={{fontSize:12,fontWeight:400,color:'var(--ink-3)'}}>เรื่อง ({discPct}%)</span></div>
+              </div>
+              <div>
+                <div className="vcenter" style={{gap:6,marginBottom:2}}>
+                  <div style={{width:12,height:12,borderRadius:3,background:'var(--info)',flexShrink:0}}/>
+                  <span style={{fontSize:13}}>สายกฎหมาย</span>
+                </div>
+                <div style={{fontWeight:700,fontSize:18,color:'var(--info)',marginLeft:18}}>{legal} <span style={{fontSize:12,fontWeight:400,color:'var(--ink-3)'}}>เรื่อง ({legalPct}%)</span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -206,8 +240,11 @@ function PublicHome({ go }) {
       </section>
 
       <div className="container" style={{padding:"48px 28px"}}>
+        {/* สถิติสาธารณะ — อยู่ใต้ hero บนสุด */}
+        <PublicStats/>
+
         {/* features */}
-        <div className="feat">
+        <div className="feat" style={{marginTop:48}}>
           {features.map((f,i)=>(
             <div key={i} className="card card-pad">
               <div className="fi"><Icon name={f.ic}/></div>
@@ -234,9 +271,6 @@ function PublicHome({ go }) {
             ))}
           </div>
         </div>
-
-        {/* สถิติสาธารณะ */}
-        <PublicStats/>
 
         {/* CTA panel */}
         <div className="card" style={{marginTop:48,overflow:"hidden",display:"grid",gridTemplateColumns:"1.4fr 1fr"}}>
