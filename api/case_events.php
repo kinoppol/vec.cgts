@@ -1,7 +1,8 @@
 <?php
 /* ============================================================
-   api/case_events.php — อัปเดตวันที่และสถานะของ event
-   PATCH ?id= — officer ขึ้นไป
+   api/case_events.php — สร้างและอัปเดต event ต่อขั้นตอน
+   POST          — สร้าง event ใหม่สำหรับ step (officer ขึ้นไป)
+   PATCH ?id=    — อัปเดต event ที่มีอยู่แล้ว
    ============================================================ */
 require_once __DIR__ . '/_common.php';
 
@@ -9,6 +10,55 @@ $actor  = require_auth();
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 $id     = (int)($_GET['id'] ?? 0);
+
+/* ── POST: สร้าง event ใหม่ ──────────────────────────────── */
+if ($method === 'POST') {
+    $body     = json_decode(file_get_contents('php://input'), true) ?? [];
+    $case_id  = trim($body['case_id']  ?? '');
+    $step_key = trim($body['step_key'] ?? '');
+    $ev_status= $body['ev_status'] ?? 'active';
+
+    if (!$case_id)  err('ต้องระบุ case_id');
+    if (!$step_key) err('ต้องระบุ step_key');
+    if (!in_array($ev_status, ['done','active','pending'])) err('ev_status ไม่ถูกต้อง');
+
+    // ตรวจว่า case มีอยู่
+    $cs = $db->prepare("SELECT id FROM cases WHERE id = ?");
+    $cs->execute([$case_id]);
+    if (!$cs->fetch()) err('ไม่พบสำนวน', 404);
+
+    // ดึง step info
+    $sp = $db->prepare("SELECT * FROM sla_steps WHERE step_key = ?");
+    $sp->execute([$step_key]);
+    $step = $sp->fetch();
+    if (!$step) err('ไม่พบ step_key', 404);
+
+    // ตรวจว่ามี event สำหรับ step นี้อยู่แล้วหรือไม่
+    $ex = $db->prepare("SELECT id FROM case_events WHERE case_id = ? AND step_key = ?");
+    $ex->execute([$case_id, $step_key]);
+    if ($ex->fetch()) err('มี event สำหรับขั้นตอนนี้อยู่แล้ว', 409);
+
+    $today      = date('Y-m-d');
+    $started_at = ($ev_status === 'active' || $ev_status === 'done') ? $today : null;
+    $completed_at = ($ev_status === 'done') ? $today : null;
+
+    $db->prepare("
+        INSERT INTO case_events
+          (case_id, title, ev_status, icon, sort_order, step_key, started_at, completed_at)
+        VALUES (?, ?, ?, 'dot', ?, ?, ?, ?)
+    ")->execute([
+        $case_id, $step['label'], $ev_status,
+        (int)$step['sort_order'], $step_key,
+        $started_at, $completed_at,
+    ]);
+    $new_id = (int)$db->lastInsertId();
+
+    audit('event_create', $case_id, "step={$step_key}");
+
+    $row = $db->prepare("SELECT * FROM case_events WHERE id = ?");
+    $row->execute([$new_id]);
+    json_out($row->fetch());
+}
 
 if ($method !== 'PATCH' || $id <= 0) err('Method not allowed', 405);
 

@@ -171,21 +171,33 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
     return d.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
   }
 
+  async function ensureEvent(s, ev_status) {
+    // ถ้ายังไม่มี event → สร้างใหม่ แล้วคืน id
+    if (s.event_id) return s.event_id;
+    const created = await api.createEvent({ case_id: s._case_id, step_key: s.step_key, ev_status });
+    return created.id;
+  }
+
   async function markStatus(s, st) {
-    if (!s.event_id || busy) return;
+    if (busy) return;
     setBusy(s.step_key + ':' + st);
     try {
-      await api.updateEvent(s.event_id, { ev_status: st });
+      if (s.event_id) {
+        await api.updateEvent(s.event_id, { ev_status: st });
+      } else {
+        await api.createEvent({ case_id: s._case_id, step_key: s.step_key, ev_status: st });
+      }
       await onRefresh();
     } catch(e) { alert(e.message); }
     setBusy(null);
   }
 
   async function saveDate(s, field, value) {
-    if (!s.event_id) return;
+    if (busy) return;
     setBusy(s.step_key + ':' + field);
     try {
-      await api.updateEvent(s.event_id, { [field]: value || null });
+      const eid = await ensureEvent(s, 'active');
+      await api.updateEvent(eid, { [field]: value || null });
       await onRefresh();
     } catch(e) { alert(e.message); }
     setBusy(null);
@@ -359,7 +371,7 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
               )}
 
               {/* ปุ่ม + inline date (canEdit) */}
-              {canEdit && s.event_id && (
+              {canEdit && (
                 <div className="vcenter" style={{gap:6,marginTop:6,flexWrap:'wrap'}}>
                   {!isDone && !isActive && (
                     <button className="btn btn-sm"
@@ -483,9 +495,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role }) {
                 </div>
               ))}
             </div>}
-            {tab==="timeline" && <CaseTimeline steps={c.steps||[]} onRefresh={()=>{
-              api.getCase(c.id).then(full=>setC(full));
-            }} canEdit={canAssign}/>}
+            {tab==="timeline" && <CaseTimeline
+              steps={(c.steps||[]).map(s=>({...s, _case_id: c.id}))}
+              onRefresh={()=>{ api.getCase(c.id).then(full=>setC(full)); }}
+              canEdit={canAssign}/>}
           </div>
         </div>
 

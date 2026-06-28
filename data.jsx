@@ -147,6 +147,7 @@ const api = {
   saveSlaSettings: (data)     => apiFetch('/api/sla.php', { method:'POST', body: JSON.stringify(data) }),
   getSlaSteps:     ()         => apiFetch('/api/sla_steps.php'),
   updateSlaStep:   (id, data) => apiFetch('/api/sla_steps.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
+  createEvent:     (data)     => apiFetch('/api/case_events.php', { method:'POST', body: JSON.stringify(data) }),
   updateEvent:     (id, data) => apiFetch('/api/case_events.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),
   saveRoleLabel:     (data)     => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
