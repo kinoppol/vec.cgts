@@ -519,8 +519,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role }) {
         </div>
       </div>
 
-      {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={(oid)=>{
-        updateCase(c.id, {assignee:oid, status:["screening","received","case"].includes(c.status)?"assigned":c.status});
+      {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={async (oid)=>{
+        await updateCase(c.id, {assignee:oid, status:["screening","received","case"].includes(c.status)?"assigned":c.status});
+        api.getCase(c.id).then(full => setC(full));
         setAssign(false);
       }}/>}
     </div>
