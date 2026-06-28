@@ -393,11 +393,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
 
   const handleLogout = async () => {
     if (user.is_impersonating) {
-      // ขณะสวมสิทธิ์ → คืนกลับ admin แทนการ logout
       try {
-        const admin = await api.stopImpersonating();
-        setUser(admin);
-        setView("users");
+        await api.stopImpersonating();
+        window.location.reload();
       } catch(e) { alert(e.message); }
       return;
     }
@@ -412,9 +410,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
 
   const handleStopImpersonating = async () => {
     try {
-      const admin = await api.stopImpersonating();
-      setUser(admin);
-      setView("users");
+      await api.stopImpersonating();
+      window.location.reload();
     } catch(e) { alert(e.message); }
   };
 
