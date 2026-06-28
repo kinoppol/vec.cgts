@@ -381,10 +381,8 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
                 border: `2px solid ${isDone ? 'var(--ok)' : isActive ? 'var(--info)' : 'var(--border)'}`,
                 transition:'all .2s',
               }}>
-                {isDone
+                {(isDone || isActive)
                   ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  : isActive
-                  ? <div style={{width:8,height:8,borderRadius:'50%',background:'#fff'}}/>
                   : <div style={{width:6,height:6,borderRadius:'50%',background:'var(--border)'}}/>}
               </div>
               {!isLast && (
