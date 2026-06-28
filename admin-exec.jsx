@@ -438,29 +438,21 @@ function ExecDashboard({ currentUser, onOpenCase }) {
 
       {/* ── KPI Row 2: งานค้าง ── */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:24}}>
-        <KpiCard label="ค้างเกิน 30 วัน" value={kpi.pending30}
+        <KpiCard label="ค้าง 31–60 วัน" value={kpi.pending30}
           color={kpi.pending30>0?'#f97316':'var(--ok)'}
           bg={kpi.pending30>0?'rgba(249,115,22,.06)':undefined}
-          onClick={()=>openDrill('งานค้างเกิน 30 วัน', {drill:'pending30'})}/>
-        <KpiCard label="ค้างเกิน 60 วัน" value={kpi.pending60}
+          sub="อายุ 31–60 วัน"
+          onClick={()=>openDrill('งานค้าง 31–60 วัน', {drill:'pending30'})}/>
+        <KpiCard label="ค้าง 61–90 วัน" value={kpi.pending60}
           color={kpi.pending60>0?'#ea580c':'var(--ok)'}
           bg={kpi.pending60>0?'rgba(234,88,12,.06)':undefined}
-          onClick={()=>openDrill('งานค้างเกิน 60 วัน', {drill:'pending60'})}/>
+          sub="อายุ 61–90 วัน"
+          onClick={()=>openDrill('งานค้าง 61–90 วัน', {drill:'pending60'})}/>
         <KpiCard label="ค้างเกิน 90 วัน" value={kpi.pending90}
           color={kpi.pending90>0?'var(--danger)':'var(--ok)'}
           bg={kpi.pending90>0?'rgba(220,38,38,.08)':undefined}
+          sub="อายุมากกว่า 90 วัน"
           onClick={()=>openDrill('งานค้างเกิน 90 วัน', {drill:'pending90'})}/>
-      </div>
-
-      {/* ── Row: Officer table ── */}
-      <div className="card" style={{marginBottom:16}}>
-        <div style={{padding:'14px 20px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <h3 style={{margin:0,fontSize:15}}>งานตามนิติกร</h3>
-          <span className="badge badge-maroon">{by_officer.length} คน</span>
-        </div>
-        <div style={{padding:16}}>
-          <OfficerTable data={by_officer} onDrill={(o)=>openDrill(`งานของ ${o.name}`, {officer:o.id})}/>
-        </div>
       </div>
 
       {/* ── Row: SLA + Track + Aging ── */}
@@ -603,6 +595,17 @@ function ExecDashboard({ currentUser, onOpenCase }) {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* ── Row: Officer table (ล่างสุด) ── */}
+      <div className="card" style={{marginTop:16}}>
+        <div style={{padding:'14px 20px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <h3 style={{margin:0,fontSize:15}}>งานตามนิติกร</h3>
+          <span className="badge badge-maroon">{by_officer.length} คน</span>
+        </div>
+        <div style={{padding:16}}>
+          <OfficerTable data={by_officer} onDrill={(o)=>openDrill(`งานของ ${o.name}`, {officer:o.id})}/>
         </div>
       </div>
 

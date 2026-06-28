@@ -46,18 +46,23 @@ $closed_month = (int)$db->query("
     AND DATE_FORMAT(updated_at,'%Y-%m') = DATE_FORMAT(NOW(),'%Y-%m')
 ")->fetchColumn();
 
-// ค้างเกิน N วัน (นับจาก received_date หรือ created_at)
+// ค้างเกิน N วัน — แบบ exclusive (ไม่ทับซ้อนกัน)
 $days_col = "COALESCE(received_date, DATE(created_at))";
+// 30 < age ≤ 60
 $pending30 = (int)$db->query("
     SELECT COUNT(*) FROM cases
     WHERE status IN $active_statuses
     AND DATEDIFF('$today', $days_col) > 30
+    AND DATEDIFF('$today', $days_col) <= 60
 ")->fetchColumn();
+// 60 < age ≤ 90
 $pending60 = (int)$db->query("
     SELECT COUNT(*) FROM cases
     WHERE status IN $active_statuses
     AND DATEDIFF('$today', $days_col) > 60
+    AND DATEDIFF('$today', $days_col) <= 90
 ")->fetchColumn();
+// age > 90
 $pending90 = (int)$db->query("
     SELECT COUNT(*) FROM cases
     WHERE status IN $active_statuses

@@ -209,12 +209,12 @@ if ($method === 'GET') {
                 $where[] = "c.status = 'received'";
                 break;
             case 'pending30':
-                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 30";
-                $params[] = $today_str;
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 30 AND DATEDIFF(?, $days_col) <= 60";
+                $params[] = $today_str; $params[] = $today_str;
                 break;
             case 'pending60':
-                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 60";
-                $params[] = $today_str;
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 60 AND DATEDIFF(?, $days_col) <= 90";
+                $params[] = $today_str; $params[] = $today_str;
                 break;
             case 'pending90':
                 $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 90";
