@@ -56,6 +56,18 @@ function buildCase(array $row, PDO $db): array {
     return $row;
 }
 
+function calcSla(?string $dueDate, int $totalDays, DateTime $today, string $status): string {
+    // เรื่องที่ปิดแล้วหรือปฏิเสธ ให้ใช้ g เสมอ
+    if (in_array($status, ['closed', 'rejected'])) return 'g';
+    if (!$dueDate) return 'g';
+    $due       = new DateTime($dueDate);
+    $remaining = (int)$today->diff($due)->days * ($due >= $today ? 1 : -1);
+    if ($remaining < 0) return 'r';
+    // amber = เหลือน้อยกว่า 25% ของ total days (อย่างน้อย 2 วัน)
+    $amber = max(2, (int)ceil($totalDays * 0.25));
+    return $remaining <= $amber ? 'a' : 'g';
+}
+
 function nextCaseId(PDO $db): string {
     $year = date('Y') + 543; // พ.ศ.
     $prefix = "CMP-{$year}-";
@@ -75,15 +87,20 @@ if ($method === 'GET' && $id !== '') {
     if (!$row) err('ไม่พบสำนวน', 404);
 
     // ตรวจสอบสิทธิ์: ถ้าไม่ใช่เจ้าหน้าที่ ให้เห็นเฉพาะสถานะ
+    // คำนวณ SLA dynamic สำหรับ case นี้
+    $ss = $db->prepare("SELECT days FROM sla_settings WHERE track = ? AND cat = ?");
+    $ss->execute([$row['track'], $row['cat']]);
+    $slaDays   = (int)($ss->fetchColumn() ?: 30);
+    $slaToday  = new DateTime(date('Y-m-d'));
+    $row['sla'] = calcSla($row['due_date'], $slaDays, $slaToday, $row['status']);
+
     $isStaff = !empty($_SESSION['user_id']);
     if (!$isStaff) {
-        // ตรวจ email ถ้าส่งมา (optional — ถ้าไม่ตรงยังคืนข้อมูลได้ แต่ subject จะถูก mask เพิ่ม)
         $emailOk = false;
         $qEmail  = trim($_GET['email'] ?? '');
         if ($qEmail !== '' && $row['contact'] !== null) {
             $emailOk = strtolower($qEmail) === strtolower($row['contact']);
         }
-        // Public: คืนข้อมูลจำเป็นสำหรับติดตามสถานะ + subject (ให้ frontend mask)
         json_out([
             'id'       => $row['id'],
             'status'   => $row['status'],
@@ -123,9 +140,11 @@ if ($method === 'GET') {
 
     $sql = "SELECT c.id, c.reg_number AS reg, c.subject, c.track, c.cat, c.channel,
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
-                   c.agency, c.assignee_id AS assignee, c.sla,
-                   c.progress, c.received_date AS received, c.due_date AS due
-            FROM cases c"
+                   c.agency, c.assignee_id AS assignee,
+                   c.progress, c.received_date AS received, c.due_date AS due,
+                   COALESCE(ss.days, 30) AS sla_days
+            FROM cases c
+            LEFT JOIN sla_settings ss ON ss.track = c.track AND ss.cat = c.cat"
          . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
          . ' ORDER BY c.created_at DESC';
 
@@ -133,9 +152,13 @@ if ($method === 'GET') {
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
+    $today = new DateTime(date('Y-m-d'));
     foreach ($rows as &$r) {
         $r['anon']     = (bool)$r['anon'];
         $r['progress'] = (int)$r['progress'];
+        // คำนวณ SLA แบบ dynamic จาก due_date + sla_days
+        $r['sla'] = calcSla($r['due'], (int)$r['sla_days'], $today, $r['status']);
+        unset($r['sla_days']);
     }
 
     json_out($rows);
