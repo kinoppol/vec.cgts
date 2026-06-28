@@ -47,7 +47,7 @@ function DrillDownModal({ title, params, onClose, onOpenCase }) {
   return (
     <div style={{
       position:'fixed', inset:0, background:'rgba(10,5,8,.6)',
-      zIndex:400, display:'flex', alignItems:'flex-start', justifyContent:'flex-end',
+      zIndex:10001, display:'flex', alignItems:'flex-start', justifyContent:'flex-end',
       padding:16,
     }} onClick={onClose}>
       <div style={{
