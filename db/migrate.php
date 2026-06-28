@@ -3,10 +3,40 @@
  * migrate.php — migrations รวม
  *   [1] รัน personnel.sql และตั้งรหัสผ่านใหม่   ?confirm=run&pass=xxx
  *   [2] เพิ่มตาราง sla_steps + คอลัมน์ case_events  ?confirm=sla
+ *   [3] เพิ่ม attachment columns ใน case_events        ?confirm=event_attach
  */
 require_once __DIR__ . '/../config/db.php';
 
 $confirm = $_GET['confirm'] ?? '';
+
+/* ── [3] Event Attachment columns ──────────────────────── */
+if ($confirm === 'event_attach') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration: Event Attachment Columns</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $cols = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ([
+            'attachment_name VARCHAR(300) DEFAULT NULL AFTER detail',
+            'attachment_path VARCHAR(300) DEFAULT NULL AFTER attachment_name',
+            'attachment_size VARCHAR(30)  DEFAULT NULL AFTER attachment_path',
+        ] as $col) {
+            $name = explode(' ', $col)[0];
+            if (!in_array($name, $cols)) {
+                $db->exec("ALTER TABLE case_events ADD COLUMN $col");
+                echo "✓ ALTER case_events ADD $name\n";
+            } else {
+                echo "– $name มีอยู่แล้ว ข้าม\n";
+            }
+        }
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
 
 /* ── [2] SLA Steps migration ────────────────────────────── */
 if ($confirm === 'sla') {
@@ -77,6 +107,7 @@ if ($confirm !== 'run') {
     echo '<h2>Migration</h2><ul>';
     echo '<li><b>[1] Personnel + รหัสผ่าน</b><br><code><a href="?confirm=run&pass=password">migrate.php?confirm=run&pass=password</a></code></li>';
     echo '<li><b>[2] SLA Steps</b> — เพิ่มตาราง sla_steps และคอลัมน์ case_events<br><code><a href="?confirm=sla">migrate.php?confirm=sla</a></code></li>';
+    echo '<li><b>[3] Event Attachment</b> — เพิ่มคอลัมน์ attachment_name/path/size ใน case_events<br><code><a href="?confirm=event_attach">migrate.php?confirm=event_attach</a></code></li>';
     echo '</ul>';
     exit;
 }

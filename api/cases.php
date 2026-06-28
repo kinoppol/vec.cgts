@@ -19,7 +19,8 @@ function buildCase(array $row, PDO $db): array {
     // events ของสำนวนนี้
     $ev = $db->prepare('
         SELECT id, title AS t, actor AS who, moment AS m, detail AS d,
-               ev_status AS st, icon AS ic, step_key, started_at, completed_at
+               ev_status AS st, icon AS ic, step_key, started_at, completed_at,
+               attachment_name, attachment_path, attachment_size
         FROM case_events WHERE case_id = ? ORDER BY sort_order
     ');
     $ev->execute([$row['id']]);
@@ -61,9 +62,12 @@ function buildCase(array $row, PDO $db): array {
             'ev_status'    => $e ? $e['st']        : 'pending',
             'started_at'   => $e ? $e['started_at']   : null,
             'completed_at' => $e ? $e['completed_at'] : null,
-            'actor'        => $e ? $e['who']  : null,
-            'detail'       => $e ? $e['d']    : null,
-            'moment'       => $e ? $e['m']    : null,
+            'actor'           => $e ? $e['who']             : null,
+            'detail'          => $e ? $e['d']               : null,
+            'moment'          => $e ? $e['m']               : null,
+            'attachment_name' => $e ? $e['attachment_name'] : null,
+            'attachment_path' => $e ? $e['attachment_path'] : null,
+            'attachment_size' => $e ? $e['attachment_size'] : null,
             // computed
             'days_used'    => $used,
             'days_remain'  => $remain,

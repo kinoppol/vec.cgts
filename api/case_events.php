@@ -87,6 +87,16 @@ if (array_key_exists('completed_at', $body)) {
 if (array_key_exists('ev_status', $body)) {
     $st = $body['ev_status'];
     if (!in_array($st, ['done','active','pending'])) err('ev_status ไม่ถูกต้อง');
+
+    // ยืนยันว่ากด "เสร็จแล้ว" ต้องมี detail หรือ attachment
+    if ($st === 'done') {
+        $newDetail     = trim($body['detail'] ?? $event['detail'] ?? '');
+        $hasAttachment = !empty($event['attachment_path']) || !empty($body['_has_file']);
+        if ($newDetail === '' && !$hasAttachment) {
+            err('กรุณาพิมพ์บันทึกการดำเนินการ หรือแนบไฟล์ PDF อย่างน้อยหนึ่งอย่าง');
+        }
+    }
+
     $sets[] = 'ev_status = ?'; $vals[] = $st;
     // auto-fill dates
     if ($st === 'active' && !$event['started_at']) {
@@ -106,6 +116,15 @@ if (array_key_exists('actor', $body)) {
 }
 if (array_key_exists('moment', $body)) {
     $sets[] = 'moment = ?'; $vals[] = trim($body['moment']) ?: null;
+}
+if (array_key_exists('attachment_name', $body)) {
+    $sets[] = 'attachment_name = ?'; $vals[] = trim($body['attachment_name']) ?: null;
+}
+if (array_key_exists('attachment_path', $body)) {
+    $sets[] = 'attachment_path = ?'; $vals[] = trim($body['attachment_path']) ?: null;
+}
+if (array_key_exists('attachment_size', $body)) {
+    $sets[] = 'attachment_size = ?'; $vals[] = trim($body['attachment_size']) ?: null;
 }
 
 if (empty($sets)) err('ไม่มีข้อมูลที่ต้องการแก้ไข');
