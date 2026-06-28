@@ -11,12 +11,12 @@ function buildCase(array $row, PDO $db): array {
     $fs->execute([$row['id']]);
     $row['files'] = $fs->fetchAll();
 
-    // sla_steps map (step_key => row)
+    // sla_steps ทั้งหมด (backbone 6 ขั้น)
+    $allSteps = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order")->fetchAll();
     $stepsMap = [];
-    $sr = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order");
-    foreach ($sr->fetchAll() as $s) $stepsMap[$s['step_key']] = $s;
+    foreach ($allSteps as $s) $stepsMap[$s['step_key']] = $s;
 
-    // events + per-step SLA
+    // events ของสำนวนนี้
     $ev = $db->prepare('
         SELECT id, title AS t, actor AS who, moment AS m, detail AS d,
                ev_status AS st, icon AS ic, step_key, started_at, completed_at
@@ -24,27 +24,72 @@ function buildCase(array $row, PDO $db): array {
     ');
     $ev->execute([$row['id']]);
     $today = new DateTime(date('Y-m-d'));
-    $events = [];
+
+    // map event by step_key
+    $evByStep = [];
+    $freeEvents = [];
     foreach ($ev->fetchAll() as $e) {
         if ($e['step_key'] && isset($stepsMap[$e['step_key']])) {
-            $step    = $stepsMap[$e['step_key']];
-            $allowed = (int)$step['days_allowed'];
-            $start   = $e['started_at']   ? new DateTime($e['started_at'])   : null;
-            $done    = $e['completed_at'] ? new DateTime($e['completed_at']) : null;
-            $used    = $start ? (int)$start->diff($done ?? $today)->days : null;
-            $remain  = $used !== null ? $allowed - $used : null;
-            $sla     = null;
-            if ($remain !== null) {
-                if ($remain < 0)                                     $sla = 'r';
-                elseif ($remain <= max(1, (int)($allowed * 0.25)))   $sla = 'a';
-                else                                                  $sla = 'g';
-            }
-            $e['step_label']       = $step['label'];
-            $e['step_days_allowed']= $allowed;
-            $e['step_days_used']   = $used;
-            $e['step_days_remain'] = $remain;
-            $e['step_sla']         = $sla;
+            $evByStep[$e['step_key']] = $e;
+        } else {
+            $freeEvents[] = $e;
         }
+    }
+
+    // สร้าง steps array (backbone + merge event)
+    $steps = [];
+    foreach ($allSteps as $s) {
+        $allowed = (int)$s['days_allowed'];
+        $e       = $evByStep[$s['step_key']] ?? null;
+        $start   = ($e && $e['started_at'])   ? new DateTime($e['started_at'])   : null;
+        $done    = ($e && $e['completed_at']) ? new DateTime($e['completed_at']) : null;
+        $used    = $start ? (int)$start->diff($done ?? $today)->days : null;
+        $remain  = $used !== null ? $allowed - $used : null;
+        $sla     = null;
+        if ($remain !== null) {
+            if ($remain < 0)                                   $sla = 'r';
+            elseif ($remain <= max(1,(int)($allowed * 0.25))) $sla = 'a';
+            else                                               $sla = 'g';
+        }
+        $steps[] = [
+            'step_key'     => $s['step_key'],
+            'label'        => $s['label'],
+            'days_allowed' => $allowed,
+            'sort_order'   => (int)$s['sort_order'],
+            // event data (null ถ้าไม่มี event link)
+            'event_id'     => $e ? (int)$e['id']  : null,
+            'ev_status'    => $e ? $e['st']        : 'pending',
+            'started_at'   => $e ? $e['started_at']   : null,
+            'completed_at' => $e ? $e['completed_at'] : null,
+            'actor'        => $e ? $e['who']  : null,
+            'detail'       => $e ? $e['d']    : null,
+            'moment'       => $e ? $e['m']    : null,
+            // computed
+            'days_used'    => $used,
+            'days_remain'  => $remain,
+            'step_sla'     => $sla,
+        ];
+    }
+    $row['steps'] = $steps;
+
+    // events ทั่วไป (ไม่มี step_key) + events ที่มี step_key (backward-compat)
+    $events = [];
+    foreach ($freeEvents as $e) $events[] = $e;
+    foreach ($evByStep as $e) {
+        $step    = $stepsMap[$e['step_key']];
+        $allowed = (int)$step['days_allowed'];
+        $start   = $e['started_at']   ? new DateTime($e['started_at'])   : null;
+        $done    = $e['completed_at'] ? new DateTime($e['completed_at']) : null;
+        $used    = $start ? (int)$start->diff($done ?? $today)->days : null;
+        $remain  = $used !== null ? $allowed - $used : null;
+        $sla2    = null;
+        if ($remain !== null) {
+            if ($remain < 0)                                   $sla2 = 'r';
+            elseif ($remain <= max(1,(int)($allowed * 0.25))) $sla2 = 'a';
+            else                                               $sla2 = 'g';
+        }
+        $e['step_label'] = $step['label']; $e['step_days_allowed'] = $allowed;
+        $e['step_days_used'] = $used; $e['step_days_remain'] = $remain; $e['step_sla'] = $sla2;
         $events[] = $e;
     }
     $row['events'] = $events;
