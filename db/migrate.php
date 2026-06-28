@@ -4,10 +4,75 @@
  *   [1] รัน personnel.sql และตั้งรหัสผ่านใหม่   ?confirm=run&pass=xxx
  *   [2] เพิ่มตาราง sla_steps + คอลัมน์ case_events  ?confirm=sla
  *   [3] เพิ่ม attachment columns ใน case_events        ?confirm=event_attach
+ *   [4] ระบบแจ้งเตือน: notifications + notification_log + email ใน users  ?confirm=notifications
  */
 require_once __DIR__ . '/../config/db.php';
 
 $confirm = $_GET['confirm'] ?? '';
+
+/* ── [4] Notification System ────────────────────────────── */
+if ($confirm === 'notifications') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [4]: ระบบแจ้งเตือน</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // เพิ่มคอลัมน์ email ใน users
+        $cols = $db->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('email', $cols)) {
+            $db->exec("ALTER TABLE users ADD COLUMN email VARCHAR(200) DEFAULT NULL AFTER display_name");
+            echo "✓ ALTER users ADD email\n";
+        } else {
+            echo "– users.email มีอยู่แล้ว ข้าม\n";
+        }
+
+        // สร้างตาราง notifications
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS notifications (
+              id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+              user_id     INT NOT NULL,
+              case_id     VARCHAR(20) NOT NULL,
+              notif_type  VARCHAR(50) NOT NULL,
+              title       VARCHAR(300) NOT NULL,
+              body        TEXT DEFAULT NULL,
+              read_at     DATETIME DEFAULT NULL,
+              created_at  DATETIME NOT NULL DEFAULT NOW(),
+              PRIMARY KEY (id),
+              KEY idx_notif_user (user_id, read_at),
+              KEY idx_notif_case (case_id),
+              CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        echo "✓ CREATE TABLE notifications (IF NOT EXISTS)\n";
+
+        // สร้างตาราง notification_log (ป้องกันส่งซ้ำ)
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS notification_log (
+              id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+              case_id     VARCHAR(20) NOT NULL,
+              notif_type  VARCHAR(50) NOT NULL,
+              user_id     INT NOT NULL,
+              channel     VARCHAR(20) NOT NULL DEFAULT 'system',
+              sent_at     DATETIME NOT NULL DEFAULT NOW(),
+              PRIMARY KEY (id),
+              KEY idx_nlog_lookup (case_id, notif_type, user_id, channel)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        echo "✓ CREATE TABLE notification_log (IF NOT EXISTS)\n";
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+        echo "ขั้นตอนต่อไป:\n";
+        echo "1. เพิ่มอีเมลให้ผู้ใช้ที่ หน้าจัดการผู้ใช้งาน\n";
+        echo "2. ตั้งค่า config/mail.php (MAIL_ENABLED, SMTP)\n";
+        echo "3. ตั้ง cron/Task Scheduler: php api/cron.php ทุกวัน 08:00 น.\n";
+        echo "   หรือเรียกผ่าน URL: /api/cron.php?token=" . (defined('CRON_TOKEN') ? htmlspecialchars(CRON_TOKEN) : 'your-token') . "\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
 
 /* ── [3] Event Attachment columns ──────────────────────── */
 if ($confirm === 'event_attach') {
@@ -108,6 +173,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[1] Personnel + รหัสผ่าน</b><br><code><a href="?confirm=run&pass=password">migrate.php?confirm=run&pass=password</a></code></li>';
     echo '<li><b>[2] SLA Steps</b> — เพิ่มตาราง sla_steps และคอลัมน์ case_events<br><code><a href="?confirm=sla">migrate.php?confirm=sla</a></code></li>';
     echo '<li><b>[3] Event Attachment</b> — เพิ่มคอลัมน์ attachment_name/path/size ใน case_events<br><code><a href="?confirm=event_attach">migrate.php?confirm=event_attach</a></code></li>';
+    echo '<li><b>[4] ระบบแจ้งเตือน</b> — notifications, notification_log, users.email<br><code><a href="?confirm=notifications">migrate.php?confirm=notifications</a></code></li>';
     echo '</ul>';
     exit;
 }

@@ -317,6 +317,161 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md"
   );
 }
 
+/* ══════════════════════════════════════════════════════════
+   NotificationBell — กระดิ่งแจ้งเตือน (poll 60s)
+══════════════════════════════════════════════════════════ */
+const NOTIF_TYPE_LABEL = {
+  pre_14:'ใกล้ครบกำหนด (14 วัน)', pre_7:'ใกล้ครบกำหนด (7 วัน)',
+  pre_3:'ใกล้ครบกำหนด (3 วัน)',   pre_1:'ใกล้ครบกำหนด (1 วัน)',
+  over_1:'เกินกำหนด 1 วัน',       over_3:'เกินกำหนด 3 วัน',
+  over_7:'เกินกำหนด 7 วัน',       over_weekly:'แจ้งเตือนซ้ำรายสัปดาห์',
+  escalate_7:'Escalate ≥7 วัน',   escalate_15:'Escalate ≥15 วัน',
+  escalate_30:'Escalate ≥30 วัน',
+};
+
+function NotificationBell({ onOpenCase }) {
+  const [items,  setItems]  = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef(null);
+
+  const load = useCallback(() => {
+    api.getNotifications(50)
+       .then(r => { setItems(r.items || []); setUnread(r.unread || 0); })
+       .catch(()=>{});
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const markRead = (item) => {
+    if (!item.read_at) {
+      api.markNotifRead(item.id).then(() => {
+        setItems(ns => ns.map(n => n.id === item.id ? {...n, read_at: new Date().toISOString()} : n));
+        setUnread(u => Math.max(0, u - 1));
+      }).catch(()=>{});
+    }
+    if (item.case_id && onOpenCase) { setOpen(false); onOpenCase(item.case_id); }
+  };
+
+  const markAll = () => {
+    api.markAllNotifsRead().then(() => {
+      setItems(ns => ns.map(n => ({...n, read_at: n.read_at || new Date().toISOString()})));
+      setUnread(0);
+    }).catch(()=>{});
+  };
+
+  const timeAgo = (iso) => {
+    if (!iso) return '';
+    const d = Math.floor((Date.now() - new Date(iso)) / 60000);
+    if (d < 1)   return 'เมื่อกี้';
+    if (d < 60)  return `${d} นาทีที่แล้ว`;
+    if (d < 1440) return `${Math.floor(d/60)} ชั่วโมงที่แล้ว`;
+    return `${Math.floor(d/1440)} วันที่แล้ว`;
+  };
+
+  const notifColor = (type) => {
+    if (type?.startsWith('pre'))       return 'var(--warn)';
+    if (type?.startsWith('escalate'))  return '#9333ea';
+    return 'var(--danger)';
+  };
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <button onClick={()=>setOpen(v=>!v)}
+        style={{position:'relative',background:'none',border:'none',cursor:'pointer',
+          padding:'6px 8px',borderRadius:8,color:'inherit',display:'flex',alignItems:'center'}}>
+        <Icon name="bell" style={{width:20,height:20,color:unread>0?'var(--danger)':'var(--ink-2)'}}/>
+        {unread > 0 && (
+          <span style={{position:'absolute',top:2,right:2,
+            background:'var(--danger)',color:'#fff',borderRadius:'50%',
+            fontSize:10,fontWeight:700,minWidth:16,height:16,
+            display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px',
+            lineHeight:1,border:'2px solid var(--surface)'}}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="card" style={{
+          position:'absolute',top:'calc(100% + 8px)',right:0,
+          width:'min(400px,95vw)',maxHeight:'min(520px,80vh)',
+          display:'flex',flexDirection:'column',
+          boxShadow:'0 12px 40px rgba(0,0,0,.18)',zIndex:500,padding:0,overflow:'hidden',
+        }}>
+          {/* header */}
+          <div style={{padding:'12px 16px',borderBottom:'1px solid var(--line)',
+            display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div style={{fontWeight:700,fontSize:14}}>
+              การแจ้งเตือน
+              {unread > 0 && <span style={{marginLeft:8,background:'var(--danger)',
+                color:'#fff',borderRadius:12,fontSize:11,fontWeight:700,padding:'1px 7px'}}>
+                {unread}
+              </span>}
+            </div>
+            {unread > 0 && (
+              <button onClick={markAll}
+                style={{fontSize:11,color:'var(--maroon)',background:'none',border:'none',
+                  cursor:'pointer',padding:'2px 6px',borderRadius:6,fontWeight:600}}>
+                อ่านทั้งหมด
+              </button>
+            )}
+          </div>
+
+          {/* list */}
+          <div style={{overflowY:'auto',flex:1}}>
+            {items.length === 0 ? (
+              <div style={{padding:32,textAlign:'center',color:'var(--ink-3)',fontSize:13}}>
+                ไม่มีการแจ้งเตือน
+              </div>
+            ) : items.map(n => (
+              <button key={n.id} onClick={()=>markRead(n)}
+                style={{display:'block',width:'100%',textAlign:'left',
+                  background: n.read_at ? 'none' : 'rgba(107,29,42,.04)',
+                  border:'none',borderBottom:'1px solid var(--line)',
+                  padding:'10px 16px',cursor:'pointer',transition:'background .15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'}
+                onMouseLeave={e=>e.currentTarget.style.background=n.read_at?'none':'rgba(107,29,42,.04)'}>
+                <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,marginTop:5,
+                    background: n.read_at ? 'var(--ink-4)' : notifColor(n.notif_type)}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight: n.read_at ? 400 : 600,
+                      color: n.read_at ? 'var(--ink-2)' : 'var(--ink)',
+                      lineHeight:1.4,marginBottom:2}}>
+                      {n.title}
+                    </div>
+                    {n.body && <div style={{fontSize:11,color:'var(--ink-3)',lineHeight:1.4,marginBottom:3}}>
+                      {n.body}
+                    </div>}
+                    <div style={{fontSize:10,color:'var(--ink-4)',display:'flex',gap:8}}>
+                      <span style={{background:'var(--surface-2)',borderRadius:4,padding:'1px 5px'}}>
+                        {NOTIF_TYPE_LABEL[n.notif_type] || n.notif_type}
+                      </span>
+                      <span>{timeAgo(n.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const role = user.role;
   const execRoles = ['dir_legal','dir_admin','deputy_secretary','secretary'];
@@ -470,9 +625,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
             <span className="badge badge-maroon"><Icon name="shield" style={{width:13,height:13}}/> {roleLabel(role, roleLabels)}</span>
             <span className="faint sm">/ {sectionTitle}</span>
           </div>
-          <div className="vcenter" style={{gap:12}}>
+          <div className="vcenter" style={{gap:8}}>
             <ThemeToggle theme={theme} setTheme={setTheme}/>
-            <button className="icon-btn" style={{position:"relative"}}><Icon name="bell"/><span style={{position:"absolute",top:8,right:9,width:7,height:7,borderRadius:"50%",background:"var(--danger)"}}></span></button>
+            <NotificationBell onOpenCase={openCase}/>
             <UserMenu user={user} role={role} roleLabels={roleLabels} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} size="sm"/>
           </div>
         </div>

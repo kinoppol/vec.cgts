@@ -11,7 +11,7 @@ $db     = getDB();
 ---------------------------------------------------------------- */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT id, username, display_name, role, init, job_title, group_name, officer_id,
+        "SELECT id, username, display_name, email, role, init, job_title, group_name, officer_id,
                 active, can_manage_users, avatar_path, created_at
          FROM users ORDER BY role, display_name"
     )->fetchAll();
@@ -57,10 +57,11 @@ if ($method === 'POST') {
     $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
     try {
+        $email_val = filter_var(trim($b['email'] ?? ''), FILTER_VALIDATE_EMAIL) ?: null;
         $db->prepare(
-            "INSERT INTO users (username, password_hash, display_name, role, init, job_title, group_name, officer_id, can_manage_users)
-             VALUES (?,?,?,?,?,?,?,?,?)"
-        )->execute([$username, $hash, $display_name, $role, $init ?: null, $job_title ?: null, $group_name ?: null, $officer_id, $can_mgr]);
+            "INSERT INTO users (username, password_hash, display_name, email, role, init, job_title, group_name, officer_id, can_manage_users)
+             VALUES (?,?,?,?,?,?,?,?,?,?)"
+        )->execute([$username, $hash, $display_name, $email_val, $role, $init ?: null, $job_title ?: null, $group_name ?: null, $officer_id, $can_mgr]);
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'Duplicate')) err("ชื่อผู้ใช้ '{$username}' มีอยู่แล้ว");
         throw $e;
@@ -68,7 +69,7 @@ if ($method === 'POST') {
 
     $newId = (int)$db->lastInsertId();
     audit('user_create', (string)$newId, "สร้างบัญชี {$username}");
-    $row = $db->prepare('SELECT id,username,display_name,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
+    $row = $db->prepare('SELECT id,username,display_name,email,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
     $row->execute([$newId]);
     json_out($row->fetch(), 201);
 }
@@ -101,7 +102,7 @@ if ($method === 'PATCH' && $id) {
         }
     }
 
-    $allowed = ['display_name','role','init','job_title','group_name','officer_id','active','can_manage_users'];
+    $allowed = ['display_name','email','role','init','job_title','group_name','officer_id','active','can_manage_users'];
     $sets = []; $vals = [];
     foreach ($allowed as $col) {
         if (!array_key_exists($col, $b)) continue;
@@ -118,7 +119,7 @@ if ($method === 'PATCH' && $id) {
     $db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=?')->execute($vals);
     audit('user_update', (string)$id, implode(', ', array_keys(array_intersect_key($b, array_flip($allowed)))));
 
-    $row = $db->prepare('SELECT id,username,display_name,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
+    $row = $db->prepare('SELECT id,username,display_name,email,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
     $row->execute([$id]);
     json_out($row->fetch());
 }

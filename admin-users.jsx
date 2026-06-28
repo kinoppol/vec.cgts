@@ -149,6 +149,12 @@ function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose
             </div>
           )}
 
+          <div className="field">
+            <label>อีเมล (สำหรับรับการแจ้งเตือน)</label>
+            <input className="input" type="email" value={form.email||''}
+              onChange={e=>set('email',e.target.value)} placeholder="officer@example.com"/>
+          </div>
+
           <div className="form-grid" style={{gridTemplateColumns:'1fr 1fr',gap:14}}>
             <div className="field">
               <label>บทบาท</label>
