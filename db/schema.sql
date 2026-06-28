@@ -101,18 +101,39 @@ CREATE TABLE IF NOT EXISTS cases (
 -- case_events: ไทม์ไลน์เหตุการณ์ของแต่ละสำนวน
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS case_events (
-  id         INT          NOT NULL AUTO_INCREMENT,
-  case_id    VARCHAR(20)  NOT NULL,
-  title      VARCHAR(300) NOT NULL,
-  actor      VARCHAR(100) DEFAULT NULL,
-  moment     VARCHAR(100) DEFAULT NULL,
-  detail     TEXT         DEFAULT NULL,
-  ev_status  ENUM('done','active','pending') NOT NULL DEFAULT 'pending',
-  icon       VARCHAR(50)  DEFAULT 'dot',
-  sort_order SMALLINT     NOT NULL DEFAULT 0,
+  id           INT          NOT NULL AUTO_INCREMENT,
+  case_id      VARCHAR(20)  NOT NULL,
+  title        VARCHAR(300) NOT NULL,
+  actor        VARCHAR(100) DEFAULT NULL,
+  moment       VARCHAR(100) DEFAULT NULL,
+  detail       TEXT         DEFAULT NULL,
+  ev_status    ENUM('done','active','pending') NOT NULL DEFAULT 'pending',
+  icon         VARCHAR(50)  DEFAULT 'dot',
+  sort_order   SMALLINT     NOT NULL DEFAULT 0,
+  step_key     VARCHAR(50)  DEFAULT NULL,
+  started_at   DATE         DEFAULT NULL,
+  completed_at DATE         DEFAULT NULL,
   PRIMARY KEY (id),
   KEY idx_case_events_case (case_id),
   CONSTRAINT fk_event_case FOREIGN KEY (case_id) REFERENCES cases (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- sla_steps: กรอบเวลาตามขั้นตอนการดำเนินงาน
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sla_steps (
+  id           INT          NOT NULL AUTO_INCREMENT,
+  step_key     VARCHAR(50)  NOT NULL,
+  label        VARCHAR(200) NOT NULL,
+  days_allowed INT          NOT NULL DEFAULT 1,
+  sort_order   SMALLINT     NOT NULL DEFAULT 0,
+  active       TINYINT(1)   NOT NULL DEFAULT 1,
+  note         VARCHAR(300) DEFAULT NULL,
+  updated_by   INT          DEFAULT NULL,
+  updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_step_key (step_key),
+  CONSTRAINT fk_slastep_user FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------

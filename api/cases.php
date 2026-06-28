@@ -11,11 +11,43 @@ function buildCase(array $row, PDO $db): array {
     $fs->execute([$row['id']]);
     $row['files'] = $fs->fetchAll();
 
-    // events
-    $ev = $db->prepare('SELECT title AS t, actor AS who, moment AS m, detail AS d, ev_status AS st, icon AS ic
-                        FROM case_events WHERE case_id = ? ORDER BY sort_order');
+    // sla_steps map (step_key => row)
+    $stepsMap = [];
+    $sr = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order");
+    foreach ($sr->fetchAll() as $s) $stepsMap[$s['step_key']] = $s;
+
+    // events + per-step SLA
+    $ev = $db->prepare('
+        SELECT id, title AS t, actor AS who, moment AS m, detail AS d,
+               ev_status AS st, icon AS ic, step_key, started_at, completed_at
+        FROM case_events WHERE case_id = ? ORDER BY sort_order
+    ');
     $ev->execute([$row['id']]);
-    $row['events'] = $ev->fetchAll();
+    $today = new DateTime(date('Y-m-d'));
+    $events = [];
+    foreach ($ev->fetchAll() as $e) {
+        if ($e['step_key'] && isset($stepsMap[$e['step_key']])) {
+            $step    = $stepsMap[$e['step_key']];
+            $allowed = (int)$step['days_allowed'];
+            $start   = $e['started_at']   ? new DateTime($e['started_at'])   : null;
+            $done    = $e['completed_at'] ? new DateTime($e['completed_at']) : null;
+            $used    = $start ? (int)$start->diff($done ?? $today)->days : null;
+            $remain  = $used !== null ? $allowed - $used : null;
+            $sla     = null;
+            if ($remain !== null) {
+                if ($remain < 0)                                     $sla = 'r';
+                elseif ($remain <= max(1, (int)($allowed * 0.25)))   $sla = 'a';
+                else                                                  $sla = 'g';
+            }
+            $e['step_label']       = $step['label'];
+            $e['step_days_allowed']= $allowed;
+            $e['step_days_used']   = $used;
+            $e['step_days_remain'] = $remain;
+            $e['step_sla']         = $sla;
+        }
+        $events[] = $e;
+    }
+    $row['events'] = $events;
 
     // cast types
     $row['anon']     = (bool)$row['anon'];
