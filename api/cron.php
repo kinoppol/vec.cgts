@@ -2,20 +2,25 @@
 /**
  * api/cron.php — ตัวส่งการแจ้งเตือนอัตโนมัติ SLA
  *
- * เรียกใช้ทุกวัน (เช่น 08:00 น.) ผ่าน:
- *   - Windows Task Scheduler: php C:\xampp\htdocs\vec.cgts\api\cron.php
- *   - HTTP (ต้องใส่ token): GET /api/cron.php?token=<CRON_TOKEN>
- *   - UNIX cron: 0 8 * * * php /path/to/api/cron.php
+ * เรียกใช้ได้ 3 แบบ:
+ *   1. Auto (แนะนำ): include โดย index.php — รันวันละครั้งหลัง response flush
+ *   2. CLI: php C:\xampp\htdocs\vec.cgts\api\cron.php
+ *   3. HTTP: GET /api/cron.php?token=<CRON_TOKEN>
  */
-date_default_timezone_set('Asia/Bangkok');
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../config/mail.php';
+// ป้องกัน include ซ้ำ (จาก index.php shutdown function)
+if (defined('CGTS_CRON_LOADED')) return;
+define('CGTS_CRON_LOADED', true);
 
-/* ── ป้องกันการเรียกโดยไม่ได้รับอนุญาต ── */
-$isCli = (PHP_SAPI === 'cli');
-if (!$isCli) {
+date_default_timezone_set('Asia/Bangkok');
+if (!defined('DB_HOST')) require_once __DIR__ . '/../config/db.php';
+if (!function_exists('sendMail')) require_once __DIR__ . '/../config/mail.php';
+
+/* ── ป้องกันการเรียกโดยตรงผ่าน HTTP โดยไม่มี token ── */
+$isCli       = (PHP_SAPI === 'cli');
+$isShutdown  = defined('CGTS_CRON_FROM_SHUTDOWN');
+if (!$isCli && !$isShutdown) {
     $tok = $_GET['token'] ?? '';
-    if ($tok !== CRON_TOKEN) {
+    if (!defined('CRON_TOKEN') || $tok !== CRON_TOKEN) {
         http_response_code(403);
         die(json_encode(['error' => 'Unauthorized']));
     }

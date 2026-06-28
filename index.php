@@ -54,6 +54,35 @@ try {
     $rows = $db->query('SELECT role, label FROM role_labels')->fetchAll();
     foreach ($rows as $r) $initialRoleLabels[$r['role']] = $r['label'];
 } catch (Throwable) {}
+
+// ── Daily notification check (รันหลัง response ส่งไปแล้ว ไม่ทำให้หน้าช้า) ──
+if ($initialUser) {
+    $lockFile = __DIR__ . '/data/notif_last_run.txt';
+    $today    = date('Y-m-d');
+    $lastRun  = is_file($lockFile) ? trim(file_get_contents($lockFile)) : '';
+    if ($lastRun !== $today) {
+        // บันทึกวันนี้ก่อน (ป้องกัน request คู่ขนานรัน 2 ครั้ง)
+        @file_put_contents($lockFile, $today);
+        // ลงทะเบียน shutdown function — รันหลัง response flush แล้ว
+        register_shutdown_function(function () {
+            // ปล่อย session lock ก่อนเพื่อไม่บล็อก request ถัดไป
+            if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+            // ignore abort เพื่อให้ทำงานต่อแม้ browser ปิด
+            ignore_user_abort(true);
+            // flush HTML ไปยัง client ก่อน
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            } else {
+                ob_end_flush(); flush();
+            }
+            // รัน cron logic (define flag ให้ cron.php รู้ว่ามาจาก shutdown)
+            try {
+                define('CGTS_CRON_FROM_SHUTDOWN', true);
+                require_once __DIR__ . '/api/cron.php';
+            } catch (Throwable) {}
+        });
+    }
+}
 ?>
 <!doctype html>
 <html lang="th">
