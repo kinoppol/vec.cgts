@@ -159,7 +159,7 @@ function DrillDownModal({ title, params, onClose, onOpenCase }) {
 }
 
 /* ── KPI Card ── */
-function KpiCard({ label, value, sub, color = 'var(--ink)', bg, icon, onClick }) {
+function KpiCard({ label, value, sub, color = 'var(--ink)', bg, iconPath, onClick }) {
   return (
     <div onClick={onClick} style={{
       background: bg || 'var(--surface)',
@@ -168,9 +168,18 @@ function KpiCard({ label, value, sub, color = 'var(--ink)', bg, icon, onClick })
       cursor: onClick ? 'pointer' : 'default',
       transition:'transform .15s, box-shadow .15s',
       display:'flex', flexDirection:'column', gap:6,
+      position:'relative', overflow:'hidden',
     }}
     onMouseEnter={e=>{ if(onClick){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'; }}}
     onMouseLeave={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.07)'; }}>
+      {/* decorative icon — มุมขวาล่าง */}
+      {iconPath && (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.4"
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{position:'absolute',bottom:-6,right:-4,width:64,height:64,opacity:.1,pointerEvents:'none'}}>
+          {iconPath.split('|').map((d,i)=><path key={i} d={d}/>)}
+        </svg>
+      )}
       <div style={{fontSize:12,color:'var(--ink-3)',fontWeight:500}}>{label}</div>
       <div style={{fontSize:32,fontWeight:800,color,lineHeight:1}}>{value.toLocaleString()}</div>
       {sub && <div style={{fontSize:11,color:'var(--ink-3)'}}>{sub}</div>}
@@ -420,19 +429,24 @@ function ExecDashboard({ currentUser, onOpenCase }) {
       {/* ── KPI Row 1: งานสำคัญ ── */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:16}}>
         <KpiCard label="งานทั้งหมด (active)" value={kpi.total} color="var(--ink)"
+          iconPath="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4"
           onClick={()=>openDrill('งานทั้งหมด (active)', {})}/>
         <KpiCard label="ครบกำหนดวันนี้" value={kpi.due_today}
           color={kpi.due_today>0?'var(--warn)':'var(--ok)'}
           bg={kpi.due_today>0?'rgba(245,158,11,.06)':undefined}
+          iconPath="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z|M12 14v4M10 14h4"
           onClick={()=>openDrill('ครบกำหนดวันนี้', {drill:'due_today'})}/>
         <KpiCard label="เกินกำหนด" value={kpi.overdue}
           color={kpi.overdue>0?'var(--danger)':'var(--ok)'}
           bg={kpi.overdue>0?'rgba(220,38,38,.06)':undefined}
+          iconPath="M10.3 3.2L1.5 18a2 2 0 0 0 1.7 3h17.6a2 2 0 0 0 1.7-3L13.7 3.2a2 2 0 0 0-3.4 0zM12 9v5M12 17h.01"
           onClick={()=>openDrill('งานเกินกำหนด', {drill:'overdue'})}/>
         <KpiCard label="ยังไม่เริ่ม" value={kpi.not_started}
           color={kpi.not_started>0?'var(--ink-2)':'var(--ok)'}
+          iconPath="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"
           onClick={()=>openDrill('งานยังไม่เริ่ม', {drill:'not_started'})}/>
         <KpiCard label="ปิดเดือนนี้" value={kpi.closed_month} color="var(--ok)"
+          iconPath="M22 11.1V12a10 10 0 1 1-5.9-9.1M22 4L12 14.1l-3-3"
           onClick={()=>openDrill('ปิดเดือนนี้', {status:'closed'})}/>
       </div>
 
@@ -442,16 +456,19 @@ function ExecDashboard({ currentUser, onOpenCase }) {
           color={kpi.pending30>0?'#f97316':'var(--ok)'}
           bg={kpi.pending30>0?'rgba(249,115,22,.06)':undefined}
           sub="อายุ 31–60 วัน"
+          iconPath="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l3 3"
           onClick={()=>openDrill('งานค้าง 31–60 วัน', {drill:'pending30'})}/>
         <KpiCard label="ค้าง 61–90 วัน" value={kpi.pending60}
           color={kpi.pending60>0?'#ea580c':'var(--ok)'}
           bg={kpi.pending60>0?'rgba(234,88,12,.06)':undefined}
           sub="อายุ 61–90 วัน"
+          iconPath="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l3 3|M4.9 4.9l14.2 14.2"
           onClick={()=>openDrill('งานค้าง 61–90 วัน', {drill:'pending60'})}/>
         <KpiCard label="ค้างเกิน 90 วัน" value={kpi.pending90}
           color={kpi.pending90>0?'var(--danger)':'var(--ok)'}
           bg={kpi.pending90>0?'rgba(220,38,38,.08)':undefined}
           sub="อายุมากกว่า 90 วัน"
+          iconPath="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
           onClick={()=>openDrill('งานค้างเกิน 90 วัน', {drill:'pending90'})}/>
       </div>
 
