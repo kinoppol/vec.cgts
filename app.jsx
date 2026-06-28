@@ -366,7 +366,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "case-detail") {
     content = <CaseDetail cid={sel} cases={cases} officers={officers} back={()=>setView("cases")} updateCase={updateCase} role={role}/>;
   } else if (view === "exec") {
-    content = <ExecDashboard currentUser={user}/>;
+    content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
   } else if (view === "dashboard") {
     content = role === "officer"
       ? <OfficerDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>

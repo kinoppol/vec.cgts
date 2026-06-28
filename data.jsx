@@ -129,6 +129,7 @@ function avatarUrl(user) {
 const api = {
   getMe:              ()         => apiFetch('/api/auth.php'),
   getExecDashboard:   ()         => apiFetch('/api/exec_dashboard.php'),
+  getCasesDrill:      (params)   => apiFetch('/api/cases.php?' + new URLSearchParams(params).toString()),
   login:       (u, p)     => apiFetch('/api/auth.php', { method:'POST', body: JSON.stringify({username:u,password:p}) }),
   logout:            ()        => apiFetch('/api/auth.php', { method:'DELETE' }),
   impersonate:       (userId) => apiFetch('/api/impersonate.php', { method:'POST', body: JSON.stringify({ user_id: userId }) }),

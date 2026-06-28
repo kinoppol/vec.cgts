@@ -190,6 +190,85 @@ if ($method === 'GET') {
         array_push($params, $like, $like, $like, $like);
     }
 
+    /* ── exec drill-down filters ── */
+    $active_st = "('received','screening','case','assigned','investigating','reporting')";
+    $today_str = date('Y-m-d');
+    $days_col  = "COALESCE(c.received_date, DATE(c.created_at))";
+
+    if (!empty($_GET['drill'])) {
+        switch ($_GET['drill']) {
+            case 'due_today':
+                $where[] = "c.status IN $active_st AND c.due_date = ?";
+                $params[] = $today_str;
+                break;
+            case 'overdue':
+                $where[] = "c.status IN $active_st AND c.due_date < ?";
+                $params[] = $today_str;
+                break;
+            case 'not_started':
+                $where[] = "c.status = 'received'";
+                break;
+            case 'pending30':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 30";
+                $params[] = $today_str;
+                break;
+            case 'pending60':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 60";
+                $params[] = $today_str;
+                break;
+            case 'pending90':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 90";
+                $params[] = $today_str;
+                break;
+            case 'aging_0_15':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) BETWEEN 0 AND 15";
+                $params[] = $today_str;
+                break;
+            case 'aging_16_30':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) BETWEEN 16 AND 30";
+                $params[] = $today_str;
+                break;
+            case 'aging_31_60':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) BETWEEN 31 AND 60";
+                $params[] = $today_str;
+                break;
+            case 'aging_61_90':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) BETWEEN 61 AND 90";
+                $params[] = $today_str;
+                break;
+            case 'aging_90plus':
+                $where[] = "c.status IN $active_st AND DATEDIFF(?, $days_col) > 90";
+                $params[] = $today_str;
+                break;
+            case 'sla_r':
+                $where[] = "c.status IN $active_st AND c.due_date < ?";
+                $params[] = $today_str;
+                break;
+            case 'sla_a':
+                // amber = within 25% of days left
+                $where[] = "c.status IN $active_st AND c.due_date >= ? AND DATEDIFF(c.due_date, ?) <= 7";
+                $params[] = $today_str; $params[] = $today_str;
+                break;
+            case 'sla_g':
+                $where[] = "c.status IN $active_st AND (c.due_date IS NULL OR c.due_date > DATE_ADD(?, INTERVAL 7 DAY))";
+                $params[] = $today_str;
+                break;
+        }
+    }
+
+    if (!empty($_GET['officer'])) {
+        $where[] = 'c.assignee_id = ?';
+        $params[] = $_GET['officer'];
+    }
+    if (!empty($_GET['cat'])) {
+        $where[] = 'c.cat = ?';
+        $params[] = $_GET['cat'];
+    }
+    if (!empty($_GET['agency'])) {
+        $where[] = 'c.agency = ?';
+        $params[] = $_GET['agency'];
+    }
+
     $sql = "SELECT c.id, c.reg_number AS reg, c.subject, c.track, c.cat, c.channel,
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
                    c.agency, c.assignee_id AS assignee,
