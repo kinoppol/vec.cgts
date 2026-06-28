@@ -194,25 +194,24 @@ foreach ($cases as $c) {
         }
     }
 
-    /* ── เกินกำหนด ── */
+    /* ── เกินกำหนด (cumulative — ส่งทุก milestone ที่ถึงแล้วและยังไม่เคยส่ง) ── */
     if ($remaining < 0 && $uid) {
         $overDays = abs($remaining);
 
-        $over = [
-            'over_1' => ['min' => 1,  'max' => 2],
-            'over_3' => ['min' => 3,  'max' => 6],
-            'over_7' => ['min' => 7,  'max' => PHP_INT_MAX],
-        ];
-        foreach ($over as $type => $cfg) {
-            if ($overDays >= $cfg['min'] && $overDays < $cfg['max']) {
+        // ส่งแต่ละ milestone ถ้า overDays ถึงแล้วและยังไม่เคยส่ง (ป้องกันซ้ำด้วย alreadySent)
+        foreach ([
+            'over_1' => [1,  '1 วันแรก'],
+            'over_3' => [3,  '3 วัน'],
+            'over_7' => [7,  '7 วัน'],
+        ] as $type => [$minDays, $lbl]) {
+            if ($overDays >= $minDays) {
                 $title = "🚨 เกินกำหนด {$overDays} วัน: {$subject}";
                 $body  = "สำนวน {$caseId} เกินกำหนดแล้ว {$overDays} วัน (ครบกำหนดวันที่ {$c['due_date']})";
                 notify($db, $uid, $caseId, $type, $title, $body, $email, $name);
-                break;
             }
         }
 
-        // over_weekly: ทุกสัปดาห์หลังจาก 7 วัน
+        // over_weekly: ทุกสัปดาห์หลังจาก 7 วัน (alreadySent ตรวจ 7 วันล่าสุด)
         if ($overDays >= 7) {
             $title = "📌 แจ้งเตือนซ้ำ – เกินกำหนด {$overDays} วัน: {$subject}";
             $body  = "สำนวน {$caseId} ยังค้างอยู่และเกินกำหนดแล้ว {$overDays} วัน";

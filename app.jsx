@@ -321,6 +321,7 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md"
    NotificationBell — กระดิ่งแจ้งเตือน (poll 60s)
 ══════════════════════════════════════════════════════════ */
 const NOTIF_TYPE_LABEL = {
+  assigned:'ได้รับมอบหมายงาน',
   pre_14:'ใกล้ครบกำหนด (14 วัน)', pre_7:'ใกล้ครบกำหนด (7 วัน)',
   pre_3:'ใกล้ครบกำหนด (3 วัน)',   pre_1:'ใกล้ครบกำหนด (1 วัน)',
   over_1:'เกินกำหนด 1 วัน',       over_3:'เกินกำหนด 3 วัน',
@@ -381,6 +382,7 @@ function NotificationBell({ onOpenCase }) {
   };
 
   const notifColor = (type) => {
+    if (type === 'assigned')           return 'var(--ok)';
     if (type?.startsWith('pre'))       return 'var(--warn)';
     if (type?.startsWith('escalate'))  return '#9333ea';
     return 'var(--danger)';

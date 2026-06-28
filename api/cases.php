@@ -408,11 +408,12 @@ if ($method === 'PATCH') {
     $params[] = $id;
     $db->prepare('UPDATE cases SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($params);
 
-    // บันทึก event ถ้าเปลี่ยน assignee หรือ status
+    // บันทึก event + แจ้งเตือนถ้าเปลี่ยน assignee
     if (isset($body['assignee'])) {
+        $newAssignee = $body['assignee'] ?: null;
         // หาชื่อนิติกร
         $stmt = $db->prepare('SELECT name FROM officers WHERE id = ?');
-        $stmt->execute([$body['assignee']]);
+        $stmt->execute([$newAssignee]);
         $oname = $stmt->fetchColumn() ?: 'ยังไม่ระบุ';
         $maxOrd = $db->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM case_events WHERE case_id = ?');
         $maxOrd->execute([$id]);
@@ -424,6 +425,26 @@ if ($method === 'PATCH') {
         )->execute([$id, 'แต่งตั้งผู้สอบสวน', 'ระบบ',
             date('j') . ' ' . ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][(int)date('n')] . ' ' . $thYear,
             'มอบหมาย ' . $oname, 'done', 'gavel', $ord]);
+
+        // แจ้งเตือน in-system ให้นิติกรที่ได้รับมอบหมาย
+        if ($newAssignee) {
+            $uStmt = $db->prepare('SELECT id, display_name FROM users WHERE officer_id = ? AND active = 1 LIMIT 1');
+            $uStmt->execute([$newAssignee]);
+            $assignedUser = $uStmt->fetch();
+            if ($assignedUser) {
+                $cStmt = $db->prepare('SELECT subject FROM cases WHERE id = ?');
+                $cStmt->execute([$id]);
+                $subj = mb_substr($cStmt->fetchColumn() ?: $id, 0, 60);
+                $db->prepare("
+                    INSERT INTO notifications (user_id, case_id, notif_type, title, body)
+                    VALUES (?,?,?,?,?)
+                ")->execute([
+                    (int)$assignedUser['id'], $id, 'assigned',
+                    "📋 ได้รับมอบหมายสำนวนใหม่: {$subj}",
+                    "สำนวน {$id} ถูกมอบหมายให้คุณดำเนินการ",
+                ]);
+            }
+        }
     }
 
     audit('update_case', $id, json_encode($body, JSON_UNESCAPED_UNICODE));
