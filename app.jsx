@@ -120,14 +120,16 @@ function navFor(role, counts, user) {
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
   if (role === "dir_legal") return [
-    {v:"dashboard", ic:"gavel",    l:"ภาพรวม"},
+    {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
+    {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
     {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
   ];
+  // deputy_secretary, secretary, dir_admin
   return [
-    {v:"dashboard", ic:"pie",      l:"ภาพรวม"},
+    {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
@@ -317,7 +319,8 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md"
 
 function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const role = user.role;
-  const [view, setView]             = useState("dashboard");
+  const execRoles = ['dir_legal','dir_admin','deputy_secretary','secretary'];
+  const [view, setView] = useState(execRoles.includes(role) ? "exec" : "dashboard");
   const [sel,  setSel]              = useState(null);
   const [cases, setCases]           = useState([]);
   const [officers, setOfficers]     = useState([]);
@@ -349,6 +352,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   };
 
   const sectionTitle = {
+    exec:"Dashboard ผู้บริหาร",
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
@@ -361,6 +365,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <LoadingSpinner/>;
   } else if (view === "case-detail") {
     content = <CaseDetail cid={sel} cases={cases} officers={officers} back={()=>setView("cases")} updateCase={updateCase} role={role}/>;
+  } else if (view === "exec") {
+    content = <ExecDashboard currentUser={user}/>;
   } else if (view === "dashboard") {
     content = role === "officer"
       ? <OfficerDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>

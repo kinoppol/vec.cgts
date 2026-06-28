@@ -65,6 +65,7 @@ const P = {
   share: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13",
   link: "M10 13a5 5 0 0 0 7.5.7l3-3a5 5 0 0 0-7-7.1l-1.7 1.8M14 11a5 5 0 0 0-7.5-.7l-3 3a5 5 0 0 0 7 7.1l1.7-1.8",
   clipboard: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2",
+  refresh: "M23 4v6h-6M1 20v-6h6M3.5 9A9 9 0 0 1 20.5 15M20.5 15A9 9 0 0 1 3.5 9",
 };
 
 function Icon({ name, style, className }) {
@@ -126,7 +127,8 @@ function avatarUrl(user) {
 }
 
 const api = {
-  getMe:       ()         => apiFetch('/api/auth.php'),
+  getMe:              ()         => apiFetch('/api/auth.php'),
+  getExecDashboard:   ()         => apiFetch('/api/exec_dashboard.php'),
   login:       (u, p)     => apiFetch('/api/auth.php', { method:'POST', body: JSON.stringify({username:u,password:p}) }),
   logout:            ()        => apiFetch('/api/auth.php', { method:'DELETE' }),
   impersonate:       (userId) => apiFetch('/api/impersonate.php', { method:'POST', body: JSON.stringify({ user_id: userId }) }),
