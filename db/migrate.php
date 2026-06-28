@@ -1,16 +1,83 @@
 <?php
 /**
- * migrate.php — รัน personnel.sql และตั้งรหัสผ่านใหม่
- * ใช้ครั้งเดียว แล้วลบทิ้ง
+ * migrate.php — migrations รวม
+ *   [1] รัน personnel.sql และตั้งรหัสผ่านใหม่   ?confirm=run&pass=xxx
+ *   [2] เพิ่มตาราง sla_steps + คอลัมน์ case_events  ?confirm=sla
  */
 require_once __DIR__ . '/../config/db.php';
 
+$confirm = $_GET['confirm'] ?? '';
+
+/* ── [2] SLA Steps migration ────────────────────────────── */
+if ($confirm === 'sla') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration: SLA Steps</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS sla_steps (
+              id           INT          NOT NULL AUTO_INCREMENT,
+              step_key     VARCHAR(50)  NOT NULL,
+              label        VARCHAR(200) NOT NULL,
+              days_allowed INT          NOT NULL DEFAULT 1,
+              sort_order   SMALLINT     NOT NULL DEFAULT 0,
+              active       TINYINT(1)   NOT NULL DEFAULT 1,
+              note         VARCHAR(300) DEFAULT NULL,
+              updated_by   INT          DEFAULT NULL,
+              updated_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uq_step_key (step_key),
+              CONSTRAINT fk_slastep_user FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        echo "✓ CREATE TABLE sla_steps (IF NOT EXISTS)\n";
+
+        $cols = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach (['step_key VARCHAR(50) DEFAULT NULL AFTER sort_order',
+                  'started_at DATE DEFAULT NULL AFTER step_key',
+                  'completed_at DATE DEFAULT NULL AFTER started_at'] as $col) {
+            $name = explode(' ', $col)[0];
+            if (!in_array($name, $cols)) {
+                $db->exec("ALTER TABLE case_events ADD COLUMN $col");
+                echo "✓ ALTER case_events ADD $name\n";
+            } else {
+                echo "– $name มีอยู่แล้ว ข้าม\n";
+            }
+        }
+
+        $db->exec("
+            INSERT INTO sla_steps (step_key, label, days_allowed, sort_order, note) VALUES
+              ('receive',      'รับเรื่อง',             1,  10, 'นับจากวันที่ประชาชนยื่นเรื่อง'),
+              ('propose_dir',  'เสนอ ผอ.สำนัก',        2,  20, 'เสนอผู้อำนวยการสำนักอำนวยการพิจารณา'),
+              ('assign',       'มอบหมายนิติกร',          1,  30, 'มอบหมายเจ้าหน้าที่นิติกรเจ้าของเรื่อง'),
+              ('investigate',  'ตรวจข้อเท็จจริง',       15, 40, 'นิติกรดำเนินการตรวจสอบและรวบรวมพยานหลักฐาน'),
+              ('propose_boss', 'เสนอผู้บังคับบัญชา',    5,  50, 'เสนอสายบังคับบัญชาเพื่อพิจารณาสั่งการ'),
+              ('order',        'ออกคำสั่ง',             3,  60, 'ออกหนังสือคำสั่ง/แจ้งผลการพิจารณา')
+            ON DUPLICATE KEY UPDATE
+              label=VALUES(label), days_allowed=VALUES(days_allowed),
+              sort_order=VALUES(sort_order), note=VALUES(note)
+        ");
+        $count = $db->query("SELECT COUNT(*) FROM sla_steps")->fetchColumn();
+        echo "✓ INSERT/UPDATE sla_steps ($count ขั้นตอน)\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
+/* ── [1] Personnel + password (เดิม) ────────────────────── */
 // ป้องกันการเรียกโดยไม่ตั้งใจ
-if (($_GET['confirm'] ?? '') !== 'run') {
-    echo '<h2>Migration</h2>';
-    echo '<p>เพิ่ม/อัปเดตบัญชีบุคลากรจาก personnel.sql และตั้งรหัสผ่านใหม่</p>';
-    echo '<p><b>URL:</b> <code>migrate.php?confirm=run&pass=รหัสผ่านใหม่</code></p>';
-    echo '<p>ตัวอย่าง: <a href="?confirm=run&pass=password">migrate.php?confirm=run&pass=password</a></p>';
+if ($confirm !== 'run') {
+    echo '<style>body{font-family:sans-serif;padding:24px}code{background:#f5f5f5;padding:2px 6px;border-radius:4px}li{margin:8px 0}</style>';
+    echo '<h2>Migration</h2><ul>';
+    echo '<li><b>[1] Personnel + รหัสผ่าน</b><br><code><a href="?confirm=run&pass=password">migrate.php?confirm=run&pass=password</a></code></li>';
+    echo '<li><b>[2] SLA Steps</b> — เพิ่มตาราง sla_steps และคอลัมน์ case_events<br><code><a href="?confirm=sla">migrate.php?confirm=sla</a></code></li>';
+    echo '</ul>';
     exit;
 }
 
