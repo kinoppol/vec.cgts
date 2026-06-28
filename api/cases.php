@@ -94,6 +94,9 @@ function buildCase(array $row, PDO $db): array {
     }
     $row['events'] = $events;
 
+    // normalize field names ให้ตรงกับ list query
+    $row['assignee'] = $row['assignee_id'] ?? null;
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];
