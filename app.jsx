@@ -392,6 +392,15 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const [showProfile, setShowProfile] = useState(false);
 
   const handleLogout = async () => {
+    if (user.is_impersonating) {
+      // ขณะสวมสิทธิ์ → คืนกลับ admin แทนการ logout
+      try {
+        const admin = await api.stopImpersonating();
+        setUser(admin);
+        setView("users");
+      } catch(e) { alert(e.message); }
+      return;
+    }
     await api.logout().catch(() => {});
     onLogout();
   };
@@ -401,9 +410,37 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     if (!opts?.silent) setShowProfile(false);
   };
 
+  const handleStopImpersonating = async () => {
+    try {
+      const admin = await api.stopImpersonating();
+      setUser(admin);
+      setView("users");
+    } catch(e) { alert(e.message); }
+  };
+
   return (
     <div className="admin">
-      <aside className="sidebar">
+      {user.is_impersonating && (
+        <div style={{
+          position:'fixed', top:0, left:0, right:0, zIndex:9999,
+          background:'#7c2d12', color:'#fff',
+          padding:'7px 20px', display:'flex', alignItems:'center',
+          gap:10, fontSize:13, fontWeight:500, boxShadow:'0 2px 8px rgba(0,0,0,.4)',
+        }}>
+          <Icon name="eye" style={{width:15,height:15,flexShrink:0}}/>
+          <span style={{flex:1}}>
+            คุณกำลังสวมสิทธิ์เป็น <b>{user.display_name}</b> ({user.username})
+            &nbsp;·&nbsp; Admin จริง: <b>{user.impersonator_name}</b>
+          </span>
+          <button onClick={handleStopImpersonating} style={{
+            background:'rgba(255,255,255,.18)', border:'1px solid rgba(255,255,255,.4)',
+            color:'#fff', borderRadius:6, padding:'3px 14px', cursor:'pointer', fontWeight:600, fontSize:13,
+          }}>
+            ↩ คืนสิทธิ์ Admin
+          </button>
+        </div>
+      )}
+      <aside className="sidebar" style={user.is_impersonating ? {marginTop:36} : {}}>
         <div className="sb-brand">
           <img src="assets/ovec-logo.svg" alt=""/>
           <div><div className="t1">งานนิติการ สอศ.</div><div className="t2">ระบบบริหารจัดการ</div></div>
@@ -424,7 +461,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
         )}
       </aside>
 
-      <main>
+      <main style={user.is_impersonating ? {marginTop:36} : {}}>
         <div className="topbar">
           <div className="vcenter" style={{gap:12}}>
             <span className="badge badge-maroon"><Icon name="shield" style={{width:13,height:13}}/> {roleLabel(role, roleLabels)}</span>

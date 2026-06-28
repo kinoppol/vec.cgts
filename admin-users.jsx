@@ -283,6 +283,15 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
     setUsers(us => us.map(u => u.id === saved.id ? { ...u, ...saved } : u));
   };
 
+  const handleImpersonate = async (u) => {
+    if (!confirm(`สวมสิทธิ์เป็น "${u.display_name}" (${u.username})?\nระบบจะเข้าสู่การใช้งานในมุมมองของผู้ใช้คนนี้ทันที`)) return;
+    try {
+      const result = await api.impersonate(u.id);
+      // โหลดหน้าใหม่เพื่อให้ React state ถูก re-init จาก server session
+      window.location.reload();
+    } catch(e) { alert(e.message); }
+  };
+
   const deactivate = async (u) => {
     if (!confirm(`ปิดใช้งานบัญชี "${u.display_name}" (${u.username})?`)) return;
     try {
@@ -331,6 +340,13 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       </td>
       <td>
         <div className="vcenter" style={{gap:6,justifyContent:'flex-end'}}>
+          {currentUser.role === 'admin' && u.id !== currentUser.id && u.role !== 'admin' && u.active && (
+            <button className="icon-btn" title="สวมสิทธิ์ผู้ใช้คนนี้"
+              onClick={() => handleImpersonate(u)}
+              style={{color:'var(--maroon)'}}>
+              <Icon name="eye" style={{width:15,height:15}}/>
+            </button>
+          )}
           <button className="icon-btn" title="แก้ไข"
             onClick={() => setModal({type:'edit', user:u})}>
             <Icon name="edit" style={{width:15,height:15}}/>

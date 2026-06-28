@@ -9,10 +9,17 @@ if ($method === 'GET') {
         json_out(null);
     }
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, display_name, role, init, avatar_path FROM users WHERE id = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, display_name, role, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
-    json_out($user ?: null);
+    if (!$user) { json_out(null); }
+    $user['can_manage_users']  = (bool)($user['can_manage_users'] ?? false);
+    $user['is_impersonating']  = !empty($_SESSION['impersonator_id']);
+    if ($user['is_impersonating']) {
+        $user['impersonator_id']   = (int)$_SESSION['impersonator_id'];
+        $user['impersonator_name'] = $_SESSION['impersonator_name'] ?? '';
+    }
+    json_out($user);
 }
 
 // POST /api/auth.php — เข้าสู่ระบบ

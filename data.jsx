@@ -128,7 +128,9 @@ function avatarUrl(user) {
 const api = {
   getMe:       ()         => apiFetch('/api/auth.php'),
   login:       (u, p)     => apiFetch('/api/auth.php', { method:'POST', body: JSON.stringify({username:u,password:p}) }),
-  logout:      ()         => apiFetch('/api/auth.php', { method:'DELETE' }),
+  logout:            ()        => apiFetch('/api/auth.php', { method:'DELETE' }),
+  impersonate:       (userId) => apiFetch('/api/impersonate.php', { method:'POST', body: JSON.stringify({ user_id: userId }) }),
+  stopImpersonating: ()       => apiFetch('/api/impersonate.php', { method:'DELETE' }),
   updateProfile: (data)   => apiFetch('/api/auth.php', { method:'PATCH', body: JSON.stringify(data) }),
   uploadAvatar: (file, userId)=> { const fd = new FormData(); fd.append('avatar', file); return apiFetch('/api/avatar.php' + (userId ? '?user_id='+encodeURIComponent(userId) : ''), { method:'POST', body: fd }); },
   removeAvatar: (userId)  => apiFetch('/api/avatar.php' + (userId ? '?user_id='+encodeURIComponent(userId) : ''), { method:'DELETE' }),
