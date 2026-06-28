@@ -241,16 +241,22 @@ if ($method === 'GET') {
                 $params[] = $today_str;
                 break;
             case 'sla_r':
-                $where[] = "c.status IN $active_st AND c.due_date < ?";
+                // overdue: due_date < today
+                $where[] = "c.status IN $active_st AND c.due_date IS NOT NULL AND c.due_date < ?";
                 $params[] = $today_str;
                 break;
             case 'sla_a':
-                // amber = within 25% of days left
-                $where[] = "c.status IN $active_st AND c.due_date >= ? AND DATEDIFF(c.due_date, ?) <= 7";
+                // amber: due_date >= today AND remaining <= GREATEST(2, CEIL(sla_days*0.25))
+                $where[] = "c.status IN $active_st
+                    AND c.due_date >= ?
+                    AND DATEDIFF(c.due_date, ?) <= GREATEST(2, CEIL(COALESCE(ss.days, 30) * 0.25))";
                 $params[] = $today_str; $params[] = $today_str;
                 break;
             case 'sla_g':
-                $where[] = "c.status IN $active_st AND (c.due_date IS NULL OR c.due_date > DATE_ADD(?, INTERVAL 7 DAY))";
+                // green: due_date IS NULL OR remaining > GREATEST(2, CEIL(sla_days*0.25))
+                $where[] = "c.status IN $active_st
+                    AND (c.due_date IS NULL
+                         OR DATEDIFF(c.due_date, ?) > GREATEST(2, CEIL(COALESCE(ss.days, 30) * 0.25)))";
                 $params[] = $today_str;
                 break;
         }

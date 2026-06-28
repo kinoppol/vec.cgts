@@ -133,10 +133,21 @@ $monthly = $db->query("
     GROUP BY ym ORDER BY ym ASC
 ")->fetchAll();
 
-/* ── 9. SLA summary ──────────────────────────────────────────  */
+/* ── 9. SLA summary (คำนวณ dynamic เหมือน calcSla()) ─────────  */
+// r = overdue, a = within 25% of sla_days (min 2d), g = otherwise
 $sla_summary = $db->query("
-    SELECT sla, COUNT(*) AS total FROM cases
-    WHERE status IN $active_statuses GROUP BY sla
+    SELECT
+        CASE
+            WHEN c.due_date IS NULL THEN 'g'
+            WHEN DATEDIFF(c.due_date, CURDATE()) < 0 THEN 'r'
+            WHEN DATEDIFF(c.due_date, CURDATE()) <= GREATEST(2, CEIL(COALESCE(ss.days, 30) * 0.25)) THEN 'a'
+            ELSE 'g'
+        END AS sla,
+        COUNT(*) AS total
+    FROM cases c
+    LEFT JOIN sla_settings ss ON ss.track = c.track AND ss.cat = c.cat
+    WHERE c.status IN $active_statuses
+    GROUP BY sla
 ")->fetchAll();
 
 json_out([
