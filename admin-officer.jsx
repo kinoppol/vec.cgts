@@ -1273,38 +1273,92 @@ function AssignModal({ c, officers, close, onAssign }) {
 
 /* ---------------- นำเข้าเรื่องจากเอกสาร ---------------- */
 function ImportDocument({ back }) {
-  const [d, setD] = useState({ subject:"", group:"", officerId:"", channelType:"", channelItem:"", agency:"", priority:"ปกติ", cls:"public", complainant:"", contact:"", detail:"", files:[] });
+  const [d, setD] = useState({
+    subject:"", group:"", channelType:"", channelItem:"",
+    agency:"", priority:"ปกติ", cls:"public",
+    complainant:"", address:"", contact:"", detail:"", files:[],
+  });
   const set = (k,v) => setD(s=>({...s,[k]:v}));
 
-  const [groups,       setGroups]       = useState([]);
-  const [officers,     setOfficers]     = useState([]);
-  const [channelTypes, setChannelTypes] = useState([]);
-  const [channelItems, setChannelItems] = useState([]);
+  const [groups,        setGroups]        = useState([]);
+  const [channelTypes,  setChannelTypes]  = useState([]);
+  const [channelItems,  setChannelItems]  = useState([]);
+
+  // "อื่น ๆ" custom inputs
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [savingType,  setSavingType]  = useState(false);
+  const [savingItem,  setSavingItem]  = useState(false);
+
+  // file upload
+  const fileRef = React.useRef();
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
 
   const [done,    setDone]    = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [saveErr, setSaveErr] = useState("");
 
-  // โหลดกลุ่มงาน + ประเภทช่องทาง ครั้งเดียวตอน mount
   React.useEffect(() => {
     api.getLookups('group_name').then(setGroups).catch(()=>{});
     api.getChannelTypes().then(setChannelTypes).catch(()=>{});
   }, []);
 
-  // เมื่อเลือกกลุ่มงาน → โหลดนิติกรในกลุ่มนั้น
   React.useEffect(() => {
-    if (!d.group) { setOfficers([]); set("officerId",""); return; }
-    api.getOfficersByGroup(d.group).then(rows=>{ setOfficers(rows); set("officerId",""); }).catch(()=>{});
-  }, [d.group]);
-
-  // เมื่อเลือกประเภทช่องทาง → โหลดรายชื่อหน่วยงาน
-  React.useEffect(() => {
-    if (!d.channelType) { setChannelItems([]); set("channelItem",""); return; }
+    if (!d.channelType || d.channelType === '__other__') { setChannelItems([]); set("channelItem",""); return; }
     api.getChannelItems(d.channelType).then(rows=>{ setChannelItems(rows); set("channelItem",""); }).catch(()=>{});
   }, [d.channelType]);
 
-  const channelFull = d.channelType && d.channelItem ? d.channelType + ' — ' + d.channelItem : (d.channelType || '');
-  const valid = d.subject.trim() && d.group && d.channelType;
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true); setUploadErr("");
+    for (const file of files) {
+      try {
+        const res = await api.uploadTmpFile(file);
+        setD(s=>({...s, files:[...s.files, {n:res.orig, s:res.size, tmp:res.tmp}]}));
+      } catch(err) { setUploadErr(err.message); }
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const saveNewType = async () => {
+    const name = newTypeName.trim();
+    if (!name) return;
+    setSavingType(true);
+    try {
+      await api.addChannelType(name);
+      const updated = await api.getChannelTypes();
+      setChannelTypes(updated);
+      set("channelType", name);
+      setNewTypeName("");
+    } catch(e) { setSaveErr(e.message); }
+    finally { setSavingType(false); }
+  };
+
+  const saveNewItem = async () => {
+    const name = newItemName.trim();
+    if (!name || !d.channelType || d.channelType === '__other__') return;
+    setSavingItem(true);
+    try {
+      await api.addChannelItem(name, d.channelType);
+      const updated = await api.getChannelItems(d.channelType);
+      setChannelItems(updated);
+      set("channelItem", name);
+      setNewItemName("");
+    } catch(e) { setSaveErr(e.message); }
+    finally { setSavingItem(false); }
+  };
+
+  const typeIsOther = d.channelType === '__other__';
+  const itemIsOther = d.channelItem === '__other__';
+  const channelTypeFinal = typeIsOther ? newTypeName.trim() : d.channelType;
+  const channelItemFinal = itemIsOther ? newItemName.trim() : d.channelItem;
+  const channelFull = channelTypeFinal && channelItemFinal
+    ? channelTypeFinal + ' — ' + channelItemFinal
+    : channelTypeFinal;
+  const valid = d.subject.trim() && d.group && channelTypeFinal;
 
   if (done) return (
     <div className="fade-in" style={{maxWidth:560,margin:"40px auto",textAlign:"center"}}>
@@ -1319,53 +1373,92 @@ function ImportDocument({ back }) {
   );
 
   return (
-    <div className="fade-in" style={{maxWidth:900}}>
+    <div className="fade-in" style={{maxWidth:960}}>
       <button className="btn btn-ghost btn-sm" onClick={back} style={{marginBottom:12}}><Icon name="chevL" style={{width:16,height:16}}/> กลับ</button>
       <PageHead title="นำเข้าเรื่องจากเอกสาร" sub="ลงทะเบียนหนังสือราชการและเรื่องที่รับมาจากหน่วยงานภายนอกเข้าสู่ระบบ"/>
       <div className="notice notice-info" style={{marginBottom:18}}><Icon name="info"/><div>เมื่อบันทึก ระบบจะออกเลขรับเรื่อง แปลงเป็นสำนวน และเริ่มนับ SLA โดยอัตโนมัติ</div></div>
       <div className="grid" style={{gridTemplateColumns:"1.5fr 1fr",gap:18,alignItems:"start"}}>
+
         {/* ── คอลัมน์ซ้าย ── */}
-        <div className="card card-pad" style={{display:"grid",gap:16}}>
-          <div className="field"><label>หัวข้อเรื่อง <span className="req">*</span></label>
-            <input className="input" value={d.subject} onChange={e=>set("subject",e.target.value)} placeholder="สรุปเรื่องจากเอกสาร"/></div>
-          <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <div style={{display:"grid",gap:16}}>
+          <div className="card card-pad" style={{display:"grid",gap:16}}>
+            <div className="field"><label>หัวข้อเรื่อง <span className="req">*</span></label>
+              <input className="input" value={d.subject} onChange={e=>set("subject",e.target.value)} placeholder="สรุปเรื่องจากเอกสาร"/></div>
             <div className="field"><label>กลุ่มงาน <span className="req">*</span></label>
               <select className="select" value={d.group} onChange={e=>set("group",e.target.value)}>
                 <option value="">— เลือกกลุ่มงาน —</option>
                 {groups.map(g=><option key={g.id} value={g.name}>{g.name}</option>)}
               </select></div>
-            <div className="field"><label>รายชื่อนิติกร</label>
-              <select className="select" value={d.officerId} onChange={e=>set("officerId",e.target.value)} disabled={!d.group || officers.length===0}>
-                <option value="">{!d.group ? "— เลือกกลุ่มงานก่อน —" : officers.length===0 ? "— ไม่มีนิติกรในกลุ่มนี้ —" : "— เลือก —"}</option>
-                {officers.map(o=><option key={o.id} value={o.id}>{o.name}{o.role ? " · " + o.role : ""}</option>)}
-              </select></div>
+            <div className="field"><label>หน่วยงาน/สถานศึกษาที่เกี่ยวข้อง</label>
+              <input className="input" value={d.agency} onChange={e=>set("agency",e.target.value)} placeholder="เช่น วิทยาลัยเทคนิค..."/></div>
+            <div className="field"><label>รายละเอียด</label>
+              <textarea className="textarea" rows={4} value={d.detail} onChange={e=>set("detail",e.target.value)} placeholder="เนื้อหาโดยสรุปจากเอกสาร"/></div>
           </div>
-          <div className="field"><label>หน่วยงาน/สถานศึกษาที่เกี่ยวข้อง</label>
-            <input className="input" value={d.agency} onChange={e=>set("agency",e.target.value)} placeholder="เช่น วิทยาลัยเทคนิค..."/></div>
-          <div className="field"><label>รายละเอียด</label>
-            <textarea className="textarea" value={d.detail} onChange={e=>set("detail",e.target.value)} placeholder="เนื้อหาโดยสรุปจากเอกสาร"/></div>
-          <div className="field"><label>แนบสำเนาเอกสาร</label>
-            <div className="dropzone" onClick={()=>set("files",[...d.files,{n:"หนังสือราชการ-สแกน.pdf",s:"640 KB"}])}>
+
+          {/* ── แนบไฟล์ ── */}
+          <div className="card card-pad" style={{display:"grid",gap:12}}>
+            <h3 style={{fontSize:15}}>แนบสำเนาเอกสาร</h3>
+            <input type="file" ref={fileRef} style={{display:"none"}} multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" onChange={handleFiles}/>
+            <div className="dropzone" onClick={()=>fileRef.current.click()} style={{cursor:"pointer"}}>
               <Icon name="paperclip" style={{width:22,height:22,color:"var(--maroon)",margin:"0 auto 6px"}}/>
-              <div style={{fontWeight:600,fontSize:14}}>คลิกเพื่อแนบไฟล์สแกน (จำลอง)</div>
+              <div style={{fontWeight:600,fontSize:14}}>{uploading ? "กำลังอัปโหลด…" : "คลิกหรือลากไฟล์มาวาง"}</div>
+              <div className="tiny muted" style={{marginTop:4}}>PDF, JPG, PNG, DOCX, XLSX — ไม่เกิน 20 MB ต่อไฟล์</div>
             </div>
-            {d.files.map((f,i)=><div key={i} className="file-row" style={{marginTop:8}}><Icon name="file" style={{width:17,height:17,color:"var(--maroon)"}}/><span style={{fontWeight:500}}>{f.n}</span><span className="fmeta">{f.s}</span></div>)}
+            {uploadErr && <div className="notice notice-warn" style={{margin:0}}><Icon name="alert"/><div>{uploadErr}</div></div>}
+            {d.files.map((f,i)=>(
+              <div key={i} className="file-row" style={{marginTop:0}}>
+                <Icon name="file" style={{width:17,height:17,color:"var(--maroon)"}}/>
+                <span style={{fontWeight:500,flex:1}}>{f.n}</span>
+                <span className="fmeta">{f.s}</span>
+                <button className="btn btn-ghost btn-sm" style={{padding:"2px 6px"}} onClick={()=>setD(s=>({...s,files:s.files.filter((_,j)=>j!==i)}))}>✕</button>
+              </div>
+            ))}
           </div>
         </div>
+
         {/* ── คอลัมน์ขวา ── */}
         <div className="grid" style={{gap:16}}>
           <div className="card card-pad" style={{display:"grid",gap:14}}>
             <h3 style={{fontSize:15}}>ข้อมูลการลงทะเบียน</h3>
+
+            {/* ประเภทหน่วยงาน */}
             <div className="field"><label>ประเภทหน่วยงาน <span className="req">*</span></label>
-              <select className="select" value={d.channelType} onChange={e=>set("channelType",e.target.value)}>
+              <select className="select" value={d.channelType} onChange={e=>{ set("channelType",e.target.value); setNewTypeName(""); }}>
                 <option value="">— เลือกประเภท —</option>
                 {channelTypes.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
-              </select></div>
+                <option value="__other__">อื่น ๆ (ระบุเพิ่ม)</option>
+              </select>
+              {typeIsOther && (
+                <div className="row" style={{marginTop:6,gap:6}}>
+                  <input className="input" style={{flex:1}} placeholder="ชื่อประเภทใหม่" value={newTypeName} onChange={e=>setNewTypeName(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); saveNewType(); } }}/>
+                  <button className="btn btn-primary btn-sm" disabled={!newTypeName.trim()||savingType} onClick={saveNewType}>
+                    {savingType ? "…" : "บันทึก"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* หน่วยงานที่ส่งเรื่อง */}
             <div className="field"><label>หน่วยงานที่ส่งเรื่อง</label>
-              <select className="select" value={d.channelItem} onChange={e=>set("channelItem",e.target.value)} disabled={!d.channelType || channelItems.length===0}>
-                <option value="">{!d.channelType ? "— เลือกประเภทก่อน —" : channelItems.length===0 ? "— ไม่มีรายการ —" : "— เลือก —"}</option>
+              <select className="select" value={d.channelItem}
+                onChange={e=>{ set("channelItem",e.target.value); setNewItemName(""); }}
+                disabled={!d.channelType || typeIsOther}>
+                <option value="">{!d.channelType||typeIsOther ? "— เลือกประเภทก่อน —" : "— เลือก —"}</option>
                 {channelItems.map(i=><option key={i.id} value={i.name}>{i.name}</option>)}
-              </select></div>
+                {!typeIsOther && d.channelType && <option value="__other__">อื่น ๆ (ระบุเพิ่ม)</option>}
+              </select>
+              {itemIsOther && !typeIsOther && (
+                <div className="row" style={{marginTop:6,gap:6}}>
+                  <input className="input" style={{flex:1}} placeholder="ชื่อหน่วยงานใหม่" value={newItemName} onChange={e=>setNewItemName(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); saveNewItem(); } }}/>
+                  <button className="btn btn-primary btn-sm" disabled={!newItemName.trim()||savingItem} onClick={saveNewItem}>
+                    {savingItem ? "…" : "บันทึก"}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="field"><label>ระดับความเร่งด่วน</label>
               <div className="seg" style={{flexWrap:"wrap"}}>
                 {["ปกติ","ด่วน","ด่วนมาก","ด่วนที่สุด"].map(p=><button key={p} className={d.priority===p?"active":""} onClick={()=>set("priority",p)}>{p}</button>)}
@@ -1375,11 +1468,18 @@ function ImportDocument({ back }) {
                 {Object.entries(CLASS).map(([k,v])=><option key={k} value={k}>{v.l}</option>)}
               </select></div>
           </div>
+
+          {/* ── ผู้ร้อง/ต้นเรื่อง ── */}
           <div className="card card-pad" style={{display:"grid",gap:14}}>
-            <h3 style={{fontSize:15}}>ผู้ร้อง (ถ้ามี)</h3>
-            <div className="field"><label>ชื่อผู้ร้อง</label><input className="input" value={d.complainant} onChange={e=>set("complainant",e.target.value)} placeholder="ระบุ หรือเว้นว่างหากนิรนาม"/></div>
-            <div className="field"><label>ช่องทางติดต่อ</label><input className="input" value={d.contact} onChange={e=>set("contact",e.target.value)} placeholder="อีเมล / โทรศัพท์"/></div>
+            <h3 style={{fontSize:15}}>ผู้ร้อง/ต้นเรื่อง (ถ้ามี)</h3>
+            <div className="field"><label>ชื่อผู้ร้อง/ต้นเรื่อง</label>
+              <input className="input" value={d.complainant} onChange={e=>set("complainant",e.target.value)} placeholder="ระบุ หรือเว้นว่างหากนิรนาม"/></div>
+            <div className="field"><label>ที่อยู่</label>
+              <textarea className="textarea" rows={2} value={d.address} onChange={e=>set("address",e.target.value)} placeholder="บ้านเลขที่ / ถนน / ตำบล / อำเภอ / จังหวัด"/></div>
+            <div className="field"><label>เบอร์โทร / อีเมล</label>
+              <input className="input" value={d.contact} onChange={e=>set("contact",e.target.value)} placeholder="0812345678 / email@example.com"/></div>
           </div>
+
           {saveErr && <div className="notice notice-warn"><Icon name="alert"/><div>{saveErr}</div></div>}
           <button className="btn btn-primary btn-lg btn-block" disabled={!valid||saving} onClick={async()=>{
             setSaving(true); setSaveErr("");
@@ -1388,8 +1488,10 @@ function ImportDocument({ back }) {
                 subject: d.subject, track: 'general', cat: d.group,
                 channel: channelFull || 'หนังสือราชการ',
                 agency: d.agency, priority: d.priority, cls: d.cls,
-                complainant: d.complainant, contact: d.contact, detail: d.detail,
-                identity: 'staff',
+                complainant: d.complainant || null,
+                contact: [d.address, d.contact].filter(Boolean).join(' | ') || null,
+                detail: d.detail, identity: 'staff',
+                tmp_files: d.files.map(f=>({tmp:f.tmp,orig:f.n,size:f.s})),
               });
               setDone(true);
             } catch(e) { setSaveErr(e.message); }

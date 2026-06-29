@@ -136,23 +136,43 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'import') {
 /* ── POST — เพิ่มรายการ ──────────────────────────────────── */
 if ($method === 'POST') {
     global $VALID_CATS;
-    needAdmin($actor);
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
-    $cat  = trim($body['category'] ?? '');
-    $name = trim($body['name']     ?? '');
+    $body    = json_decode(file_get_contents('php://input'), true) ?? [];
+    $cat     = trim($body['category']     ?? '');
+    $name    = trim($body['name']         ?? '');
+    $subCat  = trim($body['sub_category'] ?? '');
+
     if (!in_array($cat, $VALID_CATS)) err('category ไม่ถูกต้อง', 400);
     if (!$name) err('name จำเป็น', 400);
 
-    /* ตรวจซ้ำในหมวดเดียวกัน */
-    $dup = $db->prepare("SELECT id FROM lookup_items WHERE category=? AND name=? AND active=1");
-    $dup->execute([$cat, $name]);
-    if ($dup->fetch()) err("มีรายการ \"$name\" อยู่แล้ว", 409);
+    // channel_type / channel_item: ผู้ใช้ทุกคนที่ login แล้วเพิ่มได้
+    // หมวดอื่น: เฉพาะ admin / user manager
+    $selfService = in_array($cat, ['channel_type', 'channel_item']);
+    if (!$selfService) needAdmin($actor);
 
-    $db->prepare("INSERT INTO lookup_items (category, name) VALUES (?,?)")->execute([$cat, $name]);
+    /* ตรวจซ้ำในหมวดเดียวกัน (+ sub_category ถ้ามี) */
+    if ($subCat !== '') {
+        $dup = $db->prepare("SELECT id FROM lookup_items WHERE category=? AND sub_category=? AND name=? AND active=1");
+        $dup->execute([$cat, $subCat, $name]);
+    } else {
+        $dup = $db->prepare("SELECT id FROM lookup_items WHERE category=? AND name=? AND active=1 AND (sub_category IS NULL OR sub_category='')");
+        $dup->execute([$cat, $name]);
+    }
+    if ($dup->fetch()) {
+        /* ส่ง id กลับแทน error เพื่อให้ frontend ใช้ id นั้นได้ทันที */
+        $ex = $db->prepare("SELECT id, name, sub_category, sort_order FROM lookup_items WHERE category=? AND name=? AND active=1" . ($subCat !== '' ? " AND sub_category=?" : " AND (sub_category IS NULL OR sub_category='')"));
+        $ex->execute($subCat !== '' ? [$cat, $name, $subCat] : [$cat, $name]);
+        json_out($ex->fetch());
+    }
+
+    if ($subCat !== '') {
+        $db->prepare("INSERT INTO lookup_items (category, sub_category, name) VALUES (?,?,?)")->execute([$cat, $subCat, $name]);
+    } else {
+        $db->prepare("INSERT INTO lookup_items (category, name) VALUES (?,?)")->execute([$cat, $name]);
+    }
     $nid = (int)$db->lastInsertId();
     audit('lookup_create', $nid, "$cat: $name");
 
-    $stmt = $db->prepare("SELECT id, name, sort_order FROM lookup_items WHERE id=?");
+    $stmt = $db->prepare("SELECT id, name, sub_category, sort_order FROM lookup_items WHERE id=?");
     $stmt->execute([$nid]);
     json_out($stmt->fetch());
 }
