@@ -94,7 +94,7 @@ function GroupsPage({ currentUser }) {
 
   // โหลดรายการกลุ่มและผู้ใช้ทั้งหมด
   useEffect(() => {
-    Promise.all([api.getGroups(), api.getUsers()])
+    Promise.all([api.getGroups(), apiFetch('/api/users.php')])
       .then(([g, u]) => { setGroups(g); setAllUsers(u); })
       .catch(e => alert(e.message))
       .finally(() => setLoading(false));
