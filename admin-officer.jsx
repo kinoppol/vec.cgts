@@ -1132,7 +1132,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         <div className="vcenter" style={{gap:8}}>
           {canAssign && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
-          {(role==="dir_admin"||role==="dir_legal"||role==="admin") && c.assignee && c.status!=="closed" && (() => {
+          {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
             const handleMarkAssign = async () => {
