@@ -101,10 +101,10 @@ const TRACKS   = {
   legal:      { label: "ด้านกฎหมาย", group: "กลุ่มงานกฎหมายและระเบียบ",
     cats: ["ระเบียบ/กฎหมาย/คำสั่ง","นิติกรรมสัญญา","คดีปกครอง/แพ่ง/อาญา","ความรับผิดทางละเมิด"] },
   general:    { label: "บริหารงานทั่วไป", group: "กลุ่มงานบริหารทั่วไป",
-    cats: ["งานสารบรรณ","งานบุคคล","งานการเงิน","งานพัสดุ","งานทั่วไป"] },
+    cats: ["งานธุรการทั่วไป"] },
 };
 const CHANNELS = ["เว็บไซต์ (ยืนยันตัวตน)","เว็บไซต์ (ไม่ประสงค์ออกนาม)","หนังสือราชการ","ศูนย์ดำรงธรรม","โทรศัพท์ / สายด่วน","ไปรษณีย์อิเล็กทรอนิกส์"];
-const CLASS    = { public:{l:"ทั่วไป",c:"badge"}, internal:{l:"ภายใน",c:"badge-info"}, restricted:{l:"จำกัด",c:"badge-warn"}, secret:{l:"ลับ",c:"badge-danger"} };
+const CLASS    = { public:{l:"ปกติ (ไม่ลับ)",c:"badge"}, secret:{l:"ลับ",c:"badge-warn"}, topsecret:{l:"ลับมาก",c:"badge-danger"}, classified:{l:"ลับที่สุด",c:"badge-danger"} };
 
 /* ---------------- API client ---------------- */
 const _base = (window.__APP_BASE__ || '').replace(/\/$/, '');
@@ -210,8 +210,9 @@ function SLAText({ s, label }) {
   return <span className={"sla sla-" + s}>{label || map[s]}</span>;
 }
 function PriBadge({ p }) {
-  if (p === "เร่งด่วน") return <span className="badge badge-danger"><span className="dot"></span>เร่งด่วน</span>;
-  if (p === "ลับ")      return <span className="badge badge-warn"><span className="dot"></span>ลับ</span>;
+  if (p === "ด่วนที่สุด") return <span className="badge badge-danger"><span className="dot"></span>ด่วนที่สุด</span>;
+  if (p === "ด่วนมาก")   return <span className="badge badge-danger"><span className="dot"></span>ด่วนมาก</span>;
+  if (p === "ด่วน")      return <span className="badge badge-warn"><span className="dot"></span>ด่วน</span>;
   return <span className="badge">ปกติ</span>;
 }
 

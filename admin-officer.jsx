@@ -1273,7 +1273,7 @@ function AssignModal({ c, officers, close, onAssign }) {
 
 /* ---------------- นำเข้าเรื่องจากเอกสาร ---------------- */
 function ImportDocument({ back }) {
-  const [d, setD] = useState({ reg:"", subject:"", track:"", cat:"", channel:"หนังสือราชการ", agency:"", priority:"ปกติ", cls:"internal", complainant:"", contact:"", detail:"", files:[] });
+  const [d, setD] = useState({ reg:"", subject:"", track:"", cat:"", channel:"หนังสือราชการ", agency:"", priority:"ปกติ", cls:"public", complainant:"", contact:"", detail:"", files:[] });
   const [done, setDone] = useState(false);
   const set=(k,v)=>setD(s=>({...s,[k]:v}));
   const [saving, setSaving] = useState(false);
@@ -1330,7 +1330,7 @@ function ImportDocument({ back }) {
               </select></div>
             <div className="field"><label>ระดับความเร่งด่วน</label>
               <div className="seg" style={{width:"fit-content"}}>
-                {["ปกติ","เร่งด่วน","ลับ"].map(p=><button key={p} className={d.priority===p?"active":""} onClick={()=>set("priority",p)}>{p}</button>)}
+                {["ปกติ","ด่วน","ด่วนมาก","ด่วนที่สุด"].map(p=><button key={p} className={d.priority===p?"active":""} onClick={()=>set("priority",p)}>{p}</button>)}
               </div></div>
             <div className="field"><label>ชั้นความลับ</label>
               <select className="select" value={d.cls} onChange={e=>set("cls",e.target.value)}>
