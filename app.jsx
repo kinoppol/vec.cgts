@@ -101,7 +101,7 @@ function navFor(role, counts, user) {
   if (role === "admin") return [
     {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
     {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
-    {v:"calendar",  ic:"calendar",    l:"ปฏิทินกิจกรรม"},
+    {v:"calendar",  ic:"calendar",    l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",       l:"รายงาน"},
     {sec:"ระบบ"},
     {v:"users",        ic:"users",       l:"จัดการผู้ใช้"},
@@ -117,7 +117,7 @@ function navFor(role, counts, user) {
     {v:"cases",     ic:"inbox",    l:"จัดการเรื่อง", count:counts.newQ},
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
-    {v:"calendar",  ic:"calendar", l:"ปฏิทินกิจกรรม"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงาน"},
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
@@ -126,7 +126,7 @@ function navFor(role, counts, user) {
     {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
-    {v:"calendar",  ic:"calendar", l:"ปฏิทินกิจกรรม"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
     {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
   ];
@@ -135,7 +135,7 @@ function navFor(role, counts, user) {
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
-    {v:"calendar",  ic:"calendar", l:"ปฏิทินกิจกรรม"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
   ];
 }
@@ -519,7 +519,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
     "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง",
-    calendar:"ปฏิทินกิจกรรม",
+    calendar:"ปฏิทินการดำเนินงาน",
   }[view] || "";
 
   let content;

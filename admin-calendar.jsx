@@ -385,7 +385,7 @@ function CalendarPage({ officers, currentUser }) {
 
   return (
     <div className="fade-in">
-      <PageHead title="ปฏิทินกิจกรรม" sub="งานครบกำหนด ประชุม นัดหมาย และกิจกรรมต่างๆ">
+      <PageHead title="ปฏิทินการดำเนินงาน" sub="งานครบกำหนด ประชุม นัดหมาย และกิจกรรมต่างๆ">
         <button className="btn btn-primary" onClick={()=>setModal({type:'add',date:selDay})}>
           <Icon name="plus" style={{width:15,height:15}}/> เพิ่มกิจกรรม
         </button>
