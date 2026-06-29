@@ -587,6 +587,8 @@ if ($confirm === 'backfill_sla') {
         echo "✓ receive: UPDATE $r1 แถว, INSERT $r2 แถว\n";
 
         // ── ขั้น propose_dir: เรื่องที่มี proposal from_task_no=0 ──
+        $hasPropTable = $db->query("SHOW TABLES LIKE 'case_task_proposals'")->fetchColumn();
+        if (!$hasPropTable) { echo "– ไม่มีตาราง case_task_proposals ข้าม propose_dir + assign\n"; goto done; }
         $propStep = $db->query("SELECT * FROM sla_steps WHERE step_key='propose_dir' AND active=1")->fetch();
         $proposals = $db->query(
             "SELECT case_id, MIN(created_at) AS t
@@ -634,6 +636,7 @@ if ($confirm === 'backfill_sla') {
         }
         echo "✓ assign: UPDATE $a1 แถว, INSERT $a2 แถว\n";
 
+        done:
         echo "\n<span class='ok'>✅ Backfill สำเร็จ</span>\n";
     } catch (Throwable $e) {
         echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
