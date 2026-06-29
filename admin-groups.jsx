@@ -5,15 +5,21 @@
 function GroupFormModal({ group, onSave, onClose }) {
   const [name,       setName]       = useState(group ? group.name : "");
   const [leaderRole, setLeaderRole] = useState(group ? (group.leader_role||"") : "");
+  const [deptName,   setDeptName]   = useState(group ? (group.dept_name||"") : "");
+  const [lookupGroups, setLookupGroups] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+
+  React.useEffect(() => {
+    api.getLookups('group_name').then(setLookupGroups).catch(() => {});
+  }, []);
 
   async function submit(e) {
     e.preventDefault();
     if (!name.trim()) { setErr("กรุณาระบุชื่อกลุ่ม"); return; }
     setSaving(true); setErr("");
     try {
-      const payload = { name: name.trim(), leader_role: leaderRole||null };
+      const payload = { name: name.trim(), leader_role: leaderRole||null, dept_name: deptName||null };
       const result = group
         ? await api.updateGroup(group.id, payload)
         : await api.createGroup(payload);
@@ -32,6 +38,17 @@ function GroupFormModal({ group, onSave, onClose }) {
           <div className="field">
             <label className="label">ชื่อกลุ่ม <span className="req">*</span></label>
             <input className="input" value={name} onChange={e=>setName(e.target.value)} autoFocus placeholder="เช่น กลุ่มงานวินัย"/>
+          </div>
+          <div className="field">
+            <label className="label">กลุ่มงาน (สายงาน) <span className="tiny muted">— สำหรับกรองบุคลากรในระบบ</span></label>
+            {lookupGroups.length > 0
+              ? <select className="select" value={deptName} onChange={e=>setDeptName(e.target.value)}>
+                  <option value="">— ไม่กำหนด —</option>
+                  {lookupGroups.map(g=><option key={g.id||g.name} value={g.name}>{g.name}</option>)}
+                </select>
+              : <input className="input" value={deptName} placeholder="เช่น กลุ่มงานวินัย อุทธรณ์" onChange={e=>setDeptName(e.target.value)}/>
+            }
+            <div className="tiny faint" style={{marginTop:4}}>บุคลากรในกลุ่มนี้จะได้รับกลุ่มงานนี้โดยอัตโนมัติ</div>
           </div>
           <div className="field">
             <label className="label">บทบาทเฉพาะสำหรับหัวหน้ากลุ่ม</label>

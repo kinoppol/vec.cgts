@@ -20,7 +20,8 @@ function fetchGroupRoles($db, $groupId): array {
 /* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
 if ($method === 'GET' && $id) {
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, u.display_name AS leader_name, u.init AS leader_init
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name,
+                u.display_name AS leader_name, u.init AS leader_init
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );
     $stmt->execute([$id]);
@@ -40,7 +41,7 @@ if ($method === 'GET' && $id) {
 /* ── GET — รายการกลุ่มทั้งหมด ──────────────────────────────── */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name,
                 u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id ORDER BY g.name"
@@ -90,6 +91,15 @@ if ($method === 'POST' && $action === 'add_member' && $id) {
     if ($role) { $update .= ", role=?"; $params[] = $role; }
     $params[] = $userId;
     $db->prepare("$update WHERE id=?")->execute($params);
+
+    // sync officers.group_name ตาม dept_name ของกลุ่ม
+    $deptRow = $db->prepare("SELECT dept_name FROM groups WHERE id=?");
+    $deptRow->execute([$id]);
+    $deptName = $deptRow->fetchColumn() ?: null;
+    if ($deptName) {
+        $db->prepare("UPDATE officers SET group_name=? WHERE id=(SELECT officer_id FROM users WHERE id=?)")
+           ->execute([$deptName, $userId]);
+    }
 
     audit('group_add_member', $id, "user_id=$userId" . ($role ? " role=$role" : ""));
     json_out(['ok' => true]);
@@ -151,12 +161,13 @@ if ($method === 'POST') {
     if ($dup->fetch()) err('ชื่อกลุ่มนี้มีอยู่แล้ว', 409);
 
     $leaderRole = $body['leader_role'] ?: null;
-    $db->prepare("INSERT INTO groups (name, leader_role) VALUES (?,?)")->execute([$name, $leaderRole]);
+    $deptName   = trim($body['dept_name'] ?? '') ?: null;
+    $db->prepare("INSERT INTO groups (name, leader_role, dept_name) VALUES (?,?,?)")->execute([$name, $leaderRole, $deptName]);
     $nid = (int)$db->lastInsertId();
     audit('group_create', $nid, $name);
 
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, NULL AS leader_name, NULL AS leader_init, 0 AS member_count
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, NULL AS leader_name, NULL AS leader_init, 0 AS member_count
          FROM groups g WHERE g.id=?"
     );
     $stmt->execute([$nid]);
@@ -184,6 +195,19 @@ if ($method === 'PATCH' && $id) {
         $db->prepare("UPDATE users SET group_name=? WHERE group_name=?")->execute([$newName, $grp['name']]);
         $db->prepare("UPDATE groups SET name=? WHERE id=?")->execute([$newName, $id]);
         audit('group_rename', $id, "{$grp['name']} → $newName");
+    }
+
+    if (array_key_exists('dept_name', $body)) {
+        $deptName = trim($body['dept_name']) ?: null;
+        $db->prepare("UPDATE groups SET dept_name=? WHERE id=?")->execute([$deptName, $id]);
+        // sync officers ของสมาชิกในกลุ่มนี้ทั้งหมด
+        $db->prepare(
+            "UPDATE officers o
+             JOIN users u ON u.officer_id = o.id
+             SET o.group_name = ?
+             WHERE u.group_name = ?"
+        )->execute([$deptName, $grp['name']]);
+        audit('group_set_dept', $id, "dept_name=" . ($deptName ?? 'null'));
     }
 
     if (array_key_exists('leader_role', $body)) {
@@ -219,7 +243,7 @@ if ($method === 'PATCH' && $id) {
     }
 
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, u.display_name AS leader_name, u.init AS leader_init,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );

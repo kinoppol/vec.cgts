@@ -16,7 +16,7 @@ function nextOfficer(officers) {
 }
 
 /* ── Modal เพิ่ม / แก้ไข บุคลากร ─────────────────────────── */
-function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) {
+function OfficerModal({ officer, lookupTitles, onSave, onClose }) {
   const isNew = !officer?.id || officer._new;
   const [form, setForm] = React.useState({ ...EMPTY_OFFICER, ...(officer || {}) });
   const [busy, setBusy] = React.useState(false);
@@ -91,17 +91,15 @@ function OfficerModal({ officer, lookupGroups, lookupTitles, onSave, onClose }) 
             <span className="tiny muted">กรณีมีตำแหน่งบริหารเพิ่มเติม</span>
           </label>
 
-          <label className="lbl">
-            กลุ่มงาน (สำหรับกรองสายงาน)
-            {lookupGroups && lookupGroups.length > 0 ? (
-              <LookupSelect value={form.group_name||''} items={lookupGroups}
-                placeholder="— เลือกกลุ่มงาน —"
-                onChange={v=>set('group_name', v)}/>
-            ) : (
-              <input className="input" value={form.group_name} placeholder="กลุ่มงาน..."
-                onChange={e=>set('group_name', e.target.value)}/>
-            )}
-          </label>
+          {form.group_name && (
+            <label className="lbl">
+              กลุ่มงาน (สายงาน)
+              <div className="input" style={{background:'var(--surface-2)',color:'var(--ink-3)',cursor:'default'}}>
+                {form.group_name}
+              </div>
+              <span className="tiny faint">กำหนดอัตโนมัติจากกลุ่มที่สังกัด — แก้ไขได้ที่ จัดการกลุ่ม</span>
+            </label>
+          )}
 
           <label className="lbl" style={{flexDirection:'row',alignItems:'center',gap:10,cursor:'pointer'}}>
             <input type="checkbox" checked={!!form.active}
@@ -222,16 +220,14 @@ function OfficerManagePage() {
   const [grpFilter, setGrpFilter]       = React.useState('');
   const [showInactive, setShowInactive] = React.useState(false);
   const [busy, setBusy]                 = React.useState('');
-  const [lookupGroups, setLookupGroups] = React.useState([]);
   const [lookupTitles, setLookupTitles] = React.useState([]);
 
   React.useEffect(() => {
     Promise.all([
       api.listAllOfficers(),
-      api.getLookups('group_name'),
       api.getLookups('job_title'),
-    ]).then(([data, g, t]) => {
-      setOfficers(data); setLookupGroups(g); setLookupTitles(t); setLoading(false);
+    ]).then(([data, t]) => {
+      setOfficers(data); setLookupTitles(t); setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
@@ -391,7 +387,6 @@ function OfficerManagePage() {
       {modal && (
         <OfficerModal
           officer={modal}
-          lookupGroups={lookupGroups}
           lookupTitles={lookupTitles}
           onSave={handleSaved}
           onClose={()=>setModal(null)}

@@ -288,6 +288,7 @@ CREATE TABLE IF NOT EXISTS groups (
   name        VARCHAR(100) NOT NULL,
   leader_id   INT          DEFAULT NULL,
   leader_role VARCHAR(50)  DEFAULT NULL,
+  dept_name   VARCHAR(200) DEFAULT NULL,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_group_name (name),
