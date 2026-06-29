@@ -284,10 +284,11 @@ CREATE TABLE IF NOT EXISTS calendar_events (
 -- groups: กลุ่มผู้ใช้งาน
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS groups (
-  id         INT          NOT NULL AUTO_INCREMENT,
-  name       VARCHAR(100) NOT NULL,
-  leader_id  INT          DEFAULT NULL,
-  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id          INT          NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(100) NOT NULL,
+  leader_id   INT          DEFAULT NULL,
+  leader_role VARCHAR(50)  DEFAULT NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_group_name (name),
   KEY idx_group_leader (leader_id),

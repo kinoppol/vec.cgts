@@ -462,6 +462,28 @@ if ($confirm === 'groups_table') {
     exit;
 }
 
+/* ── [16] leader_role — บทบาทเฉพาะหัวหน้ากลุ่ม ─────────── */
+if ($confirm === 'leader_role') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [16]: groups.leader_role</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $cols = $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('leader_role', $cols)) {
+            $db->exec("ALTER TABLE groups ADD COLUMN leader_role VARCHAR(50) DEFAULT NULL AFTER leader_id");
+            echo "✓ ALTER groups ADD leader_role\n";
+        } else {
+            echo "– groups.leader_role มีอยู่แล้ว ข้าม\n";
+        }
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [15] nullable role — ให้ users.role เป็น NULL ได้ ── */
 if ($confirm === 'nullable_role') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -545,6 +567,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[13] ตารางกลุ่ม</b> — สร้าง groups table + seed จาก users.group_name<br><code><a href="?confirm=groups_table">migrate.php?confirm=groups_table</a></code></li>';
     echo '<li><b>[14] บทบาทของกลุ่ม</b> — สร้าง group_roles table<br><code><a href="?confirm=group_roles">migrate.php?confirm=group_roles</a></code></li>';
     echo '<li><b>[15] ไม่กำหนดบทบาท</b> — ให้ users.role เป็น NULL ได้ (ยึดบทบาทจากกลุ่ม)<br><code><a href="?confirm=nullable_role">migrate.php?confirm=nullable_role</a></code></li>';
+    echo '<li><b>[16] บทบาทหัวหน้ากลุ่ม</b> — เพิ่ม groups.leader_role สำหรับบทบาทเฉพาะหัวหน้า<br><code><a href="?confirm=leader_role">migrate.php?confirm=leader_role</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

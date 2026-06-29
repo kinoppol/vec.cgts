@@ -20,7 +20,7 @@ function fetchGroupRoles($db, $groupId): array {
 /* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
 if ($method === 'GET' && $id) {
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, u.display_name AS leader_name, u.init AS leader_init
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, u.display_name AS leader_name, u.init AS leader_init
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );
     $stmt->execute([$id]);
@@ -40,7 +40,7 @@ if ($method === 'GET' && $id) {
 /* ── GET — รายการกลุ่มทั้งหมด ──────────────────────────────── */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT g.id, g.name, g.leader_id,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role,
                 u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id ORDER BY g.name"
@@ -185,14 +185,40 @@ if ($method === 'PATCH' && $id) {
         audit('group_rename', $id, "{$grp['name']} → $newName");
     }
 
+    if (array_key_exists('leader_role', $body)) {
+        $leaderRole = $body['leader_role'] ?: null;
+        $db->prepare("UPDATE groups SET leader_role=? WHERE id=?")->execute([$leaderRole, $id]);
+        // ถ้ากลุ่มมีหัวหน้าอยู่แล้ว ให้อัปเดต role ของหัวหน้าทันที
+        if ($grp['leader_id'] && $leaderRole) {
+            $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$leaderRole, $grp['leader_id']]);
+        }
+        audit('group_set_leader_role', $id, "leader_role=" . ($leaderRole ?? 'null'));
+    }
+
     if (array_key_exists('leader_id', $body)) {
-        $leaderId = $body['leader_id'] ? (int)$body['leader_id'] : null;
+        $leaderId      = $body['leader_id'] ? (int)$body['leader_id'] : null;
+        $prevLeaderId  = (int)$grp['leader_id'];
+
+        // ดึง leader_role ปัจจุบัน (อาจเพิ่งอัปเดต)
+        $lrRow = $db->prepare("SELECT leader_role FROM groups WHERE id=?");
+        $lrRow->execute([$id]);
+        $leaderRole = $lrRow->fetchColumn() ?: null;
+
+        // ถอดหัวหน้าคนเดิม → คืน role เป็น NULL
+        if ($prevLeaderId && $prevLeaderId !== $leaderId) {
+            $db->prepare("UPDATE users SET role=NULL WHERE id=?")->execute([$prevLeaderId]);
+        }
+        // แต่งตั้งหัวหน้าคนใหม่ → กำหนด leader_role ถ้ามี
+        if ($leaderId && $leaderRole) {
+            $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$leaderRole, $leaderId]);
+        }
+
         $db->prepare("UPDATE groups SET leader_id=? WHERE id=?")->execute([$leaderId, $id]);
         audit('group_set_leader', $id, "leader_id=$leaderId");
     }
 
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, u.display_name AS leader_name, u.init AS leader_init,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );

@@ -301,15 +301,38 @@ function GroupsPage({ currentUser }) {
                 </div>
 
                 {/* หัวหน้ากลุ่ม */}
-                <div className="card card-pad">
-                  <h3 style={{fontSize:15,marginBottom:14}}>หัวหน้ากลุ่ม</h3>
+                <div className="card card-pad" style={{display:"grid",gap:14}}>
+                  <h3 style={{fontSize:15,margin:0}}>หัวหน้ากลุ่ม</h3>
+
+                  {/* บทบาทสำหรับหัวหน้า */}
+                  <div className="field" style={{margin:0}}>
+                    <label style={{fontSize:13}}>บทบาทที่หัวหน้ากลุ่มจะได้รับ</label>
+                    <select className="select" style={{fontSize:13}}
+                      value={detail.leader_role||""}
+                      onChange={async e => {
+                        const v = e.target.value||null;
+                        try {
+                          await api.updateGroup(detail.id, { leader_role: v });
+                          setDetail(d => ({...d, leader_role: v}));
+                        } catch(ex) { alert(ex.message); }
+                      }}>
+                      <option value="">— ไม่กำหนด (เหมือนสมาชิก) —</option>
+                      {ROLE_ORDER.map(r => (
+                        <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {detail.leader_id ? (
                     <div className="between">
                       <div className="vcenter" style={{gap:10}}>
                         <span className="avatar">{detail.leader_init || (detail.leader_name||"?")[0]}</span>
                         <div>
                           <div style={{fontWeight:600}}>{detail.leader_name}</div>
-                          <div className="tiny faint">หัวหน้ากลุ่ม {detail.name}</div>
+                          <div className="tiny faint">
+                            หัวหน้ากลุ่ม {detail.name}
+                            {detail.leader_role && <> · {DEFAULT_ROLE_LABELS[detail.leader_role]||detail.leader_role}</>}
+                          </div>
                         </div>
                       </div>
                       <button className="btn btn-outline btn-sm" onClick={()=>handleSetLeader(detail.leader_id)}>ถอดหัวหน้า</button>
