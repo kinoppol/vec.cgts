@@ -230,7 +230,7 @@ if ($method === 'GET') {
     if ($auth['role'] === 'head_secretary') {
         // หัวหน้าธุรการ: เห็นเฉพาะสำนวนที่ยังไม่ได้มอบหมาย
         $where[] = 'c.assignee_id IS NULL';
-    } elseif (in_array($auth['role'], ['officer', 'secretary'], true)) {
+    } elseif (in_array($auth['role'], ['officer', 'secretary', 'clerk'], true)) {
         // เจ้าหน้าที่/ธุรการทั่วไป: เห็นเฉพาะสำนวนที่มอบหมายให้ตัวเอง
         if ($myOfficerId) {
             $where[] = 'c.assignee_id = ?';

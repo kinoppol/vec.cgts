@@ -121,6 +121,13 @@ function navFor(role, counts, user) {
     {v:"reports",   ic:"chart",    l:"รายงาน"},
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
+  if (role === "clerk") return [
+    {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
+    {sec:"การดำเนินงาน"},
+    {v:"cases",     ic:"inbox",    l:"งานที่ได้รับมอบหมาย", count:counts.newQ},
+    {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+  ];
   if (role === "head_secretary") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
     {sec:"การดำเนินงาน"},
@@ -561,7 +568,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
         openCase(caseId);
       }}/>;
   } else if (view === "dashboard") {
-    content = role === "officer"
+    content = (role === "officer" || role === "clerk")
       ? <OfficerDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
       : role === "head_secretary"
       ? <HeadSecretaryDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}
@@ -570,8 +577,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       ? <DirLegalDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
       : <DirAdminDashboard cases={cases} officers={officers} setView={setView}/>;
   } else if (view === "cases") {
-    const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
-    const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : undefined;
+    const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : role === "clerk" ? "งานที่ได้รับมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
+    const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : role === "clerk" ? "งานที่หัวหน้าธุรการมอบหมายให้" : undefined;
     content = <CaseListPage cases={cases} officers={officers} openCase={openCase}
       title={caseListTitle} sub={caseListSub}/>;
   } else if (view === "import") {

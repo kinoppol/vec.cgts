@@ -237,7 +237,8 @@ function LoadingSpinner() {
 
 /* ---------------- Role label helpers ---------------- */
 const DEFAULT_ROLE_LABELS = {
-  officer:          'เจ้าหน้าที่นิติการ / ธุรการ',
+  officer:          'เจ้าหน้าที่นิติการ',
+  clerk:            'ธุรการ',
   head_secretary:   'หัวหน้าธุรการ',
   dir_legal:        'ผอ.กลุ่มนิติการ',
   dir_admin:        'ผอ.สำนักอำนวยการ',
@@ -245,7 +246,7 @@ const DEFAULT_ROLE_LABELS = {
   deputy_secretary: 'รองเลขาธิการ สอศ.',
   admin:            'ผู้ดูแลระบบ',
 };
-const ROLE_ORDER = ['officer','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+const ROLE_ORDER = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
 function roleLabel(role, rl) { return (rl && rl[role]) || DEFAULT_ROLE_LABELS[role] || role; }
 
 Object.assign(window, {
