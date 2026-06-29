@@ -94,31 +94,82 @@ function OfficerDashboard({ cases, officers, openCase, setView }) {
 
 /* ---------------- รายการเรื่องทั้งหมด ---------------- */
 function CaseListPage({ cases, officers, openCase, title="จัดการเรื่องร้องเรียน–ร้องทุกข์", sub="เรื่องทั้งหมดในระบบ พร้อมสถานะและการติดตาม SLA", lockTrack }) {
-  const [q, setQ] = useState("");
-  const [track, setTrack] = useState(lockTrack||"all");
+  const [q, setQ]           = useState("");
+  const [matchMode, setMatchMode] = useState("any"); // "any" = บางคำ, "all" = ทุกคำ
+  const [scope, setScope]   = useState("all");       // "all" | "subject" | "track" | "officer" | "number"
+  const [track, setTrack]   = useState(lockTrack||"all");
   const [status, setStatus] = useState("all");
+
+  const keywords = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+  const caseText = (c, sc) => {
+    const o = officerById(officers, c.assignee);
+    switch(sc) {
+      case "subject":  return (c.subject + " " + c.agency + " " + (c.detail||"")).toLowerCase();
+      case "track":    return ((TRACKS[c.track]?.label||"") + " " + (c.cat||"")).toLowerCase();
+      case "officer":  return (o?.name||"").toLowerCase();
+      case "number":   return (c.id + " " + c.reg).toLowerCase();
+      default:         return (c.subject + " " + c.id + " " + c.reg + " " + c.agency + " " + (c.detail||"") + " " + (TRACKS[c.track]?.label||"") + " " + (o?.name||"")).toLowerCase();
+    }
+  };
+
   const list = cases.filter(c=>{
     if(track!=="all" && c.track!==track) return false;
     if(status!=="all" && c.status!==status) return false;
-    if(q && !(c.subject+c.id+c.reg+c.agency).toLowerCase().includes(q.toLowerCase())) return false;
+    if(keywords.length > 0) {
+      const text = caseText(c, scope);
+      const match = matchMode === "all"
+        ? keywords.every(k => text.includes(k))
+        : keywords.some(k => text.includes(k));
+      if(!match) return false;
+    }
     return true;
   });
+
   const stChips = [["all","ทั้งหมด"],["received","รับเรื่อง"],["screening","คัดกรอง"],["investigating","สอบสวน"],["reporting","รายงานผล"],["closed","เสร็จสิ้น"]];
+  const scopeOpts = [["all","ทุกฟิลด์"],["subject","เรื่อง/หน่วยงาน"],["number","รหัส/เลขรับ"],["officer","ผู้รับผิดชอบ"],["track","สายงาน"]];
+
   return (
     <div className="fade-in">
       <PageHead title={title} sub={sub}/>
       <div className="card card-pad" style={{marginBottom:18}}>
-        <div className="between" style={{gap:14,flexWrap:"wrap"}}>
-          <div style={{position:"relative",flex:1,minWidth:240}}>
+        {/* แถวค้นหา */}
+        <div className="between" style={{gap:10,flexWrap:"wrap",alignItems:"flex-start"}}>
+          <div style={{position:"relative",flex:1,minWidth:260}}>
             <Icon name="search" style={{width:17,height:17,position:"absolute",left:13,top:12,color:"var(--ink-3)"}}/>
-            <input className="input" style={{paddingLeft:38}} placeholder="ค้นหารหัส เลขรับ เรื่อง หรือหน่วยงาน..." value={q} onChange={e=>setQ(e.target.value)}/>
+            <input className="input" style={{paddingLeft:38}}
+              placeholder="พิมพ์คำค้น คั่นด้วยช่องว่าง เช่น  ละเมิด เชียงใหม่"
+              value={q} onChange={e=>setQ(e.target.value)}/>
           </div>
-          {!lockTrack &&
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             <div className="seg">
-              {[["all","ทุกสาย"],["discipline","ด้านวินัย"],["legal","ด้านกฎหมาย"]].map(([v,l])=>
-                <button key={v} className={track===v?"active":""} onClick={()=>setTrack(v)}>{l}</button>)}
-            </div>}
+              <button className={matchMode==="any"?"active":""} onClick={()=>setMatchMode("any")} title="แสดงผลที่ตรงกับคำใดคำหนึ่ง">บางคำ (OR)</button>
+              <button className={matchMode==="all"?"active":""} onClick={()=>setMatchMode("all")} title="แสดงผลที่ตรงกับทุกคำ">ทุกคำ (AND)</button>
+            </div>
+            <select className="input" style={{width:"auto",minWidth:150}} value={scope} onChange={e=>setScope(e.target.value)}>
+              {scopeOpts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+            {!lockTrack &&
+              <div className="seg">
+                {[["all","ทุกสาย"],["discipline","ด้านวินัย"],["legal","ด้านกฎหมาย"]].map(([v,l])=>
+                  <button key={v} className={track===v?"active":""} onClick={()=>setTrack(v)}>{l}</button>)}
+              </div>}
+          </div>
         </div>
+        {/* แท็กคำที่กำลังค้น */}
+        {keywords.length > 0 && (
+          <div className="vcenter" style={{gap:6,marginTop:10,flexWrap:"wrap"}}>
+            <span className="faint tiny">คำค้น:</span>
+            {keywords.map((k,i)=>(
+              <span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,background:"var(--accent-bg,rgba(120,20,30,.12))",color:"var(--accent)",borderRadius:4,padding:"2px 8px",fontSize:12,fontWeight:500}}>
+                {k}
+              </span>
+            ))}
+            <span className="faint tiny">— พบ {list.length} เรื่อง ({matchMode==="all"?"ต้องมีทุกคำ":"มีคำใดคำหนึ่ง"})</span>
+            <button className="chip" style={{fontSize:11,padding:"1px 8px"}} onClick={()=>setQ("")}>ล้าง</button>
+          </div>
+        )}
+        {/* กรองสถานะ */}
         <div className="row" style={{gap:8,marginTop:14,flexWrap:"wrap"}}>
           {stChips.map(([v,l])=><button key={v} className={"chip "+(status===v?"active":"")} onClick={()=>setStatus(v)}>{l}</button>)}
         </div>
