@@ -295,12 +295,9 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
               {proposals.map(p=>{
                 const grps = (() => { try { return p.proposed_groups ? JSON.parse(p.proposed_groups) : []; } catch { return []; } })();
                 return (
-                  <tr key={p.id}>
-                    <td>
-                      {openCase
-                        ? <button className="btn btn-ghost btn-sm" style={{fontFamily:'monospace',padding:'2px 6px'}} onClick={()=>openCase(p.case_id)}>{p.case_id}</button>
-                        : <div className="code sm">{p.case_id}</div>}
-                    </td>
+                  <tr key={p.id} onClick={openCase ? ()=>openCase(p.case_id) : undefined}
+                      style={openCase ? {cursor:'pointer'} : {}}>
+                    <td><div className="code sm">{p.case_id}</div></td>
                     <td style={{maxWidth:220}}><div style={{fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.case_subject}</div></td>
                     <td className="sm">{p.proposed_by_name}</td>
                     <td>{grps.length
@@ -310,7 +307,7 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
                     <td className="sm muted" style={{maxWidth:200,whiteSpace:'pre-wrap'}}>{p.propose_note || '—'}</td>
                     <td className="sm muted tnum">{thDate(p.created_at?.slice(0,10))}</td>
                     <td>
-                      <button className="btn btn-primary btn-sm" onClick={()=>setModal(p)}>
+                      <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
                         <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
                       </button>
                     </td>
