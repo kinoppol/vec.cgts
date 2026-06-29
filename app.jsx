@@ -100,7 +100,7 @@ function canManageUsers(user) {
 function navFor(role, counts, user) {
   if (role === "admin") return [
     {v:"dashboard", ic:"pie",         l:"ภาพรวม"},
-    {v:"cases",     ic:"inbox",       l:"สำนวนทั้งหมด"},
+    {v:"cases",     ic:"inbox",       l:"หนังสือเข้าทั้งหมด"},
     {v:"calendar",  ic:"calendar",    l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",       l:"รายงาน"},
     {sec:"ระบบ"},
@@ -143,7 +143,7 @@ function navFor(role, counts, user) {
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
     {v:"proposals", ic:"flag",     l:"ข้อเสนอรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
@@ -155,7 +155,7 @@ function navFor(role, counts, user) {
   if (role !== "dir_admin") return [
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
   ];
@@ -163,7 +163,7 @@ function navFor(role, counts, user) {
   return [
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
     {v:"proposals", ic:"flag",     l:"เกษียนรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
