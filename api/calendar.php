@@ -230,6 +230,10 @@ if ($method === 'GET' && !$id) {
         WHERE c.status != 'closed'
           AND c.received_date IS NOT NULL
           AND DATE_ADD(c.received_date, INTERVAL ss.days DAY) BETWEEN ? AND ?
+          AND c.id NOT IN (
+              SELECT case_id FROM calendar_events
+              WHERE event_type='sla_deadline' AND case_id IS NOT NULL
+          )
         {$slaWhere}
         ORDER BY sla_deadline
     ");

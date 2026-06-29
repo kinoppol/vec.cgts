@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS case_task_proposals (
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS calendar_events (
   id            INT          NOT NULL AUTO_INCREMENT,
-  event_type    ENUM('meeting','court','investigation','document','committee') NOT NULL,
+  event_type    ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL,
   title         VARCHAR(300) NOT NULL,
   event_date    DATE         NOT NULL,
   start_time    TIME         DEFAULT NULL,

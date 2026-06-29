@@ -386,7 +386,7 @@ function CalendarPage({ officers, currentUser }) {
     else setModal({ type:'add', date: dateStr });
   };
 
-  const READ_ONLY_TYPES = new Set(['due_date','case_closed','task_done']);
+  const READ_ONLY_TYPES = new Set(['due_date','sla_deadline','case_closed','task_done']);
   const onEventClick = (ev) => {
     if (READ_ONLY_TYPES.has(ev._type)) return;
     setModal({ type:'edit', ev });

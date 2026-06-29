@@ -5,6 +5,42 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id     = trim($_GET['id'] ?? '');
 
 /* ====== helpers ====== */
+
+/**
+ * สร้าง/ลบ calendar_event ประเภท sla_deadline สำหรับสำนวนที่ระบุ
+ * เรียกหลังจาก UPDATE cases (assignee หรือ status เปลี่ยน)
+ */
+function syncSlaCalEvent(PDO $db, string $caseId, int $createdBy): void {
+    // ลบ event เก่าเสมอก่อน
+    $db->prepare("DELETE FROM calendar_events WHERE event_type='sla_deadline' AND case_id=?")
+       ->execute([$caseId]);
+
+    // ดึงข้อมูลสำนวนล่าสุด
+    $row = $db->prepare("
+        SELECT c.subject, c.track, c.cat, c.received_date,
+               c.assignee_id, c.status
+        FROM cases c WHERE c.id = ?
+    ");
+    $row->execute([$caseId]);
+    $c = $row->fetch();
+
+    if (!$c || !$c['assignee_id'] || !$c['received_date'] || $c['status'] === 'closed') return;
+
+    // หาจำนวนวัน SLA จาก sla_settings
+    $ss = $db->prepare("SELECT days FROM sla_settings WHERE track=? AND cat=? LIMIT 1");
+    $ss->execute([$c['track'], $c['cat']]);
+    $days = $ss->fetchColumn();
+    if (!$days) return;
+
+    $deadline = date('Y-m-d', strtotime($c['received_date'] . " +{$days} days"));
+    $title    = 'ครบ SLA: ' . mb_substr($c['subject'], 0, 80);
+
+    $db->prepare("
+        INSERT INTO calendar_events (event_type, title, event_date, case_id, officer_id, created_by)
+        VALUES ('sla_deadline', ?, ?, ?, ?, ?)
+    ")->execute([$title, $deadline, $caseId, $c['assignee_id'], $createdBy]);
+}
+
 function buildCase(array $row, PDO $db): array {
     // files
     $fs = $db->prepare('SELECT id, filename AS n, stored_name AS sn, size_label AS s, cls AS c FROM case_files WHERE case_id = ?');
@@ -445,6 +481,11 @@ if ($method === 'PATCH') {
                 ]);
             }
         }
+    }
+
+    // sync SLA calendar event เมื่อเปลี่ยน assignee หรือ status
+    if (isset($body['assignee']) || isset($body['assignee_id']) || isset($body['status'])) {
+        try { syncSlaCalEvent($db, $id, (int)$auth['id']); } catch (Throwable) {}
     }
 
     audit('update_case', $id, json_encode($body, JSON_UNESCAPED_UNICODE));
