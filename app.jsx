@@ -656,7 +656,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
                 className={"nav-item " + ((view===n.v || (view==="case-detail" && n.v==="cases")) ? "active" : "")}
                 onClick={() => setView(n.v)}>
                 <Icon name={n.ic}/> <span>{n.l}</span>
-                {n.count ? <span className="count">{n.count}</span> : null}
+                {n.count ? <span className="count" style={{flex:"none"}}>{n.count}</span> : null}
               </button>
           )}
         </nav>
