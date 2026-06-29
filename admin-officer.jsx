@@ -148,7 +148,7 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
       </div>
 
       {propModal && (
-        <ProposeModal case_={propModal.case} officers={officers}
+        <ProposeModal case_={propModal.case}
           onClose={()=>setPropModal(null)}
           onSaved={()=>{ setPropModal(null); onProposed && onProposed(); }}/>
       )}
@@ -157,17 +157,33 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
 }
 
 /* ---------------- Modal นำเสนอมอบหมาย (head_secretary) ---------------- */
-function ProposeModal({ case_, officers, onClose, onSaved }) {
-  const [officerId, setOfficerId] = useState('');
-  const [note, setNote]           = useState('');
-  const [saving, setSaving]       = useState(false);
-  const [err, setErr]             = useState('');
+function ProposeModal({ case_, onClose, onSaved }) {
+  const [groups, setGroups]   = useState([]);       // lookup items
+  const [selGroups, setSelGroups] = useState([]);   // selected group names
+  const NOTE_PREFIX = 'เรียน ผู้อำนวยการสำนักนิติการ\n';
+  const [note, setNote]       = useState(NOTE_PREFIX);
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState('');
+
+  useEffect(() => {
+    api.getLookups('group_name').then(items => setGroups(items.filter(i => i.active))).catch(() => {});
+  }, []);
+
+  const toggleGroup = (name) => {
+    setSelGroups(prev =>
+      prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]
+    );
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true); setErr('');
     try {
-      await api.proposeAssign({ case_id: case_.id, proposed_officer: officerId || null, note: note || null });
+      await api.proposeAssign({
+        case_id: case_.id,
+        proposed_groups: selGroups.length ? selGroups : null,
+        note: note.trim() || null,
+      });
       onSaved();
     } catch(e) {
       setErr(e.message);
@@ -177,31 +193,43 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
-      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:460}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:500,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <h3 style={{margin:0,fontSize:16}}>นำเสนอมอบหมายสำนวน</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
           </div>
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+
           <div className="field">
-            <label>เสนอมอบหมายให้นิติกร <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
-            <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
-              <option value="">— ไม่ระบุ / ให้ผอ.พิจารณา —</option>
-              {officers.filter(o=>o.active).map(o=>(
-                <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
-              ))}
-            </select>
+            <label>เสนอมอบหมายให้กลุ่มงาน <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายกลุ่ม)</span></label>
+            {groups.length === 0
+              ? <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการกลุ่มงาน</div>
+              : <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
+                  {groups.map(g => (
+                    <label key={g.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',borderRadius:8,cursor:'pointer',
+                      background: selGroups.includes(g.name) ? 'var(--maroon-50,rgba(120,20,30,.08))' : 'var(--surface-2)',
+                      border: selGroups.includes(g.name) ? '1.5px solid var(--maroon)' : '1.5px solid transparent',
+                      transition:'background .12s,border .12s'}}>
+                      <input type="checkbox" checked={selGroups.includes(g.name)}
+                        onChange={()=>toggleGroup(g.name)}
+                        style={{width:15,height:15,accentColor:'var(--maroon)',flexShrink:0}}/>
+                      <span style={{fontSize:14,fontWeight: selGroups.includes(g.name) ? 600 : 400}}>{g.name}</span>
+                    </label>
+                  ))}
+                </div>
+            }
           </div>
+
           <div className="field">
             <label>หมายเหตุถึงผู้อำนวยการ</label>
-            <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
-              placeholder="เหตุผลที่นำเสนอ หรือข้อมูลเพิ่มเติม"/>
+            <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
+              style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
-          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4}}>
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4,flexShrink:0}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> ส่งนำเสนอ</>}
@@ -234,17 +262,20 @@ function AssignProposalsPage({ proposals, officers, onApproved }) {
       <div className="card">
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>สำนวน</th><th>เรื่อง</th><th>เสนอโดย</th><th>นิติกรที่เสนอ</th><th>หมายเหตุ</th><th>วันที่เสนอ</th><th></th></tr></thead>
+            <thead><tr><th>สำนวน</th><th>เรื่อง</th><th>เสนอโดย</th><th>กลุ่มงานที่เสนอ</th><th>หมายเหตุ</th><th>วันที่เสนอ</th><th></th></tr></thead>
             <tbody>
               {proposals.map(p=>{
-                const o = officerById(officers, p.proposed_officer);
+                const grps = (() => { try { return p.proposed_groups ? JSON.parse(p.proposed_groups) : []; } catch { return []; } })();
                 return (
                   <tr key={p.id}>
                     <td><div className="code sm">{p.case_id}</div></td>
                     <td style={{maxWidth:220}}><div style={{fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.case_subject}</div></td>
                     <td className="sm">{p.proposed_by_name}</td>
-                    <td>{o ? <div className="vcenter"><span className="avatar avatar-sm">{o.init}</span><span className="sm">{o.name}</span></div> : <span className="faint sm">ไม่ระบุ</span>}</td>
-                    <td className="sm muted">{p.propose_note || '—'}</td>
+                    <td>{grps.length
+                      ? <div style={{display:'flex',flexWrap:'wrap',gap:4}}>{grps.map((g,i)=><span key={i} className="badge badge-info" style={{fontSize:11}}>{g}</span>)}</div>
+                      : <span className="faint sm">ไม่ระบุ</span>}
+                    </td>
+                    <td className="sm muted" style={{maxWidth:200,whiteSpace:'pre-wrap'}}>{p.propose_note || '—'}</td>
                     <td className="sm muted tnum">{thDate(p.created_at?.slice(0,10))}</td>
                     <td>
                       <button className="btn btn-primary btn-sm" onClick={()=>setModal(p)}>
@@ -274,6 +305,11 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
   const [saving, setSaving]       = useState(false);
   const [err, setErr]             = useState('');
 
+  const proposedGroups = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
+  // แบ่งนิติกรตามกลุ่มงานที่เสนอ (ถ้ามี)
+  const inGroups    = proposedGroups.length ? officers.filter(o => o.active && proposedGroups.includes(o.group_name)) : [];
+  const otherOfficers = officers.filter(o => o.active && !inGroups.includes(o));
+
   const submit = async (action) => {
     if (action === 'approve' && !officerId) { setErr('กรุณาเลือกนิติกรก่อนอนุมัติ'); return; }
     setSaving(true); setErr('');
@@ -298,15 +334,37 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
             <Icon name="inbox"/><div>สำนวน <b>{proposal.case_id}</b> — {proposal.case_subject}</div>
           </div>
           <div className="faint sm">เสนอโดย: <b>{proposal.proposed_by_name}</b></div>
+          {(() => {
+            const grps = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
+            if (!grps.length) return null;
+            return (
+              <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px'}}>
+                <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6}}>กลุ่มงานที่เสนอ:</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {grps.map((g,i)=><span key={i} className="badge badge-info">{g}</span>)}
+                </div>
+              </div>
+            );
+          })()}
           {proposal.propose_note && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
-            <b style={{fontSize:12,color:'var(--ink-3)'}}>หมายเหตุจากหัวหน้าธุรการ:</b><br/>{proposal.propose_note}
+            <b style={{fontSize:12,color:'var(--ink-3)'}}>หมายเหตุจากหัวหน้าธุรการ:</b>
+            <pre style={{margin:'6px 0 0',fontFamily:'inherit',whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.6}}>{proposal.propose_note}</pre>
           </div>}
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
           <div className="field">
             <label>มอบหมายให้นิติกร <span className="req">*</span></label>
             <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
               <option value="">— เลือกนิติกร —</option>
-              {officers.filter(o=>o.active).map(o=>(
+              {inGroups.length > 0 && <>
+                <optgroup label="กลุ่มงานที่เสนอ">
+                  {inGroups.map(o=><option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>)}
+                </optgroup>
+                {otherOfficers.length > 0 &&
+                  <optgroup label="นิติกรอื่น">
+                    {otherOfficers.map(o=><option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>)}
+                  </optgroup>}
+              </>}
+              {inGroups.length === 0 && otherOfficers.map(o=>(
                 <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
               ))}
             </select>
@@ -1118,7 +1176,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
       </div>
 
-      {showPropose && <ProposeModal case_={c} officers={officers}
+      {showPropose && <ProposeModal case_={c}
         onClose={()=>setShowPropose(false)}
         onSaved={()=>{ setShowPropose(false); back(); }}/>}
       {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={async (oid)=>{
