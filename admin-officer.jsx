@@ -743,6 +743,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [pdfModal, setPdfModal] = useState(null); // {url, filename}
   const [loading, setLoading] = useState(!c || !(c.events));
 
   useEffect(() => {
@@ -810,17 +811,33 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             </>}
             {tab==="files" && <div className="grid" style={{gap:10}}>
               <div className="notice notice-info"><Icon name="shieldCheck"/><div>ไฟล์เก็บนอก web root · ตรวจไวรัสแล้ว · ดาวน์โหลดต้องตรวจสิทธิ์ซ้ำและบันทึก Audit</div></div>
-              {c.files.map((f,i)=>(
-                <div key={i} className="file-row">
-                  <Icon name="file" style={{width:18,height:18,color:"var(--maroon)"}}/>
-                  <span style={{fontWeight:500}}>{f.n}</span>
-                  <span className={"badge "+CLASS[f.c].c} style={{fontSize:11}}>{CLASS[f.c].l}</span>
-                  <span className="fmeta" style={{marginLeft:"auto"}}>{f.s}</span>
-                  <button className="icon-btn" style={{width:30,height:30}}><Icon name="eye" style={{width:15,height:15}}/></button>
-                  <button className="icon-btn" style={{width:30,height:30}}><Icon name="download" style={{width:15,height:15}}/></button>
-                </div>
-              ))}
+              {(c.files||[]).map((f,i)=>{
+                const base = window.__APP_BASE__ || '';
+                const isPdf = f.sn ? f.sn.toLowerCase().endsWith('.pdf') || f.n.toLowerCase().endsWith('.pdf') : f.n.toLowerCase().endsWith('.pdf');
+                const fileUrl = f.sn ? base + '/api/file.php?case=' + encodeURIComponent(f.sn) : null;
+                return (
+                  <div key={i} className="file-row">
+                    <Icon name="file" style={{width:18,height:18,color:isPdf?"#ef4444":"var(--maroon)"}}/>
+                    <span style={{fontWeight:500,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.n}</span>
+                    <span className={"badge "+CLASS[f.c].c} style={{fontSize:11}}>{CLASS[f.c].l}</span>
+                    <span className="fmeta">{f.s}</span>
+                    {isPdf && fileUrl && (
+                      <button className="icon-btn" style={{width:30,height:30}} title="ดูไฟล์ PDF"
+                        onClick={()=>setPdfModal({url: fileUrl+'&inline=1', filename: f.n})}>
+                        <Icon name="eye" style={{width:15,height:15,color:'var(--accent)'}}/>
+                      </button>
+                    )}
+                    {fileUrl && (
+                      <a href={fileUrl} download={f.n} className="icon-btn" style={{width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center'}} title="ดาวน์โหลด">
+                        <Icon name="download" style={{width:15,height:15}}/>
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+              {(!c.files||c.files.length===0) && <div className="muted sm" style={{padding:'12px 0'}}>ยังไม่มีไฟล์แนบ</div>}
             </div>}
+            {pdfModal && <PdfModal url={pdfModal.url} filename={pdfModal.filename} onClose={()=>setPdfModal(null)}/>}
             {tab==="timeline" && <CaseTimeline
               steps={(c.steps||[]).map(s=>({...s, _case_id: c.id}))}
               onRefresh={()=>{ api.getCase(c.id).then(full=>setC(full)); }}

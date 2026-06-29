@@ -7,7 +7,7 @@ $id     = trim($_GET['id'] ?? '');
 /* ====== helpers ====== */
 function buildCase(array $row, PDO $db): array {
     // files
-    $fs = $db->prepare('SELECT filename AS n, size_label AS s, cls AS c FROM case_files WHERE case_id = ?');
+    $fs = $db->prepare('SELECT id, filename AS n, stored_name AS sn, size_label AS s, cls AS c FROM case_files WHERE case_id = ?');
     $fs->execute([$row['id']]);
     $row['files'] = $fs->fetchAll();
 
