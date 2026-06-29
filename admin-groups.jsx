@@ -20,7 +20,7 @@ function GroupFormModal({ group, onSave, onClose }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{maxWidth:400}} onClick={e=>e.stopPropagation()}>
         <div className="modal-head">
           <h3>{group ? "แก้ไขชื่อกลุ่ม" : "เพิ่มกลุ่มใหม่"}</h3>
@@ -51,7 +51,7 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
   );
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
         <div className="modal-head">
           <h3>เพิ่มสมาชิกเข้ากลุ่ม <span className="muted">— {group.name}</span></h3>
@@ -310,7 +310,7 @@ function GroupsPage({ currentUser }) {
       )}
 
       {delConfirm && (
-        <div className="modal-backdrop" onClick={()=>setDelConfirm(null)}>
+        <div className="modal-overlay" onClick={()=>setDelConfirm(null)}>
           <div className="modal" style={{maxWidth:380}} onClick={e=>e.stopPropagation()}>
             <div className="modal-head"><h3>ยืนยันลบกลุ่ม</h3></div>
             <div style={{padding:"20px 24px"}}>
