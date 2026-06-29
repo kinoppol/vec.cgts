@@ -46,6 +46,35 @@ function require_user_manager(): array {
     return $u;
 }
 
+/**
+ * เริ่ม SLA step อัตโนมัติ — set started_at=NOW(), ev_status='active' บน case_event ที่ตรง step_key
+ * ถ้ายังไม่มี event row สำหรับ step นั้น จะ INSERT ใหม่โดยดึง sla_steps มาประกอบ
+ */
+function startSlaStep(PDO $db, string $caseId, string $stepKey): void {
+    // ลอง UPDATE ก่อน (event มีอยู่แล้ว)
+    $upd = $db->prepare(
+        "UPDATE case_events SET started_at = COALESCE(started_at, NOW()), ev_status = 'active'
+         WHERE case_id = ? AND step_key = ? AND started_at IS NULL"
+    );
+    $upd->execute([$caseId, $stepKey]);
+    if ($upd->rowCount() > 0) return;
+
+    // ถ้ายังไม่มี event row เลย (case เก่าก่อนระบบ SLA) ให้ INSERT
+    $sp = $db->prepare("SELECT * FROM sla_steps WHERE step_key = ? AND active = 1");
+    $sp->execute([$stepKey]);
+    $step = $sp->fetch();
+    if (!$step) return;
+
+    $ex = $db->prepare("SELECT id FROM case_events WHERE case_id = ? AND step_key = ?");
+    $ex->execute([$caseId, $stepKey]);
+    if ($ex->fetch()) return; // มีอยู่แล้ว (started_at ไม่ใช่ NULL) ข้าม
+
+    $db->prepare(
+        "INSERT INTO case_events (case_id, title, ev_status, icon, sort_order, step_key, started_at)
+         VALUES (?, ?, 'active', 'clock', ?, ?, NOW())"
+    )->execute([$caseId, $step['label'], (int)$step['sort_order'], $stepKey]);
+}
+
 function audit(string $action, ?string $target = null, ?string $detail = null): void {
     try {
         $db = getDB();

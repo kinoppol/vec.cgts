@@ -79,6 +79,10 @@ if ($method === 'POST') {
        ->execute($vals);
 
     $propId = (int)$db->lastInsertId();
+
+    // เริ่ม SLA ขั้น "เสนอ ผอ.สำนัก" อัตโนมัติ
+    startSlaStep($db, $caseId, 'propose_dir');
+
     audit('propose_case', $caseId, "นำเสนอ officer={$proposedOfficer}");
     json_out(['id' => $propId, 'ok' => true], 201);
 }
@@ -131,6 +135,11 @@ if ($method === 'PATCH') {
                "อนุมัติมอบหมาย {$oname} (เสนอโดยหัวหน้าธุรการ)" . ($reviewNote ? " · {$reviewNote}" : ''),
                'done', 'gavel', $ord,
            ]);
+    }
+
+    // เริ่ม SLA ขั้น "มอบหมายนิติกร" อัตโนมัติ
+    if ($finalOfficer) {
+        startSlaStep($db, $prop['case_id'], 'assign');
     }
 
     audit('approve_proposal', $prop['case_id'], "proposal={$propId} final={$finalOfficer}");

@@ -440,6 +440,9 @@ if ($method === 'POST') {
         }
     }
 
+    // เริ่ม SLA ขั้น "รับเรื่อง" อัตโนมัติ
+    startSlaStep($db, $newId, 'receive');
+
     audit('create_case', $newId);
     json_out(['id' => $newId], 201);
 }
