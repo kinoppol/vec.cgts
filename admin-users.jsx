@@ -274,7 +274,10 @@ function ResetPassModal({ user, onClose }) {
 
 /* ---------- หน้าหลัก ---------- */
 function UserManagementPage({ currentUser, officers, roleLabels }) {
-  const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
+  const roleOpts = [
+    ...ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) })),
+    { v: '__null__', l: 'ไม่กำหนดบทบาท' }
+  ];
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset', user?}
@@ -326,7 +329,8 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   const [showInactive, setShowInactive] = useState(false);
 
   const filtered = users.filter(u => {
-    if (filterRole && u.role !== filterRole) return false;
+    if (filterRole === '__null__' && u.role) return false;
+    if (filterRole && filterRole !== '__null__' && u.role !== filterRole) return false;
     if (search) {
       const q = search.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q);
