@@ -208,8 +208,37 @@ if ($method === 'GET' && !$id) {
         $visOfficers = $db->query("SELECT id, name, init FROM officers WHERE active=1 ORDER BY name")->fetchAll();
     }
 
+    // SLA deadlines — สำนวนที่ยังไม่ปิดและมีวันครบ SLA ในเดือนนี้
+    $slaWhere = '';
+    $slaParams = [$from, $to];
+    if ($filterOfficerId) {
+        $slaWhere = ' AND c.assignee_id = ?';
+        $slaParams[] = $filterOfficerId;
+    } elseif ($filterGroupName) {
+        $slaWhere = ' AND o.group_name = ?';
+        $slaParams[] = $filterGroupName;
+    }
+    $slaStmt = $db->prepare("
+        SELECT c.id AS case_id, c.subject, c.track, c.cat, c.received_date,
+               c.sla AS sla_color, c.status,
+               DATE_ADD(c.received_date, INTERVAL ss.days DAY) AS sla_deadline,
+               ss.days AS sla_days,
+               o.name AS officer_name, o.init AS officer_init
+        FROM cases c
+        LEFT JOIN officers o ON o.id = c.assignee_id
+        JOIN sla_settings ss ON ss.track = c.track AND ss.cat = c.cat
+        WHERE c.status != 'closed'
+          AND c.received_date IS NOT NULL
+          AND DATE_ADD(c.received_date, INTERVAL ss.days DAY) BETWEEN ? AND ?
+        {$slaWhere}
+        ORDER BY sla_deadline
+    ");
+    $slaStmt->execute($slaParams);
+    $slaDeadlines = $slaStmt->fetchAll();
+
     json_out(['events' => $events, 'due_dates' => $dueDates,
               'closed_cases' => $closedCases, 'done_tasks' => $doneTasks,
+              'sla_deadlines' => $slaDeadlines,
               'visible_officers' => $visOfficers,
               'filter_officer_id' => $filterOfficerId]);
 }
