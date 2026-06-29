@@ -494,6 +494,7 @@ function Step1({ data, set }) {
               <option value="">— เลือกสายงาน —</option>
               <option value="discipline">ด้านวินัย (กลุ่มงานวินัย)</option>
               <option value="legal">ด้านกฎหมาย (กลุ่มงานกฎหมายและระเบียบ)</option>
+              <option value="general">บริหารงานทั่วไป (กลุ่มงานบริหารทั่วไป)</option>
             </select>
           </div>
           <div className="field">

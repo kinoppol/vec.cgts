@@ -190,6 +190,32 @@ if ($confirm === 'head_secretary') {
     exit;
 }
 
+/* ── [9] เพิ่ม general ใน track ENUM ──────────────────────── */
+if ($confirm === 'track_general') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [9]: track ENUM — บริหารงานทั่วไป</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        foreach (['cases', 'sla_settings'] as $tbl) {
+            $col = $db->query("SHOW COLUMNS FROM `$tbl` WHERE Field='track'")->fetch();
+            if ($col && strpos($col['Type'], "'general'") !== false) {
+                echo "– $tbl.track มี general อยู่แล้ว ข้าม\n";
+            } else {
+                $db->exec("ALTER TABLE `$tbl` MODIFY track ENUM('discipline','legal','general') NOT NULL");
+                echo "✓ ALTER $tbl MODIFY track — เพิ่ม general\n";
+            }
+        }
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [8] สร้างตาราง case_task_proposals (ถ้ายังไม่มี) ────── */
 if ($confirm === 'proposals_table') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -309,6 +335,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[4] ระบบแจ้งเตือน</b> — notifications, notification_log, users.email<br><code><a href="?confirm=notifications">migrate.php?confirm=notifications</a></code></li>';
     echo '<li><b>[5] หัวหน้าธุรการ</b> — เพิ่ม head_secretary ใน users.role ENUM<br><code><a href="?confirm=head_secretary">migrate.php?confirm=head_secretary</a></code></li>';
     echo '<li><b>[8] ตาราง case_task_proposals</b> — สร้างตาราง (รวม proposed_groups + proposed_personnel)<br><code><a href="?confirm=proposals_table">migrate.php?confirm=proposals_table</a></code></li>';
+    echo '<li><b>[9] สายงานบริหารงานทั่วไป</b> — เพิ่ม general ใน track ENUM ของ cases + sla_settings<br><code><a href="?confirm=track_general">migrate.php?confirm=track_general</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

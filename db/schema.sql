@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS cases (
   id            VARCHAR(20)  NOT NULL,
   reg_number    VARCHAR(50)  DEFAULT '—',
   subject       TEXT         NOT NULL,
-  track         ENUM('discipline','legal') NOT NULL,
+  track         ENUM('discipline','legal','general') NOT NULL,
   cat           VARCHAR(100) DEFAULT NULL,
   channel       VARCHAR(100) DEFAULT NULL,
   cls           ENUM('public','internal','restricted','secret') NOT NULL DEFAULT 'internal',
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS todo_items (
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sla_settings (
   id          INT          NOT NULL AUTO_INCREMENT,
-  track       ENUM('discipline','legal') NOT NULL,
+  track       ENUM('discipline','legal','general') NOT NULL,
   cat         VARCHAR(100) NOT NULL,
   days        INT          NOT NULL DEFAULT 30,
   note        VARCHAR(300) DEFAULT NULL,
