@@ -1136,7 +1136,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
-            return (<button key="mark-assign" className="btn btn-outline" onClick={()=>setShowAssignDone(true)}>
+            return (<button key="mark-assign" className="btn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setShowAssignDone(true)}>
               <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายนิติกร
             </button>);
           })()}
