@@ -519,7 +519,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   };
 
   const counts = {
-    newQ: cases.filter(c=>["received","screening"].includes(c.status)).length,
+    newQ: role === 'head_secretary'
+      ? cases.length
+      : cases.filter(c=>["received","screening"].includes(c.status)).length,
     pendingProposals: pendingProposals.length,
   };
   const nav    = navFor(role, counts, user);
