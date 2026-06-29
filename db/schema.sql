@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS cases (
   track         ENUM('discipline','legal','general') NOT NULL,
   cat           VARCHAR(100) DEFAULT NULL,
   channel       VARCHAR(100) DEFAULT NULL,
-  cls           ENUM('public','internal','restricted','secret') NOT NULL DEFAULT 'internal',
+  cls           ENUM('public','secret','topsecret','classified') NOT NULL DEFAULT 'public',
   status        ENUM('received','screening','rejected','case','assigned','investigating','reporting','closed')
                              NOT NULL DEFAULT 'received',
   priority      VARCHAR(20)  NOT NULL DEFAULT 'ปกติ',
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS case_files (
   filename     VARCHAR(300) NOT NULL,
   stored_name  VARCHAR(300) DEFAULT NULL,
   size_label   VARCHAR(50)  DEFAULT NULL,
-  cls          ENUM('public','internal','restricted','secret') NOT NULL DEFAULT 'internal',
+  cls          ENUM('public','secret','topsecret','classified') NOT NULL DEFAULT 'public',
   created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_case_files_case (case_id),

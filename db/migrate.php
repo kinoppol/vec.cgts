@@ -408,6 +408,35 @@ if ($confirm === 'proposal_personnel') {
     exit;
 }
 
+/* ── [11] cls ENUM — เปลี่ยนชั้นความลับ ───────────────── */
+if ($confirm === 'cls_enum') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [11]: cls ENUM (ชั้นความลับ)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // แปลงค่าเดิม → ค่าใหม่ก่อน ALTER
+        $db->exec("UPDATE cases SET cls='public'  WHERE cls IN ('internal')");
+        $db->exec("UPDATE cases SET cls='secret'  WHERE cls IN ('restricted')");
+        $db->exec("UPDATE case_files SET cls='public' WHERE cls IN ('internal')");
+        $db->exec("UPDATE case_files SET cls='secret' WHERE cls IN ('restricted')");
+        echo "✓ UPDATE ค่าเดิม internal→public, restricted→secret\n";
+
+        $db->exec("ALTER TABLE cases MODIFY cls ENUM('public','secret','topsecret','classified') NOT NULL DEFAULT 'public'");
+        echo "✓ ALTER cases.cls ENUM\n";
+
+        $db->exec("ALTER TABLE case_files MODIFY cls ENUM('public','secret','topsecret','classified') NOT NULL DEFAULT 'public'");
+        echo "✓ ALTER case_files.cls ENUM\n";
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [1] Personnel + password (เดิม) ────────────────────── */
 // ป้องกันการเรียกโดยไม่ตั้งใจ
 if ($confirm !== 'run') {
@@ -421,6 +450,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[8] ตาราง case_task_proposals</b> — สร้างตาราง (รวม proposed_groups + proposed_personnel)<br><code><a href="?confirm=proposals_table">migrate.php?confirm=proposals_table</a></code></li>';
     echo '<li><b>[9] สายงานบริหารงานทั่วไป</b> — เพิ่ม general ใน track ENUM ของ cases + sla_settings<br><code><a href="?confirm=track_general">migrate.php?confirm=track_general</a></code></li>';
     echo '<li><b>[10] ช่องทางรับเรื่อง</b> — เพิ่ม sub_category ใน lookup_items + seed ประเภทหน่วยงาน 4 ประเภท<br><code><a href="?confirm=channel_lookup">migrate.php?confirm=channel_lookup</a></code></li>';
+    echo '<li><b>[11] ชั้นความลับ</b> — เปลี่ยน cls ENUM: public/secret/topsecret/classified<br><code><a href="?confirm=cls_enum">migrate.php?confirm=cls_enum</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

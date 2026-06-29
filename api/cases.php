@@ -386,7 +386,7 @@ if ($method === 'POST') {
     $newId  = nextCaseId($db);
     $channel = $isStaff ? ($body['channel'] ?? 'หนังสือราชการ') : ('เว็บไซต์ (' . (($body['identity'] ?? '') === 'anon' ? 'ไม่ประสงค์ออกนาม' : 'ยืนยันตัวตน') . ')');
     $anon    = (($body['identity'] ?? '') === 'anon') ? 1 : 0;
-    $cls     = $body['cls'] ?? 'internal';
+    $cls     = $body['cls'] ?? 'public';
     $today   = date('Y-m-d');
 
     $db->prepare(
