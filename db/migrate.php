@@ -555,6 +555,93 @@ if ($confirm === 'cls_enum') {
     exit;
 }
 
+/* ── [18] backfill SLA started_at สำหรับเรื่องเก่า ─────────── */
+if ($confirm === 'backfill_sla') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [18]: Backfill SLA started_at เรื่องเก่า</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // ── ขั้น receive: ทุกเรื่อง ← received_date หรือ created_at ──
+        $cases = $db->query("SELECT id, received_date, created_at FROM cases")->fetchAll();
+        $receiveStep = $db->query("SELECT * FROM sla_steps WHERE step_key='receive' AND active=1")->fetch();
+        $r1 = 0; $r2 = 0;
+        foreach ($cases as $c) {
+            $startDate = $c['received_date'] ?: date('Y-m-d', strtotime($c['created_at']));
+            // UPDATE ถ้ามี event อยู่แล้ว (started_at NULL)
+            $upd = $db->prepare("UPDATE case_events SET started_at=?, ev_status='active' WHERE case_id=? AND step_key='receive' AND started_at IS NULL");
+            $upd->execute([$startDate, $c['id']]);
+            if ($upd->rowCount() > 0) { $r1++; continue; }
+            // ตรวจว่ามี event อยู่แล้วหรือยัง
+            $ex = $db->prepare("SELECT id FROM case_events WHERE case_id=? AND step_key='receive'");
+            $ex->execute([$c['id']]);
+            if ($ex->fetch()) continue;
+            // INSERT ใหม่
+            if ($receiveStep) {
+                $db->prepare("INSERT INTO case_events (case_id,title,ev_status,icon,sort_order,step_key,started_at) VALUES (?,?,'active','inbox',?,?,?)")
+                   ->execute([$c['id'], $receiveStep['label'], (int)$receiveStep['sort_order'], 'receive', $startDate]);
+                $r2++;
+            }
+        }
+        echo "✓ receive: UPDATE $r1 แถว, INSERT $r2 แถว\n";
+
+        // ── ขั้น propose_dir: เรื่องที่มี proposal from_task_no=0 ──
+        $propStep = $db->query("SELECT * FROM sla_steps WHERE step_key='propose_dir' AND active=1")->fetch();
+        $proposals = $db->query(
+            "SELECT case_id, MIN(created_at) AS t
+             FROM case_task_proposals WHERE from_task_no=0
+             GROUP BY case_id"
+        )->fetchAll();
+        $p1 = 0; $p2 = 0;
+        foreach ($proposals as $p) {
+            $t = date('Y-m-d', strtotime($p['t']));
+            $upd = $db->prepare("UPDATE case_events SET started_at=COALESCE(started_at,?), ev_status='active' WHERE case_id=? AND step_key='propose_dir' AND started_at IS NULL");
+            $upd->execute([$t, $p['case_id']]);
+            if ($upd->rowCount() > 0) { $p1++; continue; }
+            $ex = $db->prepare("SELECT id FROM case_events WHERE case_id=? AND step_key='propose_dir'");
+            $ex->execute([$p['case_id']]);
+            if ($ex->fetch()) continue;
+            if ($propStep) {
+                $db->prepare("INSERT INTO case_events (case_id,title,ev_status,icon,sort_order,step_key,started_at) VALUES (?,?,'active','flag',?,?,?)")
+                   ->execute([$p['case_id'], $propStep['label'], (int)$propStep['sort_order'], 'propose_dir', $t]);
+                $p2++;
+            }
+        }
+        echo "✓ propose_dir: UPDATE $p1 แถว, INSERT $p2 แถว\n";
+
+        // ── ขั้น assign: เรื่องที่ proposal ถูก approve/change แล้ว ──
+        $assignStep = $db->query("SELECT * FROM sla_steps WHERE step_key='assign' AND active=1")->fetch();
+        $approved = $db->query(
+            "SELECT case_id, MIN(COALESCE(reviewed_at, created_at)) AS t
+             FROM case_task_proposals WHERE from_task_no=0 AND status IN ('approved','changed')
+             GROUP BY case_id"
+        )->fetchAll();
+        $a1 = 0; $a2 = 0;
+        foreach ($approved as $a) {
+            $t = date('Y-m-d', strtotime($a['t']));
+            $upd = $db->prepare("UPDATE case_events SET started_at=COALESCE(started_at,?), ev_status='active' WHERE case_id=? AND step_key='assign' AND started_at IS NULL");
+            $upd->execute([$t, $a['case_id']]);
+            if ($upd->rowCount() > 0) { $a1++; continue; }
+            $ex = $db->prepare("SELECT id FROM case_events WHERE case_id=? AND step_key='assign'");
+            $ex->execute([$a['case_id']]);
+            if ($ex->fetch()) continue;
+            if ($assignStep) {
+                $db->prepare("INSERT INTO case_events (case_id,title,ev_status,icon,sort_order,step_key,started_at) VALUES (?,?,'active','gavel',?,?,?)")
+                   ->execute([$a['case_id'], $assignStep['label'], (int)$assignStep['sort_order'], 'assign', $t]);
+                $a2++;
+            }
+        }
+        echo "✓ assign: UPDATE $a1 แถว, INSERT $a2 แถว\n";
+
+        echo "\n<span class='ok'>✅ Backfill สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [17] dept_name — กลุ่มงาน (สายงาน) ย้ายจาก officers มาไว้ที่ groups ── */
 if ($confirm === 'dept_name') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -597,6 +684,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[15] ไม่กำหนดบทบาท</b> — ให้ users.role เป็น NULL ได้ (ยึดบทบาทจากกลุ่ม)<br><code><a href="?confirm=nullable_role">migrate.php?confirm=nullable_role</a></code></li>';
     echo '<li><b>[16] บทบาทหัวหน้ากลุ่ม</b> — เพิ่ม groups.leader_role สำหรับบทบาทเฉพาะหัวหน้า<br><code><a href="?confirm=leader_role">migrate.php?confirm=leader_role</a></code></li>';
     echo '<li><b>[17] กลุ่มงาน (สายงาน)</b> — เพิ่ม groups.dept_name แทนการกำหนดรายบุคคลใน officers<br><code><a href="?confirm=dept_name">migrate.php?confirm=dept_name</a></code></li>';
+    echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';
