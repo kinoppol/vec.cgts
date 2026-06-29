@@ -125,6 +125,7 @@ function navFor(role, counts, user) {
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนรอมอบหมาย", count:counts.newQ},
+    {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
   ];
