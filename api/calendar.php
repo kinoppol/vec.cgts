@@ -117,25 +117,43 @@ function syncAllSlaCalEvents(PDO $db, int $userId, ?string $officerFilter = null
     $stmt->execute($params);
     $cases = $stmt->fetchAll();
 
-    // เพิ่ม sla_deadline เข้า ENUM อัตโนมัติถ้ายังไม่มี (ป้องกัน server ที่ไม่ได้รัน migration)
-    try {
-        $db->exec("ALTER TABLE calendar_events MODIFY event_type
-            ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL");
-    } catch (Throwable) {}
+    if (empty($cases)) return 0;
 
-    $delStmt = $db->prepare("DELETE FROM calendar_events WHERE CONVERT(event_type USING utf8mb4)='sla_deadline' AND case_id=?");
+    // ตรวจสอบว่า ENUM มี sla_deadline แล้วหรือยัง
+    $colInfo = $db->query("SHOW COLUMNS FROM calendar_events WHERE Field='event_type'")->fetch();
+    $enumHasSla = $colInfo && strpos($colInfo['Type'], 'sla_deadline') !== false;
+
+    if (!$enumHasSla) {
+        // พยายาม ALTER TABLE เพื่อเพิ่ม sla_deadline
+        try {
+            $db->exec("ALTER TABLE calendar_events MODIFY event_type
+                ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL");
+            $enumHasSla = true;
+        } catch (Throwable $e) {
+            error_log('syncAllSlaCalEvents ALTER failed: ' . $e->getMessage());
+            return 0; // ยังเพิ่ม ENUM ไม่ได้ — หยุดเพื่อไม่ให้ error
+        }
+    }
+
+    $delStmt = $db->prepare("DELETE FROM calendar_events WHERE event_type='sla_deadline' AND case_id=?");
     $insStmt = $db->prepare("
         INSERT INTO calendar_events (event_type, title, event_date, case_id, officer_id, created_by)
         VALUES ('sla_deadline', ?, ?, ?, ?, ?)
     ");
 
+    $count = 0;
     foreach ($cases as $c) {
-        $deadline = date('Y-m-d', strtotime($c['started_at'] . ' +' . (int)$c['days_allowed'] . ' days'));
-        $title    = 'ครบ SLA: ' . mb_substr($c['subject'], 0, 80);
-        $delStmt->execute([$c['case_id']]);
-        $insStmt->execute([$title, $deadline, $c['case_id'], $c['assignee_id'], $userId]);
+        try {
+            $deadline = date('Y-m-d', strtotime($c['started_at'] . ' +' . (int)$c['days_allowed'] . ' days'));
+            $title    = 'ครบ SLA: ' . mb_substr($c['subject'], 0, 80);
+            $delStmt->execute([$c['case_id']]);
+            $insStmt->execute([$title, $deadline, $c['case_id'], $c['assignee_id'], $userId]);
+            $count++;
+        } catch (Throwable $e) {
+            error_log('syncAllSlaCalEvents insert failed case ' . $c['case_id'] . ': ' . $e->getMessage());
+        }
     }
-    return count($cases);
+    return $count;
 }
 
 /* ====== POST ?action=sync_sla — คำนวน SLA ใหม่ทั้งหมด ====== */

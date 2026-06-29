@@ -11,13 +11,17 @@ $id     = trim($_GET['id'] ?? '');
  * เรียกหลังจาก UPDATE cases (assignee หรือ status เปลี่ยน)
  */
 function syncSlaCalEvent(PDO $db, string $caseId, int $createdBy): void {
-    // เพิ่ม sla_deadline เข้า ENUM อัตโนมัติถ้ายังไม่มี
-    try {
-        $db->exec("ALTER TABLE calendar_events MODIFY event_type
-            ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL");
-    } catch (Throwable) {}
+    // ตรวจสอบ / เพิ่ม sla_deadline เข้า ENUM ถ้ายังไม่มี
+    $colInfo = $db->query("SHOW COLUMNS FROM calendar_events WHERE Field='event_type'")->fetch();
+    $enumHasSla = $colInfo && strpos($colInfo['Type'], 'sla_deadline') !== false;
+    if (!$enumHasSla) {
+        try {
+            $db->exec("ALTER TABLE calendar_events MODIFY event_type
+                ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL");
+        } catch (Throwable) { return; } // ยัง migrate ไม่ได้ — skip
+    }
     // ลบ event เก่าเสมอก่อน
-    $db->prepare("DELETE FROM calendar_events WHERE CONVERT(event_type USING utf8mb4)='sla_deadline' AND case_id=?")
+    $db->prepare("DELETE FROM calendar_events WHERE event_type='sla_deadline' AND case_id=?")
        ->execute([$caseId]);
 
     // ดึงข้อมูลสำนวนล่าสุด
