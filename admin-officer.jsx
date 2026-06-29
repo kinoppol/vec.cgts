@@ -270,7 +270,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
 }
 
 /* ---------------- หน้าข้อเสนอรอพิจารณา (dir_legal) ---------------- */
-function AssignProposalsPage({ proposals, officers, onApproved }) {
+function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
   const [modal, setModal] = useState(null); // proposal object
 
   if (proposals.length === 0) {
@@ -296,7 +296,11 @@ function AssignProposalsPage({ proposals, officers, onApproved }) {
                 const grps = (() => { try { return p.proposed_groups ? JSON.parse(p.proposed_groups) : []; } catch { return []; } })();
                 return (
                   <tr key={p.id}>
-                    <td><div className="code sm">{p.case_id}</div></td>
+                    <td>
+                      {openCase
+                        ? <button className="btn btn-ghost btn-sm" style={{fontFamily:'monospace',padding:'2px 6px'}} onClick={()=>openCase(p.case_id)}>{p.case_id}</button>
+                        : <div className="code sm">{p.case_id}</div>}
+                    </td>
                     <td style={{maxWidth:220}}><div style={{fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.case_subject}</div></td>
                     <td className="sm">{p.proposed_by_name}</td>
                     <td>{grps.length

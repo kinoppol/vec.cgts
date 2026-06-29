@@ -574,6 +574,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
   } else if (view === "proposals") {
     content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
+      openCase={openCase}
       onApproved={(caseId) => {
         api.getAssignProposals().then(setPendingProposals).catch(()=>{});
         refreshCases();
