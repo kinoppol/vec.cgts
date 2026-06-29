@@ -156,7 +156,7 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
   );
 }
 
-/* ---------------- Modal นำเสนอมอบหมาย (head_secretary) ---------------- */
+/* ---------------- Modal เกษียนเรื่อง (head_secretary) ---------------- */
 function ProposeModal({ case_, officers, onClose, onSaved }) {
   const [groups, setGroups]           = useState([]);
   const [selGroups, setSelGroups]     = useState([]);
@@ -208,7 +208,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
     <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
       <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:520,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-          <h3 style={{margin:0,fontSize:16}}>นำเสนอมอบหมายสำนวน</h3>
+          <h3 style={{margin:0,fontSize:16}}>เกษียนเรื่อง</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
         <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
@@ -261,7 +261,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
           <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> ส่งนำเสนอ</>}
+              {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> เกษียน</>}
             </button>
           </div>
         </form>
@@ -1130,7 +1130,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
           {isHeadSec && !c.assignee && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setShowPropose(true)}>
-              <Icon name="flag" style={{width:16,height:16}}/> นำเสนอมอบหมาย
+              <Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง
             </button>}
           {role==="admin" &&
             <button className="btn btn-outline" style={{color:'var(--danger)',borderColor:'var(--danger)'}}
