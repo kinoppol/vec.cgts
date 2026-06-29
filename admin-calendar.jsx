@@ -14,6 +14,8 @@ const CAL_TYPES = {
   investigation: { label:'นัดสอบสวน',    color:'#d97706', bg:'#fffbeb', icon:'search'  },
   document:      { label:'นัดส่งเอกสาร', color:'#059669', bg:'#ecfdf5', icon:'file'    },
   committee:     { label:'นัดคณะกรรมการ',color:'#0891b2', bg:'#ecfeff', icon:'star'    },
+  case_closed:   { label:'สำนวนปิด',     color:'#16a34a', bg:'#f0fdf4', icon:'check'   },
+  task_done:     { label:'งานย่อยเสร็จ', color:'#0d9488', bg:'#f0fdfa', icon:'check'   },
 };
 const TYPE_OPTS = Object.entries(CAL_TYPES).filter(([k])=>k!=='due_date');
 
@@ -328,7 +330,17 @@ function CalendarPage({ officers, currentUser }) {
         event_date: dd.due_date, id:'dd_'+dd.case_id,
       }));
       const calEvs = (d.events||[]).map(e=>({...e, _type: e.event_type}));
-      setData({ ...d, _merged: [...calEvs, ...dueDateEvs] });
+      const closedEvs = (d.closed_cases||[]).map(cc=>({
+        ...cc, _type:'case_closed',
+        title: `ปิดสำนวน: ${cc.subject}`,
+        id: 'cl_'+cc.case_id,
+      }));
+      const taskEvs = (d.done_tasks||[]).map(t=>({
+        ...t, _type:'task_done',
+        title: `${t.task_name} [${t.case_id}]`,
+        id: 'td_'+t.id,
+      }));
+      setData({ ...d, _merged: [...calEvs, ...dueDateEvs, ...closedEvs, ...taskEvs] });
     }).catch(console.error).finally(()=>setLoading(false));
   };
 
@@ -365,8 +377,9 @@ function CalendarPage({ officers, currentUser }) {
     else setModal({ type:'add', date: dateStr });
   };
 
+  const READ_ONLY_TYPES = new Set(['due_date','case_closed','task_done']);
   const onEventClick = (ev) => {
-    if (ev._type==='due_date') return; // due date read-only
+    if (READ_ONLY_TYPES.has(ev._type)) return;
     setModal({ type:'edit', ev });
   };
 

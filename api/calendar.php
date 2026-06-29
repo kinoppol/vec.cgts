@@ -106,7 +106,34 @@ if ($method === 'GET' && !$id) {
     $duStmt->execute([$from, $to]);
     $dueDates = $duStmt->fetchAll();
 
-    json_out(['events' => $events, 'due_dates' => $dueDates]);
+    // สำนวนที่ปิดในเดือนนี้
+    $clStmt = $db->prepare("
+        SELECT c.id AS case_id, c.subject, DATE(c.updated_at) AS event_date,
+               o.name AS officer_name, o.init AS officer_init
+        FROM cases c
+        LEFT JOIN officers o ON o.id = c.assignee_id
+        WHERE c.status = 'closed' AND DATE(c.updated_at) BETWEEN ? AND ?
+        ORDER BY c.updated_at
+    ");
+    $clStmt->execute([$from, $to]);
+    $closedCases = $clStmt->fetchAll();
+
+    // งานย่อยที่เสร็จในเดือนนี้
+    $tdStmt = $db->prepare("
+        SELECT ct.id, ct.task_name, ct.case_id, DATE(ct.completed_at) AS event_date,
+               c.subject AS case_subject, o.name AS officer_name, o.init AS officer_init
+        FROM case_tasks ct
+        JOIN cases c ON c.id = ct.case_id
+        LEFT JOIN officers o ON o.id = ct.officer_id
+        WHERE ct.status = 'done' AND ct.completed_at IS NOT NULL
+          AND DATE(ct.completed_at) BETWEEN ? AND ?
+        ORDER BY ct.completed_at
+    ");
+    $tdStmt->execute([$from, $to]);
+    $doneTasks = $tdStmt->fetchAll();
+
+    json_out(['events' => $events, 'due_dates' => $dueDates,
+              'closed_cases' => $closedCases, 'done_tasks' => $doneTasks]);
 }
 
 /* ====== POST — สร้าง event ====== */
