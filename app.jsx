@@ -124,7 +124,7 @@ function navFor(role, counts, user) {
   if (role === "head_secretary") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"สำนวนรอมอบหมาย", count:counts.newQ},
+    {v:"cases",     ic:"inbox",    l:"เรื่องรอเกษียน", count:counts.newQ},
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
@@ -568,7 +568,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       ? <DirLegalDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
       : <DirAdminDashboard cases={cases} officers={officers} setView={setView}/>;
   } else if (view === "cases") {
-    const caseListTitle = role === "head_secretary" ? "สำนวนรอมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
+    const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
     const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : undefined;
     content = <CaseListPage cases={cases} officers={officers} openCase={openCase}
       title={caseListTitle} sub={caseListSub}/>;
