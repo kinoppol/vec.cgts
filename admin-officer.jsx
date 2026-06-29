@@ -1246,7 +1246,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 }
 
 function AssignModal({ c, officers, close, onAssign }) {
-  const pool = (officers||[]).filter(o=>o.group===(TRACKS[c.track]?.group||c.track));
+  const trackGroup = TRACKS[c.track]?.group || c.track;
+  // กรองตาม group (officers.group_name); ถ้าไม่มีใครในกลุ่มนั้น fallback แสดงทั้งหมด
+  const inGroup = (officers||[]).filter(o => o.group === trackGroup);
+  const pool    = inGroup.length ? inGroup : (officers||[]);
+  const fallback = inGroup.length === 0;
   const [sel, setSel] = useState(c.assignee || (pool[0]&&pool[0].id) || "");
   return (
     <div className="overlay" onClick={close}>
@@ -1256,7 +1260,9 @@ function AssignModal({ c, officers, close, onAssign }) {
           <button className="icon-btn" onClick={close}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>เรื่องนี้อยู่ในสาย <b>{TRACKS[c.track]?.label||c.track}</b> — แสดงเฉพาะนิติกรใน {TRACKS[c.track]?.group||c.track}</div></div>
+          <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>เรื่องนี้อยู่ในสาย <b>{TRACKS[c.track]?.label||c.track}</b>
+            {fallback ? " — แสดงบุคลากรทั้งหมด" : ` — แสดงเฉพาะนิติกรใน ${trackGroup}`}
+          </div></div>
           <div className="choices">
             {pool.map(o=>(
               <div key={o.id} className={"choice "+(sel===o.id?"active":"")} onClick={()=>setSel(o.id)}>
