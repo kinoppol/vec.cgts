@@ -44,13 +44,13 @@ function GroupFormModal({ group, onSave, onClose }) {
 
 function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
   const [search, setSearch]   = useState("");
-  const [selRole, setSelRole] = useState(group.roles && group.roles.length === 1 ? group.roles[0] : "");
+  const hasRoles = group.roles && group.roles.length > 0;
+  const [selRole, setSelRole] = useState(hasRoles ? group.roles[0] : "");
   const memberIds = new Set(members.map(m => m.id));
   const available = allUsers.filter(u =>
     !memberIds.has(u.id) &&
     (u.display_name.includes(search) || u.username.includes(search) || (u.job_title||"").includes(search))
   );
-  const hasRoles = group.roles && group.roles.length > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -63,11 +63,13 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
           <input className="input" placeholder="ค้นหาชื่อ / username…" value={search} onChange={e=>setSearch(e.target.value)} autoFocus/>
           {hasRoles && (
             <div>
-              <label className="label">กำหนดบทบาท</label>
-              <select className="select" value={selRole} onChange={e=>setSelRole(e.target.value)}>
-                <option value="">— ไม่เปลี่ยนบทบาท —</option>
-                {group.roles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
-              </select>
+              <label className="label">บทบาท <span className="badge badge-maroon" style={{marginLeft:4,fontSize:10}}>กำหนดโดยกลุ่ม</span></label>
+              {group.roles.length === 1
+                ? <div className="input" style={{background:"var(--surface-3)",color:"var(--ink-2)",cursor:"default"}}>{DEFAULT_ROLE_LABELS[group.roles[0]]||group.roles[0]}</div>
+                : <select className="select" value={selRole} onChange={e=>setSelRole(e.target.value)}>
+                    {group.roles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
+                  </select>
+              }
             </div>
           )}
         </div>
@@ -82,7 +84,9 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
                   <div className="tiny faint">{u.username} · {DEFAULT_ROLE_LABELS[u.role]||u.role}</div>
                 </div>
               </div>
-              <button className="btn btn-sm btn-outline" onClick={()=>onAdd(u, selRole||null)}>+ เพิ่ม</button>
+              <button className="btn btn-sm btn-outline"
+                disabled={hasRoles && !selRole}
+                onClick={()=>onAdd(u, hasRoles ? selRole : null)}>+ เพิ่ม</button>
             </div>
           ))}
         </div>
