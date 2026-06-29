@@ -351,9 +351,15 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
           </div>
         </div>
       </td>
-      <td><span className={'badge ' + (ROLE_BADGE[u.role]||'badge')}>
-        {roleLabel(u.role, roleLabels)}
-      </span></td>
+      <td>
+        {u.role
+          ? <span className={'badge ' + (ROLE_BADGE[u.role]||'badge')}>{roleLabel(u.role, roleLabels)}</span>
+          : <span className="badge" style={{color:'var(--ink-3)'}}>
+              ไม่กำหนดบทบาท
+              {u.group_role && <span style={{color:'var(--ink-2)',marginLeft:4}}>({roleLabel(u.group_role, roleLabels)})</span>}
+            </span>
+        }
+      </td>
       <td>
         {u.can_manage_users ? <span className="badge badge-info"><Icon name="shieldCheck" style={{width:11,height:11}}/> จัดการผู้ใช้</span> : <span className="faint tiny">—</span>}
       </td>

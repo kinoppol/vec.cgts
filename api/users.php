@@ -11,9 +11,13 @@ $db     = getDB();
 ---------------------------------------------------------------- */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT id, username, display_name, email, role, init, job_title, group_name, officer_id,
-                active, can_manage_users, avatar_path, created_at
-         FROM users ORDER BY role, display_name"
+        "SELECT u.id, u.username, u.display_name, u.email, u.role, u.init, u.job_title, u.group_name, u.officer_id,
+                u.active, u.can_manage_users, u.avatar_path, u.created_at,
+                (SELECT gr.role FROM group_roles gr
+                 JOIN groups g ON g.id = gr.group_id
+                 WHERE g.name = u.group_name
+                 ORDER BY gr.role LIMIT 1) AS group_role
+         FROM users u ORDER BY u.role, u.display_name"
     )->fetchAll();
     json_out($rows);
 }
