@@ -80,6 +80,72 @@ function triggerCalendarNotifs(PDO $db): void {
     }
 }
 
+/* ---------- helper: sync SLA deadline events สำหรับทุกสำนวนที่ active ----------
+ * คำนวณจาก active step started_at + sla_steps.days_allowed
+ * คืนจำนวนสำนวนที่อัปเดต
+ */
+function syncAllSlaCalEvents(PDO $db, int $userId, ?string $officerFilter = null, ?string $groupFilter = null): int {
+    $sql = "
+        SELECT c.id AS case_id, c.subject, c.assignee_id,
+               ce.step_key, ce.started_at,
+               ss.days_allowed
+        FROM cases c
+        JOIN case_events ce ON ce.id = (
+            SELECT id FROM case_events ce2
+            WHERE ce2.case_id = c.id
+              AND ce2.ev_status = 'active'
+              AND ce2.step_key IS NOT NULL
+              AND ce2.started_at IS NOT NULL
+            ORDER BY ce2.sort_order DESC
+            LIMIT 1
+        )
+        JOIN sla_steps ss ON ss.step_key = ce.step_key AND ss.active = 1
+        LEFT JOIN officers o ON o.id = c.assignee_id
+        WHERE c.status NOT IN ('closed','rejected')
+          AND c.assignee_id IS NOT NULL
+    ";
+    $params = [];
+    if ($officerFilter) {
+        $sql .= " AND c.assignee_id = ?";
+        $params[] = $officerFilter;
+    } elseif ($groupFilter) {
+        $sql .= " AND o.group_name = ?";
+        $params[] = $groupFilter;
+    }
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $cases = $stmt->fetchAll();
+
+    $delStmt = $db->prepare("DELETE FROM calendar_events WHERE event_type='sla_deadline' AND case_id=?");
+    $insStmt = $db->prepare("
+        INSERT INTO calendar_events (event_type, title, event_date, case_id, officer_id, created_by)
+        VALUES ('sla_deadline', ?, ?, ?, ?, ?)
+    ");
+
+    foreach ($cases as $c) {
+        $deadline = date('Y-m-d', strtotime($c['started_at'] . ' +' . (int)$c['days_allowed'] . ' days'));
+        $title    = 'ครบ SLA: ' . mb_substr($c['subject'], 0, 80);
+        $delStmt->execute([$c['case_id']]);
+        $insStmt->execute([$title, $deadline, $c['case_id'], $c['assignee_id'], $userId]);
+    }
+    return count($cases);
+}
+
+/* ====== POST ?action=sync_sla — คำนวน SLA ใหม่ทั้งหมด ====== */
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'sync_sla') {
+    // กำหนด filter ตาม role เดียวกับ GET
+    $filterOid = null; $filterGrp = null;
+    if ($currentRole === 'officer') {
+        $filterOid = $currentOfficerId;
+    } elseif ($currentRole === 'dir_legal') {
+        $filterGrp = $currentGroupName;
+    }
+    $count = syncAllSlaCalEvents($db, (int)$auth['id'], $filterOid, $filterGrp);
+    audit('cal_sync_sla', 'all', "synced {$count}");
+    json_out(['ok' => true, 'synced' => $count]);
+}
+
 /* ====== GET ?year=&month= — events + case due dates ====== */
 if ($method === 'GET' && !$id) {
     triggerCalendarNotifs($db);

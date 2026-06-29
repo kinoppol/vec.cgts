@@ -170,6 +170,7 @@ const api = {
   deactivateOfficer: (id)       => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
   // ปฏิทิน
   getCalendar:    (y,m,oid) => apiFetch(`/api/calendar.php?year=${y}&month=${m}${oid?'&officer_id='+encodeURIComponent(oid):''}`),
+  syncSlaCal:     ()        => apiFetch('/api/calendar.php?action=sync_sla', { method:'POST' }),
   createCalEvent: (data)    => apiFetch('/api/calendar.php', { method:'POST', body: JSON.stringify(data) }),
   updateCalEvent: (id,data) => apiFetch('/api/calendar.php?id='+id, { method:'PATCH', body: JSON.stringify(data) }),
   deleteCalEvent: (id)      => apiFetch('/api/calendar.php?id='+id, { method:'DELETE' }),

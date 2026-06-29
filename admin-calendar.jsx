@@ -322,8 +322,20 @@ function CalendarPage({ officers, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState(null); // {type:'add'|'edit', ev?, date?}
   const [filterOid, setFilterOid] = useState(''); // '' = ทั้งหมด
+  const [syncing, setSyncing]     = useState(false);
 
   const isOfficerRole = currentUser?.role === 'officer';
+
+  const syncSla = async () => {
+    if (!confirm('คำนวน SLA ใหม่จากขั้นตอนปัจจุบันของทุกสำนวนที่ยังดำเนินการ?')) return;
+    setSyncing(true);
+    try {
+      const r = await api.syncSlaCal();
+      await load(year, month, filterOid);
+      alert(`อัปเดต SLA ลงปฏิทินแล้ว ${r.synced} สำนวน`);
+    } catch(e) { alert(e.message); }
+    setSyncing(false);
+  };
 
   const load = (y=year, m=month, oid=filterOid) => {
     setLoading(true);
@@ -395,6 +407,11 @@ function CalendarPage({ officers, currentUser }) {
   return (
     <div className="fade-in">
       <PageHead title="ปฏิทินการดำเนินงาน" sub="งานครบกำหนด ประชุม นัดหมาย และกิจกรรมต่างๆ">
+        <button className="btn btn-ghost" onClick={syncSla} disabled={syncing}
+          title="คำนวน SLA ใหม่จากขั้นตอนปัจจุบัน + จำนวนวันที่กำหนดในแต่ละขั้น">
+          {syncing ? <LoadingSpinner/> : <Icon name="refresh" style={{width:15,height:15}}/>}
+          {syncing ? ' กำลังคำนวน...' : ' คำนวน SLA ใหม่'}
+        </button>
         <button className="btn btn-primary" onClick={()=>setModal({type:'add',date:selDay})}>
           <Icon name="plus" style={{width:15,height:15}}/> เพิ่มกิจกรรม
         </button>
