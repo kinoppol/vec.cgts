@@ -190,6 +190,66 @@ if ($confirm === 'head_secretary') {
     exit;
 }
 
+/* ── [8] สร้างตาราง case_task_proposals (ถ้ายังไม่มี) ────── */
+if ($confirm === 'proposals_table') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [8]: ตาราง case_task_proposals</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS case_task_proposals (
+              id               INT          NOT NULL AUTO_INCREMENT,
+              case_id          VARCHAR(20)  NOT NULL,
+              from_task_no     TINYINT      NOT NULL,
+              to_task_no       TINYINT      NOT NULL,
+              proposed_officer VARCHAR(10)  DEFAULT NULL,
+              proposed_groups  TEXT         DEFAULT NULL,
+              proposed_personnel TEXT       DEFAULT NULL,
+              proposed_by      INT          NOT NULL,
+              propose_note     TEXT         DEFAULT NULL,
+              next_due_date    DATE         DEFAULT NULL,
+              status           ENUM('pending','approved','changed') NOT NULL DEFAULT 'pending',
+              final_officer    VARCHAR(10)  DEFAULT NULL,
+              reviewed_by      INT          DEFAULT NULL,
+              review_note      TEXT         DEFAULT NULL,
+              created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              reviewed_at      TIMESTAMP    NULL DEFAULT NULL,
+              PRIMARY KEY (id),
+              KEY idx_ctp_case (case_id),
+              CONSTRAINT fk_ctp_case     FOREIGN KEY (case_id)          REFERENCES cases    (id) ON DELETE CASCADE,
+              CONSTRAINT fk_ctp_prop_off FOREIGN KEY (proposed_officer) REFERENCES officers (id) ON DELETE SET NULL,
+              CONSTRAINT fk_ctp_fin_off  FOREIGN KEY (final_officer)    REFERENCES officers (id) ON DELETE SET NULL,
+              CONSTRAINT fk_ctp_prop_by  FOREIGN KEY (proposed_by)      REFERENCES users    (id) ON DELETE CASCADE,
+              CONSTRAINT fk_ctp_rev_by   FOREIGN KEY (reviewed_by)      REFERENCES users    (id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        echo "✓ CREATE TABLE case_task_proposals (IF NOT EXISTS)\n";
+
+        // เพิ่มคอลัมน์เสริม (กรณีตารางเก่าที่ไม่มี 2 คอลัมน์นี้)
+        $cols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('proposed_groups', $cols)) {
+            $db->exec("ALTER TABLE case_task_proposals ADD COLUMN proposed_groups TEXT DEFAULT NULL AFTER proposed_officer");
+            echo "✓ ALTER case_task_proposals ADD proposed_groups\n";
+        } else {
+            echo "– proposed_groups มีอยู่แล้ว ข้าม\n";
+        }
+        if (!in_array('proposed_personnel', $cols)) {
+            $db->exec("ALTER TABLE case_task_proposals ADD COLUMN proposed_personnel TEXT DEFAULT NULL AFTER proposed_groups");
+            echo "✓ ALTER case_task_proposals ADD proposed_personnel\n";
+        } else {
+            echo "– proposed_personnel มีอยู่แล้ว ข้าม\n";
+        }
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [6] Proposal groups column ────────────────────────── */
 if ($confirm === 'proposal_groups') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -248,6 +308,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[3] Event Attachment</b> — เพิ่มคอลัมน์ attachment_name/path/size ใน case_events<br><code><a href="?confirm=event_attach">migrate.php?confirm=event_attach</a></code></li>';
     echo '<li><b>[4] ระบบแจ้งเตือน</b> — notifications, notification_log, users.email<br><code><a href="?confirm=notifications">migrate.php?confirm=notifications</a></code></li>';
     echo '<li><b>[5] หัวหน้าธุรการ</b> — เพิ่ม head_secretary ใน users.role ENUM<br><code><a href="?confirm=head_secretary">migrate.php?confirm=head_secretary</a></code></li>';
+    echo '<li><b>[8] ตาราง case_task_proposals</b> — สร้างตาราง (รวม proposed_groups + proposed_personnel)<br><code><a href="?confirm=proposals_table">migrate.php?confirm=proposals_table</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';
