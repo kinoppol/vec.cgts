@@ -302,3 +302,15 @@ CREATE TABLE IF NOT EXISTS group_roles (
   PRIMARY KEY (group_id, role),
   CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- app_settings: การตั้งค่าระบบ (key-value)
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_settings (
+  `key`      VARCHAR(100) NOT NULL,
+  `value`    TEXT         DEFAULT NULL,
+  updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO app_settings (`key`,`value`) VALUES ('case_id_prefix','CMP');

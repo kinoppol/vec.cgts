@@ -111,6 +111,7 @@ function navFor(role, counts, user) {
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
+    {v:"system",       ic:"settings",   l:"ตั้งค่าระบบ"},
   ];
   if (role === "officer") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -612,6 +613,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <TodoPage/>;
   } else if (view === "sla" && (role === "admin" || role === "dir_legal")) {
     content = <SlaSettingsPage currentUser={user}/>;
+  } else if (view === "system" && role === "admin") {
+    content = <SystemSettingsPage/>;
   } else if (view === "groups" && role === "admin") {
     content = <GroupsPage currentUser={user}/>;
   } else if (view === "my-group" && user?.leader_of_group) {

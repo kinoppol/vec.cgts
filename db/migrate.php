@@ -645,6 +645,30 @@ if ($confirm === 'backfill_sla') {
     exit;
 }
 
+/* ── [19] app_settings — ตาราง key-value การตั้งค่าระบบ ────── */
+if ($confirm === 'app_settings') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [19]: App Settings</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $db->exec("CREATE TABLE IF NOT EXISTS app_settings (
+            `key`   VARCHAR(100) NOT NULL,
+            `value` TEXT         DEFAULT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`key`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        echo "✓ สร้างตาราง app_settings\n";
+        $db->exec("INSERT IGNORE INTO app_settings (`key`,`value`) VALUES ('case_id_prefix','CMP')");
+        echo "✓ seed case_id_prefix = CMP\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [17] dept_name — กลุ่มงาน (สายงาน) ย้ายจาก officers มาไว้ที่ groups ── */
 if ($confirm === 'dept_name') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -688,6 +712,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[16] บทบาทหัวหน้ากลุ่ม</b> — เพิ่ม groups.leader_role สำหรับบทบาทเฉพาะหัวหน้า<br><code><a href="?confirm=leader_role">migrate.php?confirm=leader_role</a></code></li>';
     echo '<li><b>[17] กลุ่มงาน (สายงาน)</b> — เพิ่ม groups.dept_name แทนการกำหนดรายบุคคลใน officers<br><code><a href="?confirm=dept_name">migrate.php?confirm=dept_name</a></code></li>';
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
+    echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

@@ -166,8 +166,13 @@ function calcSla(?string $dueDate, int $totalDays, DateTime $today, string $stat
 }
 
 function nextCaseId(PDO $db): string {
-    $year = date('Y') + 543; // พ.ศ.
-    $prefix = "CMP-{$year}-";
+    $year = date('Y') + 543;
+    // ดึง prefix จาก app_settings (graceful fallback ถ้าตารางยังไม่มี)
+    try {
+        $pfx = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn();
+    } catch (Throwable) { $pfx = null; }
+    $pfx = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
+    $prefix = "{$pfx}-{$year}-";
     $stmt = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
     $stmt->execute([$prefix . '%']);
     $last = $stmt->fetchColumn();

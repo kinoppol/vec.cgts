@@ -172,6 +172,8 @@ const api = {
   createLookup:      (data)     => apiFetch('/api/lookup.php', { method:'POST', body: JSON.stringify(data) }),
   updateLookup:      (id, data) => apiFetch('/api/lookup.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
   deleteLookup:      (id)       => apiFetch('/api/lookup.php?id=' + id, { method:'DELETE' }),
+  getSettings:       ()         => apiFetch('/api/settings.php'),
+  saveSettings:      (data)     => apiFetch('/api/settings.php', { method:'PATCH', body: JSON.stringify(data) }),
   listAllOfficers:   ()         => apiFetch('/api/officers.php?all=1'),
   createOfficer:     (data)     => apiFetch('/api/officers.php', { method:'POST', body: JSON.stringify(data) }),
   updateOfficer:     (id, data) => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
