@@ -139,7 +139,7 @@ if ($method === 'PATCH' && $id) {
     $db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=?')->execute($vals);
     audit('user_update', (string)$id, implode(', ', array_keys(array_intersect_key($b, array_flip($allowed)))));
 
-    $row = $db->prepare('SELECT id,username,display_name,email,role,init,job_title,group_name,officer_id,active,can_manage_users FROM users WHERE id=?');
+    $row = $db->prepare('SELECT id,username,display_name,email,role,init,job_title,group_name,officer_id,active,can_manage_users,avatar_path FROM users WHERE id=?');
     $row->execute([$id]);
     json_out($row->fetch());
 }
