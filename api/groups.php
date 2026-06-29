@@ -11,12 +11,18 @@ function needAdmin($actor) {
         err('เฉพาะผู้ดูแลระบบเท่านั้น', 403);
 }
 
-/* ── GET ?id= — สมาชิกในกลุ่ม ──────────────────────────── */
+function fetchGroupRoles($db, $groupId): array {
+    $s = $db->prepare("SELECT role FROM group_roles WHERE group_id=? ORDER BY role");
+    $s->execute([$groupId]);
+    return $s->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
 if ($method === 'GET' && $id) {
-    $stmt = $db->prepare("SELECT g.id, g.name, g.leader_id,
-                                  u.display_name AS leader_name, u.init AS leader_init
-                           FROM groups g LEFT JOIN users u ON u.id = g.leader_id
-                           WHERE g.id=?");
+    $stmt = $db->prepare(
+        "SELECT g.id, g.name, g.leader_id, u.display_name AS leader_name, u.init AS leader_init
+         FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
+    );
     $stmt->execute([$id]);
     $group = $stmt->fetch();
     if (!$group) err('ไม่พบกลุ่ม', 404);
@@ -27,26 +33,51 @@ if ($method === 'GET' && $id) {
     );
     $mstmt->execute([$group['name']]);
     $group['members'] = $mstmt->fetchAll();
+    $group['roles']   = fetchGroupRoles($db, $id);
     json_out($group);
 }
 
-/* ── GET — รายการกลุ่มทั้งหมด ──────────────────────────── */
+/* ── GET — รายการกลุ่มทั้งหมด ──────────────────────────────── */
 if ($method === 'GET') {
     $rows = $db->query(
         "SELECT g.id, g.name, g.leader_id,
                 u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
-         FROM groups g LEFT JOIN users u ON u.id = g.leader_id
-         ORDER BY g.name"
+         FROM groups g LEFT JOIN users u ON u.id = g.leader_id ORDER BY g.name"
     )->fetchAll();
+    foreach ($rows as &$row) {
+        $row['roles'] = fetchGroupRoles($db, (int)$row['id']);
+    }
     json_out($rows);
 }
 
-/* ── POST ?action=add_member — เพิ่มสมาชิก ────────────── */
+/* ── POST ?action=add_role — เพิ่มบทบาทให้กลุ่ม ───────────── */
+if ($method === 'POST' && $action === 'add_role' && $id) {
+    needAdmin($actor);
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $role = trim($body['role'] ?? '');
+    if (!$role) err('role จำเป็น', 400);
+    $db->prepare("INSERT IGNORE INTO group_roles (group_id, role) VALUES (?,?)")->execute([$id, $role]);
+    audit('group_add_role', $id, $role);
+    json_out(['ok' => true, 'roles' => fetchGroupRoles($db, $id)]);
+}
+
+/* ── DELETE ?action=remove_role — ถอดบทบาทออกจากกลุ่ม ─────── */
+if ($method === 'DELETE' && $action === 'remove_role' && $id) {
+    needAdmin($actor);
+    $role = trim($_GET['role'] ?? '');
+    if (!$role) err('role จำเป็น', 400);
+    $db->prepare("DELETE FROM group_roles WHERE group_id=? AND role=?")->execute([$id, $role]);
+    audit('group_remove_role', $id, $role);
+    json_out(['ok' => true, 'roles' => fetchGroupRoles($db, $id)]);
+}
+
+/* ── POST ?action=add_member — เพิ่มสมาชิก (+ กำหนด role) ─── */
 if ($method === 'POST' && $action === 'add_member' && $id) {
     needAdmin($actor);
     $body   = json_decode(file_get_contents('php://input'), true) ?? [];
     $userId = (int)($body['user_id'] ?? 0);
+    $role   = trim($body['role'] ?? '');
     if (!$userId) err('user_id จำเป็น', 400);
 
     $grp = $db->prepare("SELECT name FROM groups WHERE id=?");
@@ -54,12 +85,17 @@ if ($method === 'POST' && $action === 'add_member' && $id) {
     $grp = $grp->fetch();
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
-    $db->prepare("UPDATE users SET group_name=? WHERE id=?")->execute([$grp['name'], $userId]);
-    audit('group_add_member', $id, "user_id=$userId");
+    $update = "UPDATE users SET group_name=?";
+    $params = [$grp['name']];
+    if ($role) { $update .= ", role=?"; $params[] = $role; }
+    $params[] = $userId;
+    $db->prepare("$update WHERE id=?")->execute($params);
+
+    audit('group_add_member', $id, "user_id=$userId" . ($role ? " role=$role" : ""));
     json_out(['ok' => true]);
 }
 
-/* ── DELETE ?action=remove_member — ลบสมาชิก ──────────── */
+/* ── DELETE ?action=remove_member — ลบสมาชิก ──────────────── */
 if ($method === 'DELETE' && $action === 'remove_member' && $id) {
     needAdmin($actor);
     $userId = (int)($_GET['user_id'] ?? 0);
@@ -71,15 +107,14 @@ if ($method === 'DELETE' && $action === 'remove_member' && $id) {
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
     $db->prepare("UPDATE users SET group_name=NULL WHERE id=? AND group_name=?")->execute([$userId, $grp['name']]);
-    // ถ้าลบหัวหน้า ให้ clear leader_id ด้วย
-    if ((int)$grp['leader_id'] === $userId) {
+    if ((int)$grp['leader_id'] === $userId)
         $db->prepare("UPDATE groups SET leader_id=NULL WHERE id=?")->execute([$id]);
-    }
+
     audit('group_remove_member', $id, "user_id=$userId");
     json_out(['ok' => true]);
 }
 
-/* ── POST — สร้างกลุ่มใหม่ ─────────────────────────────── */
+/* ── POST — สร้างกลุ่มใหม่ ──────────────────────────────────── */
 if ($method === 'POST') {
     needAdmin($actor);
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -94,12 +129,17 @@ if ($method === 'POST') {
     $nid = (int)$db->lastInsertId();
     audit('group_create', $nid, $name);
 
-    $stmt = $db->prepare("SELECT g.id, g.name, g.leader_id, NULL AS leader_name, NULL AS leader_init, 0 AS member_count FROM groups g WHERE g.id=?");
+    $stmt = $db->prepare(
+        "SELECT g.id, g.name, g.leader_id, NULL AS leader_name, NULL AS leader_init, 0 AS member_count
+         FROM groups g WHERE g.id=?"
+    );
     $stmt->execute([$nid]);
-    json_out($stmt->fetch(), 201);
+    $row = $stmt->fetch();
+    $row['roles'] = [];
+    json_out($row, 201);
 }
 
-/* ── PATCH ?id= — แก้ไขชื่อ / เปลี่ยนหัวหน้า ─────────── */
+/* ── PATCH ?id= — แก้ไขชื่อ / เปลี่ยนหัวหน้า ──────────────── */
 if ($method === 'PATCH' && $id) {
     needAdmin($actor);
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -109,20 +149,17 @@ if ($method === 'PATCH' && $id) {
     $grp = $grp->fetch();
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
-    // เปลี่ยนชื่อกลุ่ม
     if (isset($body['name'])) {
         $newName = trim($body['name']);
         if (!$newName) err('name ห้ามว่าง', 400);
         $dup = $db->prepare("SELECT id FROM groups WHERE name=? AND id!=?");
         $dup->execute([$newName, $id]);
         if ($dup->fetch()) err('ชื่อกลุ่มนี้มีอยู่แล้ว', 409);
-        // อัปเดต users.group_name ที่ใช้ชื่อเดิม
         $db->prepare("UPDATE users SET group_name=? WHERE group_name=?")->execute([$newName, $grp['name']]);
         $db->prepare("UPDATE groups SET name=? WHERE id=?")->execute([$newName, $id]);
         audit('group_rename', $id, "{$grp['name']} → $newName");
     }
 
-    // เปลี่ยนหัวหน้ากลุ่ม (null = ถอดหัวหน้า)
     if (array_key_exists('leader_id', $body)) {
         $leaderId = $body['leader_id'] ? (int)$body['leader_id'] : null;
         $db->prepare("UPDATE groups SET leader_id=? WHERE id=?")->execute([$leaderId, $id]);
@@ -135,10 +172,12 @@ if ($method === 'PATCH' && $id) {
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );
     $stmt->execute([$id]);
-    json_out($stmt->fetch());
+    $row = $stmt->fetch();
+    $row['roles'] = fetchGroupRoles($db, $id);
+    json_out($row);
 }
 
-/* ── DELETE ?id= — ลบกลุ่ม ─────────────────────────────── */
+/* ── DELETE ?id= — ลบกลุ่ม ─────────────────────────────────── */
 if ($method === 'DELETE' && $id) {
     needAdmin($actor);
     $grp = $db->prepare("SELECT name FROM groups WHERE id=?");
@@ -146,7 +185,6 @@ if ($method === 'DELETE' && $id) {
     $grp = $grp->fetch();
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
-    // ถอดสมาชิกออกจากกลุ่ม (set group_name = NULL)
     $db->prepare("UPDATE users SET group_name=NULL WHERE group_name=?")->execute([$grp['name']]);
     $db->prepare("DELETE FROM groups WHERE id=?")->execute([$id]);
     audit('group_delete', $id, $grp['name']);

@@ -198,8 +198,10 @@ const api = {
   createGroup:       (data)     => apiFetch('/api/groups.php', { method:'POST', body: JSON.stringify(data) }),
   updateGroup:       (id, data) => apiFetch('/api/groups.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
   deleteGroup:       (id)       => apiFetch('/api/groups.php?id=' + id, { method:'DELETE' }),
-  addGroupMember:    (id, uid)  => apiFetch('/api/groups.php?id=' + id + '&action=add_member', { method:'POST', body: JSON.stringify({user_id: uid}) }),
-  removeGroupMember: (id, uid)  => apiFetch('/api/groups.php?id=' + id + '&action=remove_member&user_id=' + uid, { method:'DELETE' }),
+  addGroupMember:    (id, uid, role) => apiFetch('/api/groups.php?id=' + id + '&action=add_member', { method:'POST', body: JSON.stringify({user_id: uid, role: role||undefined}) }),
+  removeGroupMember: (id, uid)      => apiFetch('/api/groups.php?id=' + id + '&action=remove_member&user_id=' + uid, { method:'DELETE' }),
+  addGroupRole:      (id, role)     => apiFetch('/api/groups.php?id=' + id + '&action=add_role', { method:'POST', body: JSON.stringify({role}) }),
+  removeGroupRole:   (id, role)     => apiFetch('/api/groups.php?id=' + id + '&action=remove_role&role=' + encodeURIComponent(role), { method:'DELETE' }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)

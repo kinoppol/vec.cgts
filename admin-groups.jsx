@@ -43,24 +43,35 @@ function GroupFormModal({ group, onSave, onClose }) {
 }
 
 function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]   = useState("");
+  const [selRole, setSelRole] = useState(group.roles && group.roles.length === 1 ? group.roles[0] : "");
   const memberIds = new Set(members.map(m => m.id));
   const available = allUsers.filter(u =>
     !memberIds.has(u.id) &&
     (u.display_name.includes(search) || u.username.includes(search) || (u.job_title||"").includes(search))
   );
+  const hasRoles = group.roles && group.roles.length > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxWidth:460}} onClick={e=>e.stopPropagation()}>
         <div className="modal-head">
-          <h3>เพิ่มสมาชิกเข้ากลุ่ม <span className="muted">— {group.name}</span></h3>
+          <h3>เพิ่มสมาชิก <span className="muted">— {group.name}</span></h3>
           <button className="btn-close" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <div style={{padding:"16px 24px 0"}}>
+        <div style={{padding:"16px 24px 0",display:"flex",flexDirection:"column",gap:10}}>
           <input className="input" placeholder="ค้นหาชื่อ / username…" value={search} onChange={e=>setSearch(e.target.value)} autoFocus/>
+          {hasRoles && (
+            <div>
+              <label className="label">กำหนดบทบาท</label>
+              <select className="select" value={selRole} onChange={e=>setSelRole(e.target.value)}>
+                <option value="">— ไม่เปลี่ยนบทบาท —</option>
+                {group.roles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
+              </select>
+            </div>
+          )}
         </div>
-        <div style={{maxHeight:320,overflowY:"auto",padding:"8px 24px 20px"}}>
+        <div style={{maxHeight:300,overflowY:"auto",padding:"8px 24px 20px"}}>
           {available.length === 0 && <div className="faint tiny" style={{padding:"16px 0",textAlign:"center"}}>ไม่พบผู้ใช้ที่ยังไม่ได้เป็นสมาชิก</div>}
           {available.map(u => (
             <div key={u.id} className="between" style={{padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
@@ -71,7 +82,7 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
                   <div className="tiny faint">{u.username} · {DEFAULT_ROLE_LABELS[u.role]||u.role}</div>
                 </div>
               </div>
-              <button className="btn btn-sm btn-outline" onClick={()=>onAdd(u)}>+ เพิ่ม</button>
+              <button className="btn btn-sm btn-outline" onClick={()=>onAdd(u, selRole||null)}>+ เพิ่ม</button>
             </div>
           ))}
         </div>
@@ -81,18 +92,19 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
 }
 
 function GroupsPage({ currentUser }) {
-  const [groups, setGroups]       = useState([]);
-  const [allUsers, setAllUsers]   = useState([]);
-  const [selId, setSelId]         = useState(null);
-  const [detail, setDetail]       = useState(null); // {id,name,leader_id,leader_name,members}
+  const [groups, setGroups]             = useState([]);
+  const [allUsers, setAllUsers]         = useState([]);
+  const [selId, setSelId]               = useState(null);
+  const [detail, setDetail]             = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [showForm, setShowForm]   = useState(false);
-  const [editGroup, setEditGroup] = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [showForm, setShowForm]         = useState(false);
+  const [editGroup, setEditGroup]       = useState(null);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [delConfirm, setDelConfirm] = useState(null);
+  const [delConfirm, setDelConfirm]     = useState(null);
+  const [addingRole, setAddingRole]     = useState(false);
+  const [newRole, setNewRole]           = useState("");
 
-  // โหลดรายการกลุ่มและผู้ใช้ทั้งหมด
   useEffect(() => {
     Promise.all([api.getGroups(), apiFetch('/api/users.php')])
       .then(([g, u]) => { setGroups(g); setAllUsers(u); })
@@ -100,7 +112,6 @@ function GroupsPage({ currentUser }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // โหลด detail เมื่อเลือกกลุ่ม
   useEffect(() => {
     if (!selId) { setDetail(null); return; }
     setLoadingDetail(true);
@@ -133,18 +144,19 @@ function GroupsPage({ currentUser }) {
     const newLeaderId = (detail.leader_id === userId) ? null : userId;
     try {
       const updated = await api.updateGroup(detail.id, { leader_id: newLeaderId });
-      setDetail(d => ({...d, leader_id: updated.leader_id, leader_name: updated.leader_name}));
-      setGroups(gs => gs.map(g => g.id === detail.id ? {...g, leader_id: updated.leader_id, leader_name: updated.leader_name} : g));
+      setDetail(d => ({...d, leader_id: updated.leader_id, leader_name: updated.leader_name, leader_init: updated.leader_init}));
+      setGroups(gs => gs.map(g => g.id === detail.id ? {...g, ...updated} : g));
     } catch(e) { alert(e.message); }
   }
 
-  async function handleAddMember(user) {
+  async function handleAddMember(user, role) {
     if (!detail) return;
     try {
-      await api.addGroupMember(detail.id, user.id);
-      setDetail(d => ({...d, members: [...(d.members||[]), user]}));
+      await api.addGroupMember(detail.id, user.id, role);
+      const updatedUser = role ? {...user, role} : user;
+      setDetail(d => ({...d, members: [...(d.members||[]), updatedUser]}));
       setGroups(gs => gs.map(g => g.id === detail.id ? {...g, member_count: (g.member_count||0)+1} : g));
-      setAllUsers(us => us.map(u => u.id === user.id ? {...u, group_name: detail.name} : u));
+      setAllUsers(us => us.map(u => u.id === user.id ? {...updatedUser, group_name: detail.name} : u));
     } catch(e) { alert(e.message); }
     setShowAddMember(false);
   }
@@ -156,7 +168,7 @@ function GroupsPage({ currentUser }) {
       setDetail(d => ({
         ...d,
         members: d.members.filter(m => m.id !== member.id),
-        leader_id: d.leader_id === member.id ? null : d.leader_id,
+        leader_id:   d.leader_id === member.id ? null : d.leader_id,
         leader_name: d.leader_id === member.id ? null : d.leader_name,
       }));
       setGroups(gs => gs.map(g => g.id === detail.id ? {...g, member_count: Math.max(0,(g.member_count||1)-1)} : g));
@@ -164,13 +176,33 @@ function GroupsPage({ currentUser }) {
     } catch(e) { alert(e.message); }
   }
 
+  async function handleAddRole() {
+    if (!newRole || !detail) return;
+    try {
+      const res = await api.addGroupRole(detail.id, newRole);
+      setDetail(d => ({...d, roles: res.roles}));
+      setGroups(gs => gs.map(g => g.id === detail.id ? {...g, roles: res.roles} : g));
+      setNewRole(""); setAddingRole(false);
+    } catch(e) { alert(e.message); }
+  }
+
+  async function handleRemoveRole(role) {
+    if (!detail) return;
+    try {
+      const res = await api.removeGroupRole(detail.id, role);
+      setDetail(d => ({...d, roles: res.roles}));
+      setGroups(gs => gs.map(g => g.id === detail.id ? {...g, roles: res.roles} : g));
+    } catch(e) { alert(e.message); }
+  }
+
   if (loading) return <LoadingSpinner/>;
 
-  const selGroup = groups.find(g => g.id === selId);
+  const usedRoles = detail ? (detail.roles||[]) : [];
+  const availableRoles = ROLE_ORDER.filter(r => r !== 'admin' && !usedRoles.includes(r));
 
   return (
     <div className="fade-in">
-      <PageHead title="จัดการกลุ่ม" sub="เพิ่ม ลบ แก้ไขกลุ่ม จัดการสมาชิก และแต่งตั้งหัวหน้ากลุ่ม">
+      <PageHead title="จัดการกลุ่ม" sub="เพิ่ม ลบ แก้ไขกลุ่ม กำหนดบทบาท จัดการสมาชิก และแต่งตั้งหัวหน้ากลุ่ม">
         <button className="btn btn-primary" onClick={()=>{ setEditGroup(null); setShowForm(true); }}>
           <Icon name="plus" style={{width:16,height:16}}/> เพิ่มกลุ่ม
         </button>
@@ -183,19 +215,16 @@ function GroupsPage({ currentUser }) {
           <div style={{maxHeight:520,overflowY:"auto"}}>
             {groups.length === 0 && <div className="faint tiny" style={{padding:"20px 16px",textAlign:"center"}}>ยังไม่มีกลุ่ม</div>}
             {groups.map(g => (
-              <div key={g.id}
-                onClick={() => setSelId(g.id)}
-                style={{
-                  display:"flex", alignItems:"center", gap:10,
-                  padding:"12px 16px", cursor:"pointer",
+              <div key={g.id} onClick={() => setSelId(g.id)} style={{
+                  display:"flex", alignItems:"center", gap:10, padding:"12px 16px", cursor:"pointer",
                   background: selId===g.id ? "var(--maroon-50)" : "transparent",
-                  borderBottom:"1px solid var(--line)",
-                  transition:"background .12s",
+                  borderBottom:"1px solid var(--line)", transition:"background .12s",
                 }}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:selId===g.id?600:500,fontSize:14,color:selId===g.id?"var(--accent)":"var(--ink)"}}>{g.name}</div>
                   <div className="tiny faint" style={{marginTop:2}}>
-                    {g.member_count} คน{g.leader_name ? ` · หัวหน้า: ${g.leader_name}` : ""}
+                    {g.member_count} คน
+                    {g.roles && g.roles.length > 0 && <span> · {g.roles.map(r=>DEFAULT_ROLE_LABELS[r]||r).join(", ")}</span>}
                   </div>
                 </div>
                 <div style={{display:"flex",gap:4,flexShrink:0}} onClick={e=>e.stopPropagation()}>
@@ -204,8 +233,7 @@ function GroupsPage({ currentUser }) {
                     <Icon name="edit" style={{width:14,height:14}}/>
                   </button>
                   <button className="btn btn-ghost btn-sm" title="ลบกลุ่ม"
-                    style={{color:"var(--sla-r)"}}
-                    onClick={()=>setDelConfirm(g)}>
+                    style={{color:"var(--sla-r)"}} onClick={()=>setDelConfirm(g)}>
                     <Icon name="trash" style={{width:14,height:14}}/>
                   </button>
                 </div>
@@ -229,6 +257,48 @@ function GroupsPage({ currentUser }) {
             {loadingDetail && <LoadingSpinner/>}
             {!loadingDetail && detail && (
               <>
+                {/* บทบาทของกลุ่ม */}
+                <div className="card card-pad">
+                  <div className="between" style={{marginBottom:12}}>
+                    <h3 style={{fontSize:15,margin:0}}>บทบาทของกลุ่ม</h3>
+                    {!addingRole && availableRoles.length > 0 && (
+                      <button className="btn btn-sm btn-outline" onClick={()=>setAddingRole(true)}>
+                        <Icon name="plus" style={{width:13,height:13}}/> เพิ่มบทบาท
+                      </button>
+                    )}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom: addingRole ? 12 : 0}}>
+                    {(detail.roles||[]).length === 0 && !addingRole && (
+                      <span className="faint tiny">ยังไม่ได้กำหนดบทบาท — สมาชิกที่เพิ่มเข้ามาจะไม่ถูกเปลี่ยน role</span>
+                    )}
+                    {(detail.roles||[]).map(r => (
+                      <span key={r} className="badge badge-maroon" style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px"}}>
+                        {DEFAULT_ROLE_LABELS[r]||r}
+                        <button style={{background:"none",border:"none",cursor:"pointer",padding:0,lineHeight:1,color:"inherit",opacity:.75}}
+                          onClick={()=>handleRemoveRole(r)} title="ถอดบทบาทนี้">
+                          <Icon name="x" style={{width:11,height:11}}/>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {addingRole && (
+                    <div style={{display:"flex",gap:8,marginTop:4}}>
+                      <select className="select" style={{flex:1}} value={newRole} onChange={e=>setNewRole(e.target.value)} autoFocus>
+                        <option value="">— เลือกบทบาท —</option>
+                        {availableRoles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
+                      </select>
+                      <button className="btn btn-primary btn-sm" onClick={handleAddRole} disabled={!newRole}>เพิ่ม</button>
+                      <button className="btn btn-ghost btn-sm" onClick={()=>{ setAddingRole(false); setNewRole(""); }}>ยกเลิก</button>
+                    </div>
+                  )}
+                  {(detail.roles||[]).length > 0 && (
+                    <div className="notice notice-info" style={{marginTop:12}}>
+                      <Icon name="info"/>
+                      <span>เมื่อเพิ่มสมาชิกใหม่ จะสามารถเลือกบทบาทจากรายการนี้ได้</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* หัวหน้ากลุ่ม */}
                 <div className="card card-pad">
                   <h3 style={{fontSize:15,marginBottom:14}}>หัวหน้ากลุ่ม</h3>
@@ -241,9 +311,7 @@ function GroupsPage({ currentUser }) {
                           <div className="tiny faint">หัวหน้ากลุ่ม {detail.name}</div>
                         </div>
                       </div>
-                      <button className="btn btn-outline btn-sm" onClick={()=>handleSetLeader(detail.leader_id)}>
-                        ถอดหัวหน้า
-                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={()=>handleSetLeader(detail.leader_id)}>ถอดหัวหน้า</button>
                     </div>
                   ) : (
                     <div className="notice notice-info">
@@ -273,10 +341,10 @@ function GroupsPage({ currentUser }) {
                           <div className="tiny faint">{m.username} · {DEFAULT_ROLE_LABELS[m.role]||m.role}</div>
                         </div>
                         {detail.leader_id === m.id
-                          ? <span className="badge badge-maroon">หัวหน้า</span>
-                          : <button className="btn btn-ghost btn-sm" style={{fontSize:11}} onClick={()=>handleSetLeader(m.id)}>แต่งตั้งหัวหน้า</button>
+                          ? <span className="badge badge-maroon" style={{flexShrink:0}}>หัวหน้า</span>
+                          : <button className="btn btn-ghost btn-sm" style={{fontSize:11,flexShrink:0}} onClick={()=>handleSetLeader(m.id)}>แต่งตั้งหัวหน้า</button>
                         }
-                        <button className="btn btn-ghost btn-sm" style={{color:"var(--sla-r)"}}
+                        <button className="btn btn-ghost btn-sm" style={{color:"var(--sla-r)",flexShrink:0}}
                           onClick={()=>handleRemoveMember(m)} title="นำออกจากกลุ่ม">
                           <Icon name="x" style={{width:13,height:13}}/>
                         </button>
@@ -292,11 +360,7 @@ function GroupsPage({ currentUser }) {
 
       {/* Modals */}
       {showForm && (
-        <GroupFormModal
-          group={editGroup}
-          onSave={handleGroupSaved}
-          onClose={()=>{ setShowForm(false); setEditGroup(null); }}
-        />
+        <GroupFormModal group={editGroup} onSave={handleGroupSaved} onClose={()=>{ setShowForm(false); setEditGroup(null); }}/>
       )}
 
       {showAddMember && detail && (
@@ -364,7 +428,7 @@ function MyGroupPage({ currentUser }) {
               <span className="avatar avatar-sm">{m.init || m.display_name[0]}</span>
               <div style={{flex:1}}>
                 <div style={{fontWeight:500,fontSize:14}}>{m.display_name}</div>
-                <div className="tiny faint">{m.username} · {DEFAULT_ROLE_LABELS[m.role]||m.role} {m.job_title ? "· " + m.job_title : ""}</div>
+                <div className="tiny faint">{m.username} · {DEFAULT_ROLE_LABELS[m.role]||m.role}{m.job_title ? " · " + m.job_title : ""}</div>
               </div>
               {detail.leader_id === m.id && <span className="badge badge-maroon">หัวหน้า</span>}
             </div>

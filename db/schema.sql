@@ -293,3 +293,10 @@ CREATE TABLE IF NOT EXISTS groups (
   KEY idx_group_leader (leader_id),
   CONSTRAINT fk_group_leader FOREIGN KEY (leader_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS group_roles (
+  group_id INT         NOT NULL,
+  role     VARCHAR(50) NOT NULL,
+  PRIMARY KEY (group_id, role),
+  CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

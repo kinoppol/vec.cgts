@@ -408,6 +408,28 @@ if ($confirm === 'proposal_personnel') {
     exit;
 }
 
+/* ── [14] group_roles — บทบาทของกลุ่ม ───────────────────── */
+if ($confirm === 'group_roles') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [14]: ตาราง group_roles</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $db->exec("CREATE TABLE IF NOT EXISTS group_roles (
+            group_id INT NOT NULL,
+            role     VARCHAR(50) NOT NULL,
+            PRIMARY KEY (group_id, role),
+            CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        echo "✓ CREATE TABLE group_roles\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [13] groups table — ตารางกลุ่ม ─────────────────────── */
 if ($confirm === 'groups_table') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -504,6 +526,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[11] ชั้นความลับ</b> — เปลี่ยน cls ENUM: public/secret/topsecret/classified<br><code><a href="?confirm=cls_enum">migrate.php?confirm=cls_enum</a></code></li>';
     echo '<li><b>[12] บทบาทธุรการ</b> — เพิ่ม clerk ใน users.role ENUM<br><code><a href="?confirm=clerk_role">migrate.php?confirm=clerk_role</a></code></li>';
     echo '<li><b>[13] ตารางกลุ่ม</b> — สร้าง groups table + seed จาก users.group_name<br><code><a href="?confirm=groups_table">migrate.php?confirm=groups_table</a></code></li>';
+    echo '<li><b>[14] บทบาทของกลุ่ม</b> — สร้าง group_roles table<br><code><a href="?confirm=group_roles">migrate.php?confirm=group_roles</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';
