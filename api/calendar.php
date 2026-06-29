@@ -6,6 +6,14 @@ $id     = (int)($_GET['id'] ?? 0);
 $auth   = require_auth();
 $db     = getDB();
 
+// ดึงข้อมูล group_name และ officer_id ของผู้ใช้ปัจจุบัน
+$_uRow = $db->prepare("SELECT officer_id, group_name FROM users WHERE id=?");
+$_uRow->execute([$auth['id']]);
+$_uData = $_uRow->fetch() ?: [];
+$currentOfficerId = $_uData['officer_id'] ?? null;
+$currentGroupName = $_uData['group_name'] ?? null;
+$currentRole      = $auth['role'];
+
 /* ---------- helper: trigger notifications ---------- */
 function triggerCalendarNotifs(PDO $db): void {
     $today = date('Y-m-d');
@@ -81,6 +89,36 @@ if ($method === 'GET' && !$id) {
     $from  = sprintf('%04d-%02d-01', $year, $month);
     $to    = date('Y-m-t', strtotime($from));
 
+    // ── กำหนด filter officer_id ตาม role ──
+    $filterOfficerId = $_GET['officer_id'] ?? '';   // '' = ทั้งหมด
+    $filterGroupName = null;
+
+    if ($currentRole === 'officer') {
+        // เจ้าหน้าที่เห็นแค่ปฏิทินตัวเอง
+        $filterOfficerId = $currentOfficerId;
+    } elseif ($currentRole === 'dir_legal') {
+        // หัวหน้ากลุ่มเห็นแค่ officer ใน group เดียวกัน
+        $filterGroupName = $currentGroupName;
+        // ถ้าเลือก officer เฉพาะคน ตรวจว่าอยู่ใน group เดียวกัน
+        if ($filterOfficerId && $filterOfficerId !== '') {
+            $chk = $db->prepare("SELECT id FROM officers WHERE id=? AND group_name=?");
+            $chk->execute([$filterOfficerId, $currentGroupName]);
+            if (!$chk->fetch()) $filterOfficerId = '';
+        }
+    }
+    // dir_admin, deputy_secretary, secretary, admin → ดูทั้งหมด ไม่บังคับ filter
+
+    // สร้าง WHERE clause สำหรับ officer filter
+    $evOfficerWhere = '';
+    $evParams = [$from, $to];
+    if ($filterOfficerId) {
+        $evOfficerWhere = ' AND e.officer_id = ?';
+        $evParams[] = $filterOfficerId;
+    } elseif ($filterGroupName) {
+        $evOfficerWhere = ' AND (o.group_name = ? OR e.officer_id IS NULL)';
+        $evParams[] = $filterGroupName;
+    }
+
     // calendar events
     $evStmt = $db->prepare("
         SELECT e.*, o.name AS officer_name, o.init AS officer_init,
@@ -89,10 +127,25 @@ if ($method === 'GET' && !$id) {
         LEFT JOIN officers o ON o.id  = e.officer_id
         LEFT JOIN users    u ON u.id  = e.created_by
         WHERE e.event_date BETWEEN ? AND ?
+        {$evOfficerWhere}
         ORDER BY e.event_date, e.start_time
     ");
-    $evStmt->execute([$from, $to]);
+    $evStmt->execute($evParams);
     $events = $evStmt->fetchAll();
+
+    // helper สร้าง WHERE และ params สำหรับ c.assignee_id / o.group_name
+    $caseOfficerWhere = '';
+    $caseParams2 = [$from, $to];
+    $caseParams1 = [$from, $to];
+    if ($filterOfficerId) {
+        $caseOfficerWhere = ' AND c.assignee_id = ?';
+        $caseParams2[] = $filterOfficerId;
+        $caseParams1[] = $filterOfficerId;
+    } elseif ($filterGroupName) {
+        $caseOfficerWhere = ' AND o.group_name = ?';
+        $caseParams2[] = $filterGroupName;
+        $caseParams1[] = $filterGroupName;
+    }
 
     // case due dates ที่ยังไม่ปิด
     $duStmt = $db->prepare("
@@ -101,9 +154,10 @@ if ($method === 'GET' && !$id) {
         FROM cases c
         LEFT JOIN officers o ON o.id = c.assignee_id
         WHERE c.due_date BETWEEN ? AND ? AND c.status != 'closed'
+        {$caseOfficerWhere}
         ORDER BY c.due_date
     ");
-    $duStmt->execute([$from, $to]);
+    $duStmt->execute($caseParams2);
     $dueDates = $duStmt->fetchAll();
 
     // สำนวนที่ปิดในเดือนนี้
@@ -113,12 +167,22 @@ if ($method === 'GET' && !$id) {
         FROM cases c
         LEFT JOIN officers o ON o.id = c.assignee_id
         WHERE c.status = 'closed' AND DATE(c.updated_at) BETWEEN ? AND ?
+        {$caseOfficerWhere}
         ORDER BY c.updated_at
     ");
-    $clStmt->execute([$from, $to]);
+    $clStmt->execute($caseParams2);
     $closedCases = $clStmt->fetchAll();
 
-    // งานย่อยที่เสร็จในเดือนนี้
+    // งานย่อยที่เสร็จในเดือนนี้ (กรองด้วย ct.officer_id หรือ o.group_name)
+    $taskWhere = '';
+    $taskParams = [$from, $to];
+    if ($filterOfficerId) {
+        $taskWhere = ' AND ct.officer_id = ?';
+        $taskParams[] = $filterOfficerId;
+    } elseif ($filterGroupName) {
+        $taskWhere = ' AND o.group_name = ?';
+        $taskParams[] = $filterGroupName;
+    }
     $tdStmt = $db->prepare("
         SELECT ct.id, ct.task_name, ct.case_id, DATE(ct.completed_at) AS event_date,
                c.subject AS case_subject, o.name AS officer_name, o.init AS officer_init
@@ -127,13 +191,27 @@ if ($method === 'GET' && !$id) {
         LEFT JOIN officers o ON o.id = ct.officer_id
         WHERE ct.status = 'done' AND ct.completed_at IS NOT NULL
           AND DATE(ct.completed_at) BETWEEN ? AND ?
+        {$taskWhere}
         ORDER BY ct.completed_at
     ");
-    $tdStmt->execute([$from, $to]);
+    $tdStmt->execute($taskParams);
     $doneTasks = $tdStmt->fetchAll();
 
+    // รายชื่อ officers ที่ผู้ใช้นี้มีสิทธิ์ดู (สำหรับ dropdown ใน frontend)
+    if ($currentRole === 'officer') {
+        $visOfficers = [];
+    } elseif ($currentRole === 'dir_legal') {
+        $voStmt = $db->prepare("SELECT id, name, init FROM officers WHERE group_name=? AND active=1 ORDER BY name");
+        $voStmt->execute([$currentGroupName]);
+        $visOfficers = $voStmt->fetchAll();
+    } else {
+        $visOfficers = $db->query("SELECT id, name, init FROM officers WHERE active=1 ORDER BY name")->fetchAll();
+    }
+
     json_out(['events' => $events, 'due_dates' => $dueDates,
-              'closed_cases' => $closedCases, 'done_tasks' => $doneTasks]);
+              'closed_cases' => $closedCases, 'done_tasks' => $doneTasks,
+              'visible_officers' => $visOfficers,
+              'filter_officer_id' => $filterOfficerId]);
 }
 
 /* ====== POST — สร้าง event ====== */

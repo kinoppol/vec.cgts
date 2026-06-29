@@ -317,13 +317,16 @@ function CalendarPage({ officers, currentUser }) {
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setDate(d.getDate()-d.getDay()); return d;
   });
-  const [data, setData]     = useState({events:[],due_dates:[]});
+  const [data, setData]       = useState({events:[],due_dates:[]});
   const [loading, setLoading] = useState(true);
-  const [modal, setModal]   = useState(null); // {type:'add'|'edit', ev?, date?}
+  const [modal, setModal]     = useState(null); // {type:'add'|'edit', ev?, date?}
+  const [filterOid, setFilterOid] = useState(''); // '' = ทั้งหมด
 
-  const load = (y=year, m=month) => {
+  const isOfficerRole = currentUser?.role === 'officer';
+
+  const load = (y=year, m=month, oid=filterOid) => {
     setLoading(true);
-    api.getCalendar(y, m).then(d=>{
+    api.getCalendar(y, m, oid).then(d=>{
       // รวม due_dates เข้า events array
       const dueDateEvs = (d.due_dates||[]).map(dd=>({
         ...dd, _type:'due_date', title: dd.subject,
@@ -344,7 +347,7 @@ function CalendarPage({ officers, currentUser }) {
     }).catch(console.error).finally(()=>setLoading(false));
   };
 
-  useEffect(()=>{ load(year,month); }, [year,month]);
+  useEffect(()=>{ load(year,month,filterOid); }, [year,month,filterOid]);
 
   // navigation
   const prevMonth = () => { if(month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
@@ -367,10 +370,9 @@ function CalendarPage({ officers, currentUser }) {
 
   const onSave = (saved, isNew) => {
     setModal(null);
-    // reload month
-    load(year, month);
+    load(year, month, filterOid);
   };
-  const onDelete = () => { setModal(null); load(year,month); };
+  const onDelete = () => { setModal(null); load(year,month,filterOid); };
 
   const onDayClick = (dateStr) => {
     if (viewMode==='month') { setSelDay(dateStr); setViewMode('day'); }
@@ -415,6 +417,16 @@ function CalendarPage({ officers, currentUser }) {
           <button className="btn btn-ghost btn-sm" onClick={()=>{setYear(now.getFullYear());setMonth(now.getMonth()+1);setSelDay(today);}}>
             วันนี้
           </button>
+          {/* officer filter — แสดงเฉพาะผู้ที่มีสิทธิ์ดูคนอื่น */}
+          {!isOfficerRole && (data.visible_officers||[]).length > 0 && (
+            <select className="input" style={{minWidth:160,maxWidth:220,fontSize:13,padding:'4px 8px'}}
+              value={filterOid} onChange={e=>setFilterOid(e.target.value)}>
+              <option value="">— นิติกรทั้งหมด —</option>
+              {(data.visible_officers||[]).map(o=>(
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          )}
           <div style={{marginLeft:'auto'}}>
             <div className="seg">
               {[['day','รายวัน'],['week','รายสัปดาห์'],['month','รายเดือน']].map(([v,l])=>(
