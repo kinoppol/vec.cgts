@@ -78,7 +78,7 @@ function DirLegalDashboard({ cases, officers, openCase, setView }) {
                   <div className="between" style={{marginBottom:7}}>
                     <div className="vcenter" style={{gap:9}}>
                       <span className="code sm">{c.id}</span>
-                      <span className="badge badge-maroon" style={{fontSize:11}}>{TRACKS[c.track].label}</span>
+                      <span className="badge badge-maroon" style={{fontSize:11}}>{TRACKS[c.track]?.label||c.track}</span>
                     </div>
                     <SLAText s={c.sla}/>
                   </div>

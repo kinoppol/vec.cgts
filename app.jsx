@@ -701,7 +701,7 @@ function VaultPage({ cases, openCase }) {
                 <tr key={i} onClick={() => openCase(f.cid)}>
                   <td><div className="vcenter"><Icon name="file" style={{width:18,height:18,color:"var(--maroon)"}}/><span style={{fontWeight:500}}>{f.n}</span></div></td>
                   <td><div className="code sm">{f.cid}</div><div className="faint tiny" style={{maxWidth:240,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.subject}</div></td>
-                  <td><span className={"badge " + CLASS[f.c].c}><Icon name="lock" style={{width:11,height:11}}/> {CLASS[f.c].l}</span></td>
+                  <td><span className={"badge " + (CLASS[f.c]||CLASS.public).c}><Icon name="lock" style={{width:11,height:11}}/> {(CLASS[f.c]||CLASS.public).l}</span></td>
                   <td className="sm muted tnum">{f.s}</td>
                   <td><div className="vcenter" style={{gap:6}}><button className="icon-btn" style={{width:30,height:30}} onClick={e=>e.stopPropagation()}><Icon name="eye" style={{width:15,height:15}}/></button><button className="icon-btn" style={{width:30,height:30}} onClick={e=>e.stopPropagation()}><Icon name="download" style={{width:15,height:15}}/></button></div></td>
                 </tr>
