@@ -1340,10 +1340,12 @@ function ImportDocument({ back }) {
   const [done,    setDone]    = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [nextId,  setNextId]  = useState('');
 
   React.useEffect(() => {
     api.getLookups('group_name').then(setGroups).catch(()=>{});
     api.getChannelTypes().then(rows=>setChannelTypes(rows.filter(r=>r.name!=='อื่น ๆ'))).catch(()=>{});
+    api.getNextCaseId().then(r=>setNextId(r.next_case_id||'')).catch(()=>{});
   }, []);
 
   React.useEffect(() => {
@@ -1460,6 +1462,15 @@ function ImportDocument({ back }) {
         <div className="grid" style={{gap:16}}>
           <div className="card card-pad" style={{display:"grid",gap:14}}>
             <h3 style={{fontSize:15}}>ข้อมูลการลงทะเบียน</h3>
+
+            {/* รหัสเรื่องที่จะได้รับ */}
+            {nextId && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
+              <Icon name="inbox" style={{width:16,height:16,color:'var(--ink-3)',flexShrink:0}}/>
+              <div>
+                <div className="faint tiny">รหัสเรื่องที่จะได้รับ</div>
+                <div style={{fontFamily:'monospace',fontWeight:700,fontSize:15,letterSpacing:'.04em'}}>{nextId}</div>
+              </div>
+            </div>}
 
             {/* ประเภทหน่วยงาน */}
             <div className="field"><label>ประเภทหน่วยงาน <span className="req">*</span></label>

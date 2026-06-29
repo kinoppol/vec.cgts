@@ -5,6 +5,19 @@ $auth   = require_auth();
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 
+// ทุก role ขอดู next_case_id ได้ (สำหรับ preview ในฟอร์มนำเข้า)
+if ($method === 'GET' && isset($_GET['next_case_id'])) {
+    try { $pfx = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn(); } catch (Throwable) { $pfx = null; }
+    $pfx    = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
+    $year   = date('Y') + 543;
+    $prefix = "{$pfx}-{$year}-";
+    $last   = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
+    $last->execute([$prefix . '%']);
+    $last   = $last->fetchColumn();
+    $seq    = $last ? ((int)substr($last, -4) + 1) : 1;
+    json_out(['next_case_id' => $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT)]);
+}
+
 if ($auth['role'] !== 'admin') err('Forbidden', 403);
 
 if ($method === 'GET') {
