@@ -151,11 +151,20 @@ function navFor(role, counts, user) {
     {sec:"ระบบ"},
     {v:"users",     ic:"users",    l:"จัดการผู้ใช้"},
   ];
-  // deputy_secretary, secretary, dir_admin
+  // deputy_secretary, secretary
+  if (role !== "dir_admin") return [
+    {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
+    {sec:"การดำเนินงาน"},
+    {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+    {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
+  ];
+  // dir_admin
   return [
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"proposals", ic:"flag",     l:"เกษียนรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
   ];
@@ -518,7 +527,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   }, []);
 
   useEffect(() => {
-    if (role === 'dir_legal' || role === 'admin') {
+    if (role === 'dir_legal' || role === 'dir_admin' || role === 'admin') {
       api.getAssignProposals().then(setPendingProposals).catch(() => {});
     }
   }, [role]);

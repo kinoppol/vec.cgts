@@ -1101,7 +1101,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   if (loading) return <LoadingSpinner/>;
   if (!c) return null;
   const o = officerById(officers, c.assignee);
-  const canAssign = role==="officer" || role==="dir_legal" || role==="admin";
+  const canAssign = role==="officer" || role==="dir_legal" || role==="dir_admin" || role==="admin";
   const isHeadSec = role==="head_secretary";
 
   return (

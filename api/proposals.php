@@ -7,7 +7,7 @@ $db     = getDB();
 
 /* ====== GET /api/proposals.php — รายการข้อเสนอรอการอนุมัติ (dir_legal / admin) ====== */
 if ($method === 'GET') {
-    if (!in_array($auth['role'], ['admin','dir_legal'], true)) err('Forbidden', 403);
+    if (!in_array($auth['role'], ['admin','dir_legal','dir_admin'], true)) err('Forbidden', 403);
 
     $caseId = trim($_GET['case_id'] ?? '');
     $sql = "
@@ -85,7 +85,7 @@ if ($method === 'POST') {
 
 /* ====== PATCH /api/proposals.php?id= — dir_legal อนุมัติ / เปลี่ยน ====== */
 if ($method === 'PATCH') {
-    if (!in_array($auth['role'], ['admin','dir_legal'], true)) err('Forbidden', 403);
+    if (!in_array($auth['role'], ['admin','dir_legal','dir_admin'], true)) err('Forbidden', 403);
 
     $propId = (int)($_GET['id'] ?? 0);
     if (!$propId) err('ต้องระบุ id');
