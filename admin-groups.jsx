@@ -393,10 +393,11 @@ function GroupsPage({ currentUser }) {
   );
 }
 
-/* ── MyGroupPage — หัวหน้ากลุ่มดูสมาชิก ── */
+/* ── MyGroupPage — หัวหน้ากลุ่มดูและมอบบทบาทสมาชิก ── */
 function MyGroupPage({ currentUser }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState({});
 
   useEffect(() => {
     if (!currentUser?.leader_of_group) { setLoading(false); return; }
@@ -406,6 +407,18 @@ function MyGroupPage({ currentUser }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleRoleChange = async (member, newRole) => {
+    setSaving(s => ({...s, [member.id]: true}));
+    try {
+      await api.setMemberRole(detail.id, member.id, newRole||null);
+      setDetail(d => ({
+        ...d,
+        members: d.members.map(m => m.id === member.id ? {...m, role: newRole||null} : m)
+      }));
+    } catch(e) { alert(e.message); }
+    setSaving(s => ({...s, [member.id]: false}));
+  };
+
   if (loading) return <LoadingSpinner/>;
   if (!detail) return (
     <div className="card card-pad fade-in">
@@ -413,9 +426,11 @@ function MyGroupPage({ currentUser }) {
     </div>
   );
 
+  const hasRoles = (detail.roles||[]).length > 0;
+
   return (
     <div className="fade-in">
-      <PageHead title={"กลุ่มของฉัน — " + detail.name} sub="รายชื่อสมาชิกในกลุ่มที่ท่านเป็นหัวหน้า"/>
+      <PageHead title={"กลุ่มของฉัน — " + detail.name} sub="รายชื่อสมาชิก — หัวหน้ากลุ่มสามารถมอบบทบาทให้สมาชิกได้"/>
       <div className="card">
         <div className="card-h">
           <h3>สมาชิก <span className="badge" style={{marginLeft:6}}>{(detail.members||[]).length} คน</span></h3>
@@ -429,9 +444,25 @@ function MyGroupPage({ currentUser }) {
               <span className="avatar avatar-sm">{m.init || m.display_name[0]}</span>
               <div style={{flex:1}}>
                 <div style={{fontWeight:500,fontSize:14}}>{m.display_name}</div>
-                <div className="tiny faint">{m.username} · {DEFAULT_ROLE_LABELS[m.role]||m.role}{m.job_title ? " · " + m.job_title : ""}</div>
+                <div className="tiny faint">{m.username}{m.job_title ? " · " + m.job_title : ""}</div>
               </div>
-              {detail.leader_id === m.id && <span className="badge badge-maroon">หัวหน้า</span>}
+              {detail.leader_id === m.id && <span className="badge badge-maroon" style={{flexShrink:0}}>หัวหน้า</span>}
+              {hasRoles && detail.leader_id !== m.id && (
+                <select
+                  className="select" style={{width:180,fontSize:13}}
+                  value={m.role||""}
+                  disabled={!!saving[m.id]}
+                  onChange={e => handleRoleChange(m, e.target.value)}
+                >
+                  <option value="">ไม่กำหนดบทบาท</option>
+                  {(detail.roles||[]).map(r => (
+                    <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>
+                  ))}
+                </select>
+              )}
+              {!hasRoles && (
+                <span className="tiny faint">{DEFAULT_ROLE_LABELS[m.role]||m.role||'ไม่กำหนดบทบาท'}</span>
+              )}
             </div>
           ))}
         </div>

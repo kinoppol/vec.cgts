@@ -95,6 +95,31 @@ if ($method === 'POST' && $action === 'add_member' && $id) {
     json_out(['ok' => true]);
 }
 
+/* ── PATCH ?action=set_member_role — หัวหน้ากลุ่มมอบบทบาท ── */
+if ($method === 'PATCH' && $action === 'set_member_role' && $id) {
+    // admin หรือหัวหน้ากลุ่มนั้นเท่านั้น
+    $grp = $db->prepare("SELECT name, leader_id FROM groups WHERE id=?");
+    $grp->execute([$id]);
+    $grp = $grp->fetch();
+    if (!$grp) err('ไม่พบกลุ่ม', 404);
+    $isAdmin = $actor['role'] === 'admin' || !empty($actor['can_manage_users']);
+    if (!$isAdmin && (int)$grp['leader_id'] !== (int)$actor['id']) err('เฉพาะหัวหน้ากลุ่มหรือผู้ดูแลระบบเท่านั้น', 403);
+
+    $b      = json_decode(file_get_contents('php://input'), true) ?? [];
+    $userId = (int)($b['user_id'] ?? 0);
+    $role   = $b['role'] ?: null;
+    if (!$userId) err('user_id จำเป็น', 400);
+
+    // ตรวจว่าผู้ใช้อยู่ในกลุ่มนี้จริง
+    $check = $db->prepare("SELECT id FROM users WHERE id=? AND group_name=?");
+    $check->execute([$userId, $grp['name']]);
+    if (!$check->fetch()) err('ผู้ใช้ไม่ได้อยู่ในกลุ่มนี้', 400);
+
+    $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$role, $userId]);
+    audit('group_set_member_role', (string)$id, "user_id=$userId role=" . ($role ?? 'null'));
+    json_out(['ok' => true]);
+}
+
 /* ── DELETE ?action=remove_member — ลบสมาชิก ──────────────── */
 if ($method === 'DELETE' && $action === 'remove_member' && $id) {
     needAdmin($actor);

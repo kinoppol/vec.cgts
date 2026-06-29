@@ -202,6 +202,7 @@ const api = {
   removeGroupMember: (id, uid)      => apiFetch('/api/groups.php?id=' + id + '&action=remove_member&user_id=' + uid, { method:'DELETE' }),
   addGroupRole:      (id, role)     => apiFetch('/api/groups.php?id=' + id + '&action=add_role', { method:'POST', body: JSON.stringify({role}) }),
   removeGroupRole:   (id, role)     => apiFetch('/api/groups.php?id=' + id + '&action=remove_role&role=' + encodeURIComponent(role), { method:'DELETE' }),
+  setMemberRole:     (id, uid, role) => apiFetch('/api/groups.php?id=' + id + '&action=set_member_role', { method:'PATCH', body: JSON.stringify({user_id: uid, role: role||null}) }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)
