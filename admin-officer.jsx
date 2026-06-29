@@ -166,7 +166,7 @@ function ProposeModal({ case_, onClose, onSaved }) {
   const [err, setErr]         = useState('');
 
   useEffect(() => {
-    api.getLookups('group_name').then(items => setGroups(items.filter(i => i.active))).catch(() => {});
+    api.getLookups('group_name').then(setGroups).catch(() => {});
   }, []);
 
   const toggleGroup = (name) => {
