@@ -126,19 +126,33 @@ function RoleLabelsPage({ roleLabels, onUpdate }) {
 /* ---------------- SystemSettingsPage — ตั้งค่าระบบ (admin) ---------------- */
 function SystemSettingsPage() {
   const [settings, setSettings] = React.useState(null);
-  const [prefix, setPrefix]     = React.useState('');
-  const [saving, setSaving]     = React.useState(false);
-  const [msg, setMsg]           = React.useState('');
+  const [prefix,   setPrefix]   = React.useState('');
+  const [nextSeq,  setNextSeq]  = React.useState('');
+  const [preview,  setPreview]  = React.useState('');
+  const [saving,   setSaving]   = React.useState(false);
+  const [msg,      setMsg]      = React.useState('');
+
+  const loadPreview = () => api.getNextCaseId().then(r=>setPreview(r.next_case_id||'')).catch(()=>{});
 
   React.useEffect(() => {
-    api.getSettings().then(s => { setSettings(s); setPrefix(s.case_id_prefix || 'CMP'); }).catch(() => {});
+    api.getSettings().then(s => {
+      setSettings(s);
+      setPrefix(s.case_id_prefix || 'CMP');
+      setNextSeq(s.case_id_next_seq || '');
+    }).catch(() => {});
+    loadPreview();
   }, []);
 
   const save = async () => {
     setSaving(true); setMsg('');
     try {
-      const s = await api.saveSettings({ case_id_prefix: prefix.trim() || 'CMP' });
-      setSettings(s); setPrefix(s.case_id_prefix || 'CMP');
+      const payload = { case_id_prefix: prefix.trim() || 'CMP' };
+      if (nextSeq.trim()) payload.case_id_next_seq = nextSeq.trim();
+      const s = await api.saveSettings(payload);
+      setSettings(s);
+      setPrefix(s.case_id_prefix || 'CMP');
+      setNextSeq(s.case_id_next_seq || '');
+      await loadPreview();
       setMsg('บันทึกแล้ว');
     } catch(e) { setMsg('เกิดข้อผิดพลาด: ' + e.message); }
     setSaving(false);
@@ -158,9 +172,19 @@ function SystemSettingsPage() {
               value={prefix} maxLength={10}
               onChange={e=>setPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9ก-๙]/g,''))}
             />
-            <span className="faint sm">ตัวอย่าง: <b>{(prefix||'CMP')}-2569-0001</b></span>
           </div>
           <div className="faint tiny" style={{marginTop:4}}>ใช้ตัวอักษรภาษาอังกฤษหรือตัวเลข ไม่มีขีด (-) จะเพิ่มให้อัตโนมัติ</div>
+        </div>
+        <div className="field">
+          <label>เลขลำดับถัดไป <span className="faint" style={{fontWeight:400}}>(ปล่อยว่าง = ต่อจากเลขล่าสุดอัตโนมัติ)</span></label>
+          <div className="vcenter" style={{gap:8}}>
+            <input className="input" style={{width:120,fontFamily:'monospace',fontWeight:600}} type="number" min="1"
+              value={nextSeq} placeholder="อัตโนมัติ"
+              onChange={e=>setNextSeq(e.target.value.replace(/\D/g,''))}
+            />
+            {preview && <span className="faint sm">รหัสถัดไป: <b style={{fontFamily:'monospace',color:'var(--maroon)'}}>{preview}</b></span>}
+          </div>
+          <div className="faint tiny" style={{marginTop:4}}>ใช้ครั้งเดียว — หลังออกเลขแล้วจะกลับเป็นอัตโนมัติ</div>
         </div>
         {msg && <div className={'notice '+(msg.startsWith('บันทึก')?'notice-ok':'notice-err')} style={{marginTop:8}}>{msg}</div>}
         <div style={{marginTop:16,display:'flex',justifyContent:'flex-end'}}>

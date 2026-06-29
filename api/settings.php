@@ -7,14 +7,21 @@ $db     = getDB();
 
 // ทุก role ขอดู next_case_id ได้ (สำหรับ preview ในฟอร์มนำเข้า)
 if ($method === 'GET' && isset($_GET['next_case_id'])) {
-    try { $pfx = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn(); } catch (Throwable) { $pfx = null; }
+    try {
+        $pfx     = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn();
+        $nextSeq = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_next_seq'")->fetchColumn();
+    } catch (Throwable) { $pfx = null; $nextSeq = null; }
     $pfx    = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
     $year   = date('Y') + 543;
     $prefix = "{$pfx}-{$year}-";
-    $last   = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
-    $last->execute([$prefix . '%']);
-    $last   = $last->fetchColumn();
-    $seq    = $last ? ((int)substr($last, -4) + 1) : 1;
+    if ($nextSeq !== null && $nextSeq !== false && (int)$nextSeq > 0) {
+        $seq = (int)$nextSeq;
+    } else {
+        $last = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
+        $last->execute([$prefix . '%']);
+        $last = $last->fetchColumn();
+        $seq  = $last ? ((int)substr($last, -4) + 1) : 1;
+    }
     json_out(['next_case_id' => $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT)]);
 }
 
@@ -29,7 +36,7 @@ if ($method === 'GET') {
 
 if ($method === 'PATCH') {
     $b = json_decode(file_get_contents('php://input'), true) ?? [];
-    $allowed = ['case_id_prefix'];
+    $allowed = ['case_id_prefix', 'case_id_next_seq'];
     foreach ($allowed as $k) {
         if (!array_key_exists($k, $b)) continue;
         $v = trim($b[$k] ?? '');

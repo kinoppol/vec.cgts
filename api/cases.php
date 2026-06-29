@@ -167,16 +167,24 @@ function calcSla(?string $dueDate, int $totalDays, DateTime $today, string $stat
 
 function nextCaseId(PDO $db): string {
     $year = date('Y') + 543;
-    // ดึง prefix จาก app_settings (graceful fallback ถ้าตารางยังไม่มี)
     try {
-        $pfx = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn();
-    } catch (Throwable) { $pfx = null; }
-    $pfx = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
+        $pfx     = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn();
+        $nextSeq = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_next_seq'")->fetchColumn();
+    } catch (Throwable) { $pfx = null; $nextSeq = null; }
+    $pfx    = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
     $prefix = "{$pfx}-{$year}-";
-    $stmt = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
-    $stmt->execute([$prefix . '%']);
-    $last = $stmt->fetchColumn();
-    $seq = $last ? ((int)substr($last, -4) + 1) : 1;
+
+    if ($nextSeq !== null && $nextSeq !== false && (int)$nextSeq > 0) {
+        // ใช้เลขที่กำหนด แล้วล้างค่าออก (ใช้ได้ครั้งเดียว)
+        $seq = (int)$nextSeq;
+        $db->prepare("DELETE FROM app_settings WHERE `key`='case_id_next_seq'")->execute();
+    } else {
+        // auto-increment จากเลขล่าสุดใน DB
+        $stmt = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$prefix . '%']);
+        $last = $stmt->fetchColumn();
+        $seq  = $last ? ((int)substr($last, -4) + 1) : 1;
+    }
     return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 }
 
