@@ -1131,6 +1131,24 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         <div className="vcenter" style={{gap:8}}>
           {canAssign && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
+          {(role==="dir_admin"||role==="admin") && c.assignee && c.status!=="closed" && (() => {
+            const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
+            if (!assignStep || assignStep.ev_status==='done') return null;
+            const markAssignDone = async () => {
+              try {
+                if (assignStep.event_id) {
+                  await api.updateEvent(assignStep.event_id, { ev_status:'done' });
+                } else {
+                  await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'done' });
+                }
+                const fresh = await api.getCase(c.id);
+                setC(fresh);
+              } catch(e) { alert(e.message); }
+            };
+            return <button className="btn btn-outline" onClick={markAssignDone}>
+              <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายนิติกร
+            </button>;
+          })()}
           {isHeadSec && !c.assignee && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setShowPropose(true)}>
               <Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง
