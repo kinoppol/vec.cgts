@@ -472,8 +472,11 @@ if ($method === 'DELETE' && $id !== '') {
     // ยืนยันเลขรับสำนวน
     $body    = json_decode(file_get_contents('php://input'), true) ?? [];
     $confirm = trim($body['confirm_reg'] ?? '');
-    if ($confirm === '' || $confirm !== $case['reg_number']) {
-        err('เลขรับสำนวนไม่ตรง ไม่สามารถลบได้', 422);
+    $reg     = trim($case['reg_number'] ?? '');
+    // fallback: ยอมรับ case ID เมื่อไม่มีเลขรับ (reg ว่างหรือ —)
+    $expected = ($reg !== '' && $reg !== '—') ? $reg : $case['id'];
+    if ($confirm === '' || $confirm !== $expected) {
+        err('ข้อมูลยืนยันไม่ตรง ไม่สามารถลบได้', 422);
     }
 
     // ลบข้อมูลที่เกี่ยวข้องทั้งหมด (cascade)

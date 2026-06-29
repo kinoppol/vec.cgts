@@ -687,8 +687,8 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
   const [input, setInput]   = useState('');
   const [busy, setBusy]     = useState(false);
   const [err, setErr]       = useState('');
-  const reg = c.reg || '';
-  const match = input.trim() === reg.trim();
+  const confirmTarget = (c.reg && c.reg.trim() && c.reg !== '—') ? c.reg.trim() : c.id;
+  const match = input.trim() === confirmTarget;
 
   const doDelete = async () => {
     if (!match) return;
@@ -717,10 +717,10 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
             <div style={{marginBottom:4}}>สำนวน: <b>{c.id}</b></div>
             <div style={{marginBottom:14}}>เรื่อง: <span className="muted">{c.subject}</span></div>
             <label style={{display:'block',marginBottom:6,fontWeight:500}}>
-              กรอกเลขรับสำนวน <b style={{color:'var(--danger)'}}>{reg}</b> เพื่อยืนยัน
+              พิมพ์ <b style={{color:'var(--danger)'}}>{confirmTarget}</b> เพื่อยืนยัน
             </label>
             <input className="input" autoFocus value={input} onChange={e=>setInput(e.target.value)}
-              placeholder={reg} onKeyDown={e=>e.key==='Enter' && match && doDelete()}
+              placeholder={confirmTarget} onKeyDown={e=>e.key==='Enter' && match && doDelete()}
               style={{borderColor: input && !match ? 'var(--danger)' : ''}}/>
             {input && !match && <div style={{fontSize:12,color:'var(--danger)',marginTop:4}}>เลขรับไม่ตรง</div>}
           </div>
