@@ -1093,6 +1093,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [showDelete, setShowDelete] = useState(false);
   const [showPropose, setShowPropose] = useState(false);
   const [markingAssign, setMarkingAssign] = useState(false);
+  const [showAssignDone, setShowAssignDone] = useState(false);
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
   const [loading, setLoading] = useState(!c || !(c.events));
 
@@ -1135,22 +1136,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
-            const handleMarkAssign = async () => {
-              if (markingAssign) return;
-              setMarkingAssign(true);
-              try {
-                if (assignStep?.event_id) {
-                  await api.updateEvent(assignStep.event_id, { ev_status:'done' });
-                } else {
-                  await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'done' });
-                }
-                const fresh = await api.getCase(c.id);
-                setC(fresh);
-              } catch(e) { alert(e.message); }
-              setMarkingAssign(false);
-            };
-            return (<button key="mark-assign" className="btn btn-outline" disabled={markingAssign} onClick={handleMarkAssign}>
-              <Icon name="checkCircle" style={{width:16,height:16}}/> {markingAssign ? '…' : 'มอบหมายนิติกร'}
+            return (<button key="mark-assign" className="btn btn-outline" onClick={()=>setShowAssignDone(true)}>
+              <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายนิติกร
             </button>);
           })()}
           {isHeadSec && !c.assignee && c.status!=="closed" &&
@@ -1250,6 +1237,27 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
       </div>
 
+      {showAssignDone && (() => {
+        const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
+        const fakeStep = { label:'มอบหมายนิติกร', step_key:'assign', event_id: assignStep?.event_id, _case_id: c.id };
+        const handleConfirm = async ({ note, file }) => {
+          let eid = assignStep?.event_id;
+          if (!eid) {
+            const created = await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'active' });
+            eid = created.id;
+          }
+          let attachFields = {};
+          if (file) {
+            const uploaded = await api.uploadEventFile(eid, file);
+            attachFields = { attachment_name:uploaded.attachment_name, attachment_path:uploaded.attachment_path, attachment_size:uploaded.attachment_size, _has_file:true };
+          }
+          await api.updateEvent(eid, { ev_status:'done', detail:note||null, ...attachFields });
+          const fresh = await api.getCase(c.id);
+          setC(fresh);
+          setShowAssignDone(false);
+        };
+        return <StepDoneModal step={fakeStep} onConfirm={handleConfirm} onClose={()=>setShowAssignDone(false)}/>;
+      })()}
       {showPropose && <ProposeModal case_={c} officers={officers}
         onClose={()=>setShowPropose(false)}
         onSaved={()=>{ setShowPropose(false); back(); }}/>}
