@@ -165,6 +165,31 @@ if ($confirm === 'sla') {
     exit;
 }
 
+/* ── [5] head_secretary role ────────────────────────────── */
+if ($confirm === 'head_secretary') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [5]: บทบาทหัวหน้าธุรการ</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // ตรวจว่า head_secretary อยู่ใน ENUM แล้วหรือยัง
+        $colInfo = $db->query("SHOW COLUMNS FROM users WHERE Field='role'")->fetch();
+        if ($colInfo && strpos($colInfo['Type'], 'head_secretary') !== false) {
+            echo "– users.role มี head_secretary อยู่แล้ว ข้าม\n";
+        } else {
+            $db->exec("ALTER TABLE users MODIFY role ENUM('officer','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin') NOT NULL DEFAULT 'officer'");
+            echo "✓ ALTER users MODIFY role — เพิ่ม head_secretary\n";
+        }
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [1] Personnel + password (เดิม) ────────────────────── */
 // ป้องกันการเรียกโดยไม่ตั้งใจ
 if ($confirm !== 'run') {
@@ -174,6 +199,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[2] SLA Steps</b> — เพิ่มตาราง sla_steps และคอลัมน์ case_events<br><code><a href="?confirm=sla">migrate.php?confirm=sla</a></code></li>';
     echo '<li><b>[3] Event Attachment</b> — เพิ่มคอลัมน์ attachment_name/path/size ใน case_events<br><code><a href="?confirm=event_attach">migrate.php?confirm=event_attach</a></code></li>';
     echo '<li><b>[4] ระบบแจ้งเตือน</b> — notifications, notification_log, users.email<br><code><a href="?confirm=notifications">migrate.php?confirm=notifications</a></code></li>';
+    echo '<li><b>[5] หัวหน้าธุรการ</b> — เพิ่ม head_secretary ใน users.role ENUM<br><code><a href="?confirm=head_secretary">migrate.php?confirm=head_secretary</a></code></li>';
     echo '</ul>';
     exit;
 }
