@@ -1283,6 +1283,10 @@ function ImportDocument({ back }) {
   const [groups,       setGroups]       = useState([]);
   const [channelTypes, setChannelTypes] = useState([]);
   const [channelItems, setChannelItems] = useState([]);
+  const [newTypeName,  setNewTypeName]  = useState("");
+  const [newItemName,  setNewItemName]  = useState("");
+  const [savingType,   setSavingType]   = useState(false);
+  const [savingItem,   setSavingItem]   = useState(false);
 
   const fileRef = React.useRef();
   const [uploading, setUploading] = useState(false);
@@ -1294,12 +1298,12 @@ function ImportDocument({ back }) {
 
   React.useEffect(() => {
     api.getLookups('group_name').then(setGroups).catch(()=>{});
-    api.getChannelTypes().then(setChannelTypes).catch(()=>{});
+    api.getChannelTypes().then(rows=>setChannelTypes(rows.filter(r=>r.name!=='อื่น ๆ'))).catch(()=>{});
   }, []);
 
   React.useEffect(() => {
-    if (!d.channelType) { setChannelItems([]); set("channelItem",""); return; }
-    api.getChannelItems(d.channelType).then(rows=>{ setChannelItems(rows); set("channelItem",""); }).catch(()=>{});
+    if (!d.channelType || d.channelType==='__other__') { setChannelItems([]); set("channelItem",""); return; }
+    api.getChannelItems(d.channelType).then(rows=>{ setChannelItems(rows.filter(r=>r.name!=='อื่น ๆ')); set("channelItem",""); }).catch(()=>{});
   }, [d.channelType]);
 
   const handleFiles = async (e) => {
@@ -1316,10 +1320,40 @@ function ImportDocument({ back }) {
     e.target.value = '';
   };
 
-  const channelFull = d.channelType && d.channelItem
-    ? d.channelType + ' — ' + d.channelItem
-    : d.channelType;
-  const valid = d.subject.trim() && d.group && d.channelType;
+  const saveNewType = async () => {
+    const name = newTypeName.trim();
+    if (!name) return;
+    setSavingType(true);
+    try {
+      await api.addChannelType(name);
+      const updated = await api.getChannelTypes();
+      setChannelTypes(updated.filter(r=>r.name!=='อื่น ๆ'));
+      set("channelType", name); setNewTypeName("");
+    } catch(e) { setSaveErr(e.message); }
+    finally { setSavingType(false); }
+  };
+
+  const saveNewItem = async () => {
+    const name = newItemName.trim();
+    if (!name || !d.channelType || d.channelType==='__other__') return;
+    setSavingItem(true);
+    try {
+      await api.addChannelItem(name, d.channelType);
+      const updated = await api.getChannelItems(d.channelType);
+      setChannelItems(updated.filter(r=>r.name!=='อื่น ๆ'));
+      set("channelItem", name); setNewItemName("");
+    } catch(e) { setSaveErr(e.message); }
+    finally { setSavingItem(false); }
+  };
+
+  const typeIsOther = d.channelType === '__other__';
+  const itemIsOther = d.channelItem === '__other__';
+  const channelTypeFinal = typeIsOther ? newTypeName.trim() : d.channelType;
+  const channelItemFinal = itemIsOther ? newItemName.trim() : d.channelItem;
+  const channelFull = channelTypeFinal && channelItemFinal
+    ? channelTypeFinal + ' — ' + channelItemFinal
+    : channelTypeFinal;
+  const valid = d.subject.trim() && d.group && channelTypeFinal;
 
   if (done) return (
     <div className="fade-in" style={{maxWidth:560,margin:"40px auto",textAlign:"center"}}>
@@ -1384,19 +1418,35 @@ function ImportDocument({ back }) {
 
             {/* ประเภทหน่วยงาน */}
             <div className="field"><label>ประเภทหน่วยงาน <span className="req">*</span></label>
-              <select className="select" value={d.channelType} onChange={e=>set("channelType",e.target.value)}>
+              <select className="select" value={d.channelType} onChange={e=>{ set("channelType",e.target.value); setNewTypeName(""); }}>
                 <option value="">— เลือกประเภท —</option>
                 {channelTypes.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
+                <option value="__other__">อื่น ๆ (ระบุเพิ่ม)</option>
               </select>
+              {typeIsOther && (
+                <div className="row" style={{marginTop:6,gap:6}}>
+                  <input className="input" style={{flex:1}} placeholder="ชื่อประเภทใหม่" value={newTypeName} onChange={e=>setNewTypeName(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); saveNewType(); } }}/>
+                  <button className="btn btn-primary btn-sm" disabled={!newTypeName.trim()||savingType} onClick={saveNewType}>{savingType?"…":"บันทึก"}</button>
+                </div>
+              )}
             </div>
 
             {/* หน่วยงานที่ส่งเรื่อง */}
             <div className="field"><label>หน่วยงานที่ส่งเรื่อง</label>
-              <select className="select" value={d.channelItem} onChange={e=>set("channelItem",e.target.value)}
-                disabled={!d.channelType || channelItems.length===0}>
-                <option value="">{!d.channelType ? "— เลือกประเภทก่อน —" : "— เลือก —"}</option>
+              <select className="select" value={d.channelItem} onChange={e=>{ set("channelItem",e.target.value); setNewItemName(""); }}
+                disabled={!d.channelType || typeIsOther}>
+                <option value="">{!d.channelType||typeIsOther ? "— เลือกประเภทก่อน —" : "— เลือก —"}</option>
                 {channelItems.map(i=><option key={i.id} value={i.name}>{i.name}</option>)}
+                {!typeIsOther && d.channelType && <option value="__other__">อื่น ๆ (ระบุเพิ่ม)</option>}
               </select>
+              {itemIsOther && !typeIsOther && (
+                <div className="row" style={{marginTop:6,gap:6}}>
+                  <input className="input" style={{flex:1}} placeholder="ชื่อหน่วยงานใหม่" value={newItemName} onChange={e=>setNewItemName(e.target.value)}
+                    onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); saveNewItem(); } }}/>
+                  <button className="btn btn-primary btn-sm" disabled={!newItemName.trim()||savingItem} onClick={saveNewItem}>{savingItem?"…":"บันทึก"}</button>
+                </div>
+              )}
             </div>
 
             <div className="field"><label>ระดับความเร่งด่วน</label>
