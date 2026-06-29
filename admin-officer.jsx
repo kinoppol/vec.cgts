@@ -1092,6 +1092,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [assign, setAssign] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showPropose, setShowPropose] = useState(false);
+  const [markingAssign, setMarkingAssign] = useState(false);
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
   const [loading, setLoading] = useState(!c || !(c.events));
 
@@ -1107,6 +1108,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const o = officerById(officers, c.assignee);
   const canAssign = role==="officer" || role==="dir_legal" || role==="dir_admin" || role==="admin";
   const isHeadSec = role==="head_secretary";
+  console.log('[CaseDetail] role=',role,'assignee=',c.assignee,'status=',c.status,'steps=',c.steps?.map(s=>s.step_key+'='+s.ev_status));
 
   return (
     <div className="fade-in">
@@ -1133,9 +1135,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
           {(role==="dir_admin"||role==="admin") && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
-            const isDone = assignStep?.ev_status === 'done';
-            if (isDone) return null;
-            const markAssignDone = async () => {
+            if (assignStep?.ev_status==='done') return null;
+            const handleMarkAssign = async () => {
+              if (markingAssign) return;
+              setMarkingAssign(true);
               try {
                 if (assignStep?.event_id) {
                   await api.updateEvent(assignStep.event_id, { ev_status:'done' });
@@ -1145,10 +1148,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
                 const fresh = await api.getCase(c.id);
                 setC(fresh);
               } catch(e) { alert(e.message); }
+              setMarkingAssign(false);
             };
-            return <button className="btn btn-outline" onClick={markAssignDone}>
-              <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายนิติกร
-            </button>;
+            return (<button key="mark-assign" className="btn btn-outline" disabled={markingAssign} onClick={handleMarkAssign}>
+              <Icon name="checkCircle" style={{width:16,height:16}}/> {markingAssign ? '…' : 'มอบหมายนิติกร'}
+            </button>);
           })()}
           {isHeadSec && !c.assignee && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setShowPropose(true)}>
