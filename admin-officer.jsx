@@ -231,18 +231,24 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
           {/* บุคลากรที่เกี่ยวข้อง */}
           <div className="field">
             <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
-            {officers && officers.filter(o=>o.active).length > 0
-              ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                  {officers.filter(o=>o.active).map(o =>
-                    checkboxRow(
-                      selPersonnel.includes(o.id),
-                      ()=>togglePersonnel(o.id),
-                      <span>{o.name}{o.job_title && <span className="faint" style={{fontSize:12}}> · {o.job_title}</span>}</span>
-                    )
-                  )}
-                </div>
-              : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการบุคลากร</div>
-            }
+            {(() => {
+              const pool = (officers||[]).filter(o =>
+                selGroups.length === 0 || selGroups.includes(o.group)
+              );
+              return pool.length > 0
+                ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
+                    {pool.map(o =>
+                      checkboxRow(
+                        selPersonnel.includes(o.id),
+                        ()=>togglePersonnel(o.id),
+                        <span>{o.name}{o.role && <span className="faint" style={{fontSize:12}}> · {o.role}</span>}</span>
+                      )
+                    )}
+                  </div>
+                : <div className="faint sm" style={{padding:'8px 0'}}>
+                    {selGroups.length > 0 ? 'ไม่พบบุคลากรในกลุ่มที่เลือก' : 'ไม่พบรายการบุคลากร'}
+                  </div>;
+            })()}
           </div>
 
           {/* หมายเหตุ */}
