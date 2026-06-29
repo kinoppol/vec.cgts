@@ -456,4 +456,33 @@ if ($method === 'PATCH') {
     json_out(buildCase($row, $db));
 }
 
+/* ====== DELETE /api/cases.php?id=xxx — ลบสำนวน (admin เท่านั้น) ====== */
+if ($method === 'DELETE' && $id !== '') {
+    $auth = require_auth();
+    if ($auth['role'] !== 'admin') err('เฉพาะ admin เท่านั้นที่ลบสำนวนได้', 403);
+
+    $db = getDB();
+
+    // ตรวจว่าสำนวนมีอยู่จริง
+    $stmt = $db->prepare('SELECT id, reg_number FROM cases WHERE id = ?');
+    $stmt->execute([$id]);
+    $case = $stmt->fetch();
+    if (!$case) err('ไม่พบสำนวน', 404);
+
+    // ยืนยันเลขรับสำนวน
+    $body    = json_decode(file_get_contents('php://input'), true) ?? [];
+    $confirm = trim($body['confirm_reg'] ?? '');
+    if ($confirm === '' || $confirm !== $case['reg_number']) {
+        err('เลขรับสำนวนไม่ตรง ไม่สามารถลบได้', 422);
+    }
+
+    // ลบข้อมูลที่เกี่ยวข้องทั้งหมด (cascade)
+    $db->prepare('DELETE FROM case_files  WHERE case_id = ?')->execute([$id]);
+    $db->prepare('DELETE FROM case_events WHERE case_id = ?')->execute([$id]);
+    $db->prepare('DELETE FROM cases       WHERE id = ?')->execute([$id]);
+
+    audit('delete_case', $id, "ลบโดย {$auth['username']} ยืนยันด้วยเลขรับ {$confirm}");
+    json_out(['ok' => true, 'deleted' => $id]);
+}
+
 err('Method not allowed', 405);

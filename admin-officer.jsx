@@ -682,10 +682,67 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
 }
 
 /* ---------------- รายละเอียดสำนวน ---------------- */
-function CaseDetail({ cid, cases, officers, back, updateCase, role }) {
+/* ---------- modal ยืนยันลบสำนวน ---------- */
+function DeleteCaseModal({ c, onDeleted, onClose }) {
+  const [input, setInput]   = useState('');
+  const [busy, setBusy]     = useState(false);
+  const [err, setErr]       = useState('');
+  const reg = c.reg || '';
+  const match = input.trim() === reg.trim();
+
+  const doDelete = async () => {
+    if (!match) return;
+    setBusy(true); setErr('');
+    try {
+      await apiFetch('/api/cases.php?id=' + c.id, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirm_reg: input.trim() }),
+      });
+      onDeleted(c.id);
+    } catch(e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:24}} onClick={onClose}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.4)',width:'100%',maxWidth:440,display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',gap:12}}>
+          <Icon name="alert" style={{width:22,height:22,color:'var(--danger)',flexShrink:0}}/>
+          <h3 style={{margin:0,fontSize:17,color:'var(--danger)'}}>ลบสำนวนออกจากระบบ</h3>
+        </div>
+        <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+          <div style={{background:'rgba(200,30,30,.08)',border:'1px solid rgba(200,30,30,.25)',borderRadius:8,padding:'12px 14px',fontSize:14,lineHeight:1.6}}>
+            <b>คำเตือน:</b> การลบสำนวนไม่สามารถย้อนกลับได้ ข้อมูล ไทม์ไลน์ และไฟล์แนบทั้งหมดจะถูกลบถาวร
+          </div>
+          <div style={{fontSize:14}}>
+            <div style={{marginBottom:4}}>สำนวน: <b>{c.id}</b></div>
+            <div style={{marginBottom:14}}>เรื่อง: <span className="muted">{c.subject}</span></div>
+            <label style={{display:'block',marginBottom:6,fontWeight:500}}>
+              กรอกเลขรับสำนวน <b style={{color:'var(--danger)'}}>{reg}</b> เพื่อยืนยัน
+            </label>
+            <input className="input" autoFocus value={input} onChange={e=>setInput(e.target.value)}
+              placeholder={reg} onKeyDown={e=>e.key==='Enter' && match && doDelete()}
+              style={{borderColor: input && !match ? 'var(--danger)' : ''}}/>
+            {input && !match && <div style={{fontSize:12,color:'var(--danger)',marginTop:4}}>เลขรับไม่ตรง</div>}
+          </div>
+          {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+          <div className="btn-row" style={{marginTop:4}}>
+            <button className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+            <button className="btn" style={{background:'var(--danger)',color:'#fff',opacity:match?1:0.45,cursor:match?'pointer':'not-allowed'}}
+              disabled={!match||busy} onClick={doDelete}>
+              {busy ? <LoadingSpinner/> : <><Icon name="x" style={{width:14,height:14}}/> ลบสำนวน</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CaseDetail({ cid, cases, officers, back, updateCase, role, onCaseDeleted }) {
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [loading, setLoading] = useState(!c || !(c.events));
 
   useEffect(() => {
@@ -724,6 +781,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role }) {
           {canAssign && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
           <button className="btn btn-outline"><Icon name="forward" style={{width:16,height:16}}/> เสนอตามลำดับชั้น</button>
+          {role==="admin" &&
+            <button className="btn btn-outline" style={{color:'var(--danger)',borderColor:'var(--danger)'}}
+              onClick={()=>setShowDelete(true)}>
+              <Icon name="x" style={{width:15,height:15}}/> ลบสำนวน
+            </button>}
         </div>
       </div>
 
@@ -799,6 +861,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role }) {
         await updateCase(c.id, {assignee:oid, status:["screening","received","case"].includes(c.status)?"assigned":c.status});
         api.getCase(c.id).then(full => setC(full));
         setAssign(false);
+      }}/>}
+      {showDelete && <DeleteCaseModal c={c} onClose={()=>setShowDelete(false)} onDeleted={(id)=>{
+        setShowDelete(false);
+        if (onCaseDeleted) onCaseDeleted(id);
+        back();
       }}/>}
     </div>
   );
