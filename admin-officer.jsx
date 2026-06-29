@@ -215,15 +215,13 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
           </div>
-          {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
-
           {/* กลุ่มงาน */}
           <div className="field">
             <label>เสนอมอบหมายให้กลุ่มงาน <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายกลุ่ม)</span></label>
             {groups.length === 0
               ? <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการกลุ่มงาน</div>
               : <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                  {groups.map(g => checkboxRow(selGroups.includes(g.name), ()=>toggleGroup(g.name), g.name))}
+                  {groups.map(g => <React.Fragment key={g.name}>{checkboxRow(selGroups.includes(g.name), ()=>toggleGroup(g.name), g.name)}</React.Fragment>)}
                 </div>
             }
           </div>
@@ -238,11 +236,11 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               return pool.length > 0
                 ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
                     {pool.map(o =>
-                      checkboxRow(
+                      <React.Fragment key={o.id}>{checkboxRow(
                         selPersonnel.includes(o.id),
                         ()=>togglePersonnel(o.id),
                         <span>{o.name}{o.role && <span className="faint" style={{fontSize:12}}> · {o.role}</span>}</span>
-                      )
+                      )}</React.Fragment>
                     )}
                   </div>
                 : <div className="faint sm" style={{padding:'8px 0'}}>
@@ -258,10 +256,11 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
 
+          {err && <div className="notice notice-err" style={{marginTop:4}}><Icon name="alert"/><div>{err}</div></div>}
           <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> เกษียน</>}
+              <Icon name="flag" style={{width:14,height:14}}/> {saving ? 'กำลังบันทึก…' : 'เกษียน'}
             </button>
           </div>
         </form>
