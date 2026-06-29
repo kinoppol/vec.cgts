@@ -408,6 +408,38 @@ if ($confirm === 'proposal_personnel') {
     exit;
 }
 
+/* ── [13] groups table — ตารางกลุ่ม ─────────────────────── */
+if ($confirm === 'groups_table') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [13]: ตาราง groups</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $db->exec("CREATE TABLE IF NOT EXISTS groups (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            name       VARCHAR(100) NOT NULL,
+            leader_id  INT DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_group_name (name),
+            KEY idx_group_leader (leader_id),
+            CONSTRAINT fk_group_leader FOREIGN KEY (leader_id) REFERENCES users (id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        echo "✓ CREATE TABLE groups\n";
+
+        // seed จากชื่อกลุ่มที่มีอยู่ใน users.group_name
+        $existing = $db->query("SELECT DISTINCT group_name FROM users WHERE group_name IS NOT NULL AND group_name != ''")->fetchAll(PDO::FETCH_COLUMN);
+        $ins = $db->prepare("INSERT IGNORE INTO groups (name) VALUES (?)");
+        foreach ($existing as $gname) { $ins->execute([$gname]); echo "✓ seed กลุ่ม: $gname\n"; }
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [12] clerk role — เพิ่มบทบาทธุรการ ───────────────── */
 if ($confirm === 'clerk_role') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -471,6 +503,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[10] ช่องทางรับเรื่อง</b> — เพิ่ม sub_category ใน lookup_items + seed ประเภทหน่วยงาน 4 ประเภท<br><code><a href="?confirm=channel_lookup">migrate.php?confirm=channel_lookup</a></code></li>';
     echo '<li><b>[11] ชั้นความลับ</b> — เปลี่ยน cls ENUM: public/secret/topsecret/classified<br><code><a href="?confirm=cls_enum">migrate.php?confirm=cls_enum</a></code></li>';
     echo '<li><b>[12] บทบาทธุรการ</b> — เพิ่ม clerk ใน users.role ENUM<br><code><a href="?confirm=clerk_role">migrate.php?confirm=clerk_role</a></code></li>';
+    echo '<li><b>[13] ตารางกลุ่ม</b> — สร้าง groups table + seed จาก users.group_name<br><code><a href="?confirm=groups_table">migrate.php?confirm=groups_table</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

@@ -110,6 +110,7 @@ function navFor(role, counts, user) {
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
+    {v:"groups",       ic:"users",      l:"จัดการกลุ่ม"},
   ];
   if (role === "officer") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -120,6 +121,7 @@ function navFor(role, counts, user) {
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงาน"},
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
+    ...(user?.leader_of_group ? [{sec:"กลุ่ม"},{v:"my-group",ic:"users",l:"กลุ่มของฉัน"}] : []),
   ];
   if (role === "clerk") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -127,6 +129,7 @@ function navFor(role, counts, user) {
     {v:"cases",     ic:"inbox",    l:"งานที่ได้รับมอบหมาย", count:counts.newQ},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+    ...(user?.leader_of_group ? [{sec:"กลุ่ม"},{v:"my-group",ic:"users",l:"กลุ่มของฉัน"}] : []),
   ];
   if (role === "head_secretary") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -135,6 +138,7 @@ function navFor(role, counts, user) {
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+    ...(user?.leader_of_group ? [{sec:"กลุ่ม"},{v:"my-group",ic:"users",l:"กลุ่มของฉัน"}] : []),
   ];
   if (role === "dir_legal") return [
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
@@ -599,6 +603,10 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <TodoPage/>;
   } else if (view === "sla" && (role === "admin" || role === "dir_legal")) {
     content = <SlaSettingsPage currentUser={user}/>;
+  } else if (view === "groups" && role === "admin") {
+    content = <GroupsPage currentUser={user}/>;
+  } else if (view === "my-group" && user?.leader_of_group) {
+    content = <MyGroupPage currentUser={user}/>;
   } else if (view === "calendar") {
     content = <CalendarPage officers={officers} currentUser={user}/>;
   }

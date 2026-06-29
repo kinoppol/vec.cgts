@@ -279,3 +279,17 @@ CREATE TABLE IF NOT EXISTS calendar_events (
   CONSTRAINT fk_cal_officer FOREIGN KEY (officer_id) REFERENCES officers (id) ON DELETE SET NULL,
   CONSTRAINT fk_cal_user    FOREIGN KEY (created_by) REFERENCES users    (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- groups: กลุ่มผู้ใช้งาน
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS groups (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  name       VARCHAR(100) NOT NULL,
+  leader_id  INT          DEFAULT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_group_name (name),
+  KEY idx_group_leader (leader_id),
+  CONSTRAINT fk_group_leader FOREIGN KEY (leader_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -39,6 +39,12 @@ if (!empty($_SESSION['user_id'])) {
         if ($initialUser) {
             $initialUser['can_manage_users']  = (bool)($initialUser['can_manage_users'] ?? false);
             $initialUser['is_impersonating']  = !empty($_SESSION['impersonator_id']);
+            // ตรวจว่าเป็นหัวหน้ากลุ่มหรือเปล่า
+            try {
+                $lg = $db->prepare('SELECT id, name FROM groups WHERE leader_id = ? LIMIT 1');
+                $lg->execute([$_SESSION['user_id']]);
+                $initialUser['leader_of_group'] = $lg->fetch() ?: null;
+            } catch (Throwable) { $initialUser['leader_of_group'] = null; }
             if ($initialUser['is_impersonating']) {
                 $initialUser['impersonator_id']   = (int)$_SESSION['impersonator_id'];
                 $initialUser['impersonator_name'] = $_SESSION['impersonator_name'] ?? '';
@@ -117,7 +123,7 @@ window.__APP_VERSION__   = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE)
         crossorigin="anonymous"></script>
 
 <?php
-$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','admin-roles','admin-officers','admin-lookup','admin-exec','admin-case-tasks','admin-calendar','app'];
+$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','admin-roles','admin-officers','admin-lookup','admin-exec','admin-case-tasks','admin-calendar','admin-groups','app'];
 foreach ($jsxFiles as $f):
     $mt = filemtime(__DIR__ . "/{$f}.jsx");
 ?>
