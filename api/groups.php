@@ -150,12 +150,13 @@ if ($method === 'POST') {
     $dup->execute([$name]);
     if ($dup->fetch()) err('ชื่อกลุ่มนี้มีอยู่แล้ว', 409);
 
-    $db->prepare("INSERT INTO groups (name) VALUES (?)")->execute([$name]);
+    $leaderRole = $body['leader_role'] ?: null;
+    $db->prepare("INSERT INTO groups (name, leader_role) VALUES (?,?)")->execute([$name, $leaderRole]);
     $nid = (int)$db->lastInsertId();
     audit('group_create', $nid, $name);
 
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, NULL AS leader_name, NULL AS leader_init, 0 AS member_count
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, NULL AS leader_name, NULL AS leader_init, 0 AS member_count
          FROM groups g WHERE g.id=?"
     );
     $stmt->execute([$nid]);

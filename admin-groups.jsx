@@ -3,7 +3,8 @@
    ============================================================ */
 
 function GroupFormModal({ group, onSave, onClose }) {
-  const [name, setName] = useState(group ? group.name : "");
+  const [name,       setName]       = useState(group ? group.name : "");
+  const [leaderRole, setLeaderRole] = useState(group ? (group.leader_role||"") : "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -12,24 +13,35 @@ function GroupFormModal({ group, onSave, onClose }) {
     if (!name.trim()) { setErr("กรุณาระบุชื่อกลุ่ม"); return; }
     setSaving(true); setErr("");
     try {
+      const payload = { name: name.trim(), leader_role: leaderRole||null };
       const result = group
-        ? await api.updateGroup(group.id, { name: name.trim() })
-        : await api.createGroup({ name: name.trim() });
+        ? await api.updateGroup(group.id, payload)
+        : await api.createGroup(payload);
       onSave(result);
     } catch(e) { setErr(e.message); setSaving(false); }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{maxWidth:400}} onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxWidth:420}} onClick={e=>e.stopPropagation()}>
         <div className="modal-head">
-          <h3>{group ? "แก้ไขชื่อกลุ่ม" : "เพิ่มกลุ่มใหม่"}</h3>
+          <h3>{group ? "แก้ไขกลุ่ม" : "เพิ่มกลุ่มใหม่"}</h3>
           <button className="btn-close" onClick={onClose}><Icon name="x"/></button>
         </div>
         <form onSubmit={submit} style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:14}}>
-          <div>
-            <label className="label">ชื่อกลุ่ม</label>
+          <div className="field">
+            <label className="label">ชื่อกลุ่ม <span className="req">*</span></label>
             <input className="input" value={name} onChange={e=>setName(e.target.value)} autoFocus placeholder="เช่น กลุ่มงานวินัย"/>
+          </div>
+          <div className="field">
+            <label className="label">บทบาทเฉพาะสำหรับหัวหน้ากลุ่ม</label>
+            <select className="select" value={leaderRole} onChange={e=>setLeaderRole(e.target.value)}>
+              <option value="">— ไม่กำหนด (เหมือนสมาชิกทั่วไป) —</option>
+              {ROLE_ORDER.map(r => (
+                <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>
+              ))}
+            </select>
+            <div className="tiny faint" style={{marginTop:4}}>เมื่อแต่งตั้งหัวหน้ากลุ่ม ระบบจะกำหนดบทบาทนี้ให้โดยอัตโนมัติ</div>
           </div>
           {err && <div className="notice notice-danger"><Icon name="alert"/><span>{err}</span></div>}
           <div className="modal-foot">
@@ -128,7 +140,7 @@ function GroupsPage({ currentUser }) {
       return idx >= 0 ? gs.map(g => g.id === grp.id ? {...g, ...grp} : g) : [...gs, grp];
     });
     setShowForm(false); setEditGroup(null);
-    if (grp.id === selId) setDetail(d => d ? {...d, name: grp.name} : d);
+    if (grp.id === selId) setDetail(d => d ? {...d, name: grp.name, leader_role: grp.leader_role??d.leader_role} : d);
   }
 
   async function handleDelete(grp) {
