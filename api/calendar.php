@@ -117,7 +117,13 @@ function syncAllSlaCalEvents(PDO $db, int $userId, ?string $officerFilter = null
     $stmt->execute($params);
     $cases = $stmt->fetchAll();
 
-    $delStmt = $db->prepare("DELETE FROM calendar_events WHERE event_type='sla_deadline' AND case_id=?");
+    // เพิ่ม sla_deadline เข้า ENUM อัตโนมัติถ้ายังไม่มี (ป้องกัน server ที่ไม่ได้รัน migration)
+    try {
+        $db->exec("ALTER TABLE calendar_events MODIFY event_type
+            ENUM('meeting','court','investigation','document','committee','sla_deadline') NOT NULL");
+    } catch (Throwable) {}
+
+    $delStmt = $db->prepare("DELETE FROM calendar_events WHERE CONVERT(event_type USING utf8mb4)='sla_deadline' AND case_id=?");
     $insStmt = $db->prepare("
         INSERT INTO calendar_events (event_type, title, event_date, case_id, officer_id, created_by)
         VALUES ('sla_deadline', ?, ?, ?, ?, ?)
@@ -240,28 +246,31 @@ if ($method === 'GET' && !$id) {
     $closedCases = $clStmt->fetchAll();
 
     // งานย่อยที่เสร็จในเดือนนี้ (กรองด้วย ct.officer_id หรือ o.group_name)
-    $taskWhere = '';
-    $taskParams = [$from, $to];
-    if ($filterOfficerId) {
-        $taskWhere = ' AND ct.officer_id = ?';
-        $taskParams[] = $filterOfficerId;
-    } elseif ($filterGroupName) {
-        $taskWhere = ' AND o.group_name = ?';
-        $taskParams[] = $filterGroupName;
-    }
-    $tdStmt = $db->prepare("
-        SELECT ct.id, ct.task_name, ct.case_id, DATE(ct.completed_at) AS event_date,
-               c.subject AS case_subject, o.name AS officer_name, o.init AS officer_init
-        FROM case_tasks ct
-        JOIN cases c ON c.id = ct.case_id
-        LEFT JOIN officers o ON o.id = ct.officer_id
-        WHERE ct.status = 'done' AND ct.completed_at IS NOT NULL
-          AND DATE(ct.completed_at) BETWEEN ? AND ?
-        {$taskWhere}
-        ORDER BY ct.completed_at
-    ");
-    $tdStmt->execute($taskParams);
-    $doneTasks = $tdStmt->fetchAll();
+    $doneTasks = [];
+    try {
+        $taskWhere = '';
+        $taskParams = [$from, $to];
+        if ($filterOfficerId) {
+            $taskWhere = ' AND ct.officer_id = ?';
+            $taskParams[] = $filterOfficerId;
+        } elseif ($filterGroupName) {
+            $taskWhere = ' AND o.group_name = ?';
+            $taskParams[] = $filterGroupName;
+        }
+        $tdStmt = $db->prepare("
+            SELECT ct.id, ct.task_name, ct.case_id, DATE(ct.completed_at) AS event_date,
+                   c.subject AS case_subject, o.name AS officer_name, o.init AS officer_init
+            FROM case_tasks ct
+            JOIN cases c ON c.id = ct.case_id
+            LEFT JOIN officers o ON o.id = ct.officer_id
+            WHERE ct.status = 'done' AND ct.completed_at IS NOT NULL
+              AND DATE(ct.completed_at) BETWEEN ? AND ?
+            {$taskWhere}
+            ORDER BY ct.completed_at
+        ");
+        $tdStmt->execute($taskParams);
+        $doneTasks = $tdStmt->fetchAll();
+    } catch (Throwable) { /* ตาราง case_tasks อาจยังไม่มีบน server นี้ */ }
 
     // รายชื่อ officers ที่ผู้ใช้นี้มีสิทธิ์ดู (สำหรับ dropdown ใน frontend)
     if ($currentRole === 'officer') {
@@ -275,36 +284,42 @@ if ($method === 'GET' && !$id) {
     }
 
     // SLA deadlines — สำนวนที่ยังไม่ปิดและมีวันครบ SLA ในเดือนนี้
-    $slaWhere = '';
-    $slaParams = [$from, $to];
-    if ($filterOfficerId) {
-        $slaWhere = ' AND c.assignee_id = ?';
-        $slaParams[] = $filterOfficerId;
-    } elseif ($filterGroupName) {
-        $slaWhere = ' AND o.group_name = ?';
-        $slaParams[] = $filterGroupName;
-    }
-    $slaStmt = $db->prepare("
-        SELECT c.id AS case_id, c.subject, c.track, c.cat, c.received_date,
-               c.sla AS sla_color, c.status,
-               DATE_ADD(c.received_date, INTERVAL ss.days DAY) AS sla_deadline,
-               ss.days AS sla_days,
-               o.name AS officer_name, o.init AS officer_init
-        FROM cases c
-        LEFT JOIN officers o ON o.id = c.assignee_id
-        JOIN sla_settings ss ON ss.track = c.track AND ss.cat = c.cat
-        WHERE c.status != 'closed'
-          AND c.received_date IS NOT NULL
-          AND DATE_ADD(c.received_date, INTERVAL ss.days DAY) BETWEEN ? AND ?
-          AND c.id NOT IN (
-              SELECT case_id FROM calendar_events
-              WHERE event_type='sla_deadline' AND case_id IS NOT NULL
-          )
-        {$slaWhere}
-        ORDER BY sla_deadline
-    ");
-    $slaStmt->execute($slaParams);
-    $slaDeadlines = $slaStmt->fetchAll();
+    // (แสดงเฉพาะที่ยังไม่มี stored event — ป้องกัน duplicate)
+    $slaDeadlines = [];
+    try {
+        $slaWhere = '';
+        $slaParams = [$from, $to];
+        if ($filterOfficerId) {
+            $slaWhere = ' AND c.assignee_id = ?';
+            $slaParams[] = $filterOfficerId;
+        } elseif ($filterGroupName) {
+            $slaWhere = ' AND o.group_name = ?';
+            $slaParams[] = $filterGroupName;
+        }
+        // ใช้ CONVERT เพื่อหลีกเลี่ยงปัญหา ENUM strict mode บน server เก่า
+        $slaStmt = $db->prepare("
+            SELECT c.id AS case_id, c.subject, c.track, c.cat, c.received_date,
+                   c.sla AS sla_color, c.status,
+                   DATE_ADD(c.received_date, INTERVAL ss.days DAY) AS sla_deadline,
+                   ss.days AS sla_days,
+                   o.name AS officer_name, o.init AS officer_init
+            FROM cases c
+            LEFT JOIN officers o ON o.id = c.assignee_id
+            JOIN sla_settings ss ON ss.track = c.track AND ss.cat = c.cat
+            WHERE c.status != 'closed'
+              AND c.received_date IS NOT NULL
+              AND DATE_ADD(c.received_date, INTERVAL ss.days DAY) BETWEEN ? AND ?
+              AND c.id NOT IN (
+                  SELECT case_id FROM calendar_events
+                  WHERE CONVERT(event_type USING utf8mb4) = 'sla_deadline'
+                    AND case_id IS NOT NULL
+              )
+            {$slaWhere}
+            ORDER BY sla_deadline
+        ");
+        $slaStmt->execute($slaParams);
+        $slaDeadlines = $slaStmt->fetchAll();
+    } catch (Throwable) { /* sla_deadline ENUM อาจยังไม่ได้รัน migration */ }
 
     json_out(['events' => $events, 'due_dates' => $dueDates,
               'closed_cases' => $closedCases, 'done_tasks' => $doneTasks,
