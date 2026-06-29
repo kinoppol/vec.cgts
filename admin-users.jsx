@@ -4,6 +4,7 @@
 
 const ROLE_BADGE = {
   officer:          'badge',
+  head_secretary:   'badge-ok',
   dir_legal:        'badge-info',
   dir_admin:        'badge-warn',
   secretary:        'badge-maroon',
@@ -36,8 +37,12 @@ function LookupSelect({ value, items, placeholder, onChange, style }) {
 }
 
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, roleLabels, isAdmin, onSave, onAvatarChange, onClose }) {
-  const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
+function UserModal({ user, officers, roleLabels, isAdmin, isDirLegal, onSave, onAvatarChange, onClose }) {
+  // dir_legal มอบหมายได้เฉพาะ head_secretary; admin เห็นทุก role
+  const allowedRoles = isDirLegal && !isAdmin
+    ? ['officer', 'head_secretary']
+    : ROLE_ORDER;
+  const roleOpts = allowedRoles.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
     username:'', display_name:'', role:'officer',
@@ -444,10 +449,12 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
 
       {modal?.type === 'add' && (
         <UserModal officers={officers} roleLabels={roleLabels} isAdmin={currentUser?.role==='admin'}
+          isDirLegal={currentUser?.role==='dir_legal'}
           onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
         <UserModal user={modal.user} officers={officers} roleLabels={roleLabels} isAdmin={currentUser?.role==='admin'}
+          isDirLegal={currentUser?.role==='dir_legal'}
           onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (

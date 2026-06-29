@@ -48,11 +48,13 @@ if ($method === 'POST') {
     if ($display_name === '') err('กรุณาระบุชื่อแสดง (หรือเลือกบุคลากรที่เชื่อมโยง)');
     if (strlen($password) < 6) err('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
-    $validRoles = ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+    $validRoles = ['officer','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
     if (!in_array($role, $validRoles)) err('role ไม่ถูกต้อง');
 
     // ป้องกัน non-admin สร้าง admin
     if ($role === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์สร้างบัญชี admin', 403);
+    // dir_legal สร้างได้เฉพาะ officer / head_secretary
+    if ($actor['role'] === 'dir_legal' && !in_array($role, ['officer','head_secretary'])) err('ไม่มีสิทธิ์กำหนด role นี้', 403);
 
     $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
@@ -121,8 +123,9 @@ if ($method === 'PATCH' && $id) {
     foreach ($allowed as $col) {
         if (!array_key_exists($col, $b)) continue;
         if ($col === 'role') {
-            if (!in_array($b[$col], ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'])) err('role ไม่ถูกต้อง');
+            if (!in_array($b[$col], ['officer','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'])) err('role ไม่ถูกต้อง');
             if ($b[$col] === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์ตั้ง role admin', 403);
+            if ($actor['role'] === 'dir_legal' && !in_array($b[$col], ['officer','head_secretary'])) err('ไม่มีสิทธิ์กำหนด role นี้', 403);
         }
         $sets[] = "`{$col}` = ?";
         $vals[] = $b[$col] === '' ? null : $b[$col];

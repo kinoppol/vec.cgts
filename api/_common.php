@@ -40,7 +40,7 @@ function require_auth(): array {
 
 function require_user_manager(): array {
     $u = require_auth();
-    if ($u['role'] !== 'admin' && empty($_SESSION['can_manage_users'])) {
+    if ($u['role'] !== 'admin' && $u['role'] !== 'dir_legal' && empty($_SESSION['can_manage_users'])) {
         err('Forbidden', 403);
     }
     return $u;

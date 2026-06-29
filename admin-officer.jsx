@@ -92,6 +92,244 @@ function OfficerDashboard({ cases, officers, openCase, setView }) {
   );
 }
 
+/* ---------------- แดชบอร์ดหัวหน้าธุรการ ---------------- */
+function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed }) {
+  const unassigned = cases.filter(c => !c.assignee && !['closed','rejected'].includes(c.status));
+  const [propModal, setPropModal] = useState(null); // { case }
+
+  return (
+    <div className="fade-in">
+      <PageHead title="แดชบอร์ดหัวหน้าธุรการ" sub="สำนวนที่ยังไม่ได้รับการมอบหมาย — นำเสนอผู้อำนวยการสำนักนิติการ">
+        <button className="btn btn-outline" onClick={()=>setView("cases")}><Icon name="inbox" style={{width:16,height:16}}/> ดูสำนวนทั้งหมด</button>
+      </PageHead>
+
+      <div className="grid" style={{gridTemplateColumns:"repeat(3,1fr)",marginBottom:22}}>
+        <StatCard ic="inbox" lbl="รอมอบหมาย" num={unassigned.length} sub="ต้องนำเสนอผู้อำนวยการ" tone="warn"/>
+        <StatCard ic="alert" lbl="เร่งด่วน" num={unassigned.filter(c=>c.priority==='เร่งด่วน').length} sub="ต้องดำเนินการก่อน" tone="danger"/>
+        <StatCard ic="clock" lbl="รับเรื่องวันนี้" num={unassigned.filter(c=>c.received===new Date().toISOString().slice(0,10)).length} sub="เรื่องที่เข้ามาวันนี้" tone="info"/>
+      </div>
+
+      <div className="card">
+        <div className="card-h">
+          <h3>สำนวนรอมอบหมาย</h3>
+          <span className="badge badge-warn">{unassigned.length} เรื่อง</span>
+        </div>
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>รหัส/เลขรับ</th><th>เรื่อง</th><th>สายงาน</th><th>สถานะ</th><th>วันที่รับ</th><th>ความสำคัญ</th><th></th></tr></thead>
+            <tbody>
+              {unassigned.map(c=>(
+                <tr key={c.id}>
+                  <td onClick={()=>openCase(c.id)} style={{cursor:'pointer'}}>
+                    <div className="code">{c.id}</div>
+                    <div className="faint tiny">{c.reg!=="—"?c.reg:"ยังไม่ลงทะเบียน"}</div>
+                  </td>
+                  <td style={{maxWidth:240}} onClick={()=>openCase(c.id)} style={{cursor:'pointer'}}>
+                    <div style={{fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.subject}</div>
+                    {c.anon && <span className="badge badge-warn" style={{marginTop:4,fontSize:11}}>ไม่ประสงค์ออกนาม</span>}
+                  </td>
+                  <td className="sm"><span className="badge badge-maroon">{TRACKS[c.track]?.label}</span></td>
+                  <td><StatusBadge s={c.status}/></td>
+                  <td className="sm muted tnum">{thDate(c.received)}</td>
+                  <td><PriBadge p={c.priority}/></td>
+                  <td>
+                    <button className="btn btn-primary btn-sm" onClick={()=>setPropModal({case:c})}>
+                      <Icon name="flag" style={{width:14,height:14}}/> นำเสนอ
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {unassigned.length===0 && (
+                <tr><td colSpan={7} style={{textAlign:"center",padding:"32px 0",color:"var(--ink-3)"}}>ไม่มีสำนวนรอมอบหมาย</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {propModal && (
+        <ProposeModal case_={propModal.case} officers={officers}
+          onClose={()=>setPropModal(null)}
+          onSaved={()=>{ setPropModal(null); onProposed && onProposed(); }}/>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Modal นำเสนอมอบหมาย (head_secretary) ---------------- */
+function ProposeModal({ case_, officers, onClose, onSaved }) {
+  const [officerId, setOfficerId] = useState('');
+  const [note, setNote]           = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [err, setErr]             = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true); setErr('');
+    try {
+      await api.proposeAssign({ case_id: case_.id, proposed_officer: officerId || null, note: note || null });
+      onSaved();
+    } catch(e) {
+      setErr(e.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:460}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <h3 style={{margin:0,fontSize:16}}>นำเสนอมอบหมายสำนวน</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
+        </div>
+        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+          <div className="notice notice-warn" style={{fontSize:13}}>
+            <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
+          </div>
+          {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+          <div className="field">
+            <label>เสนอมอบหมายให้นิติกร <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
+            <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
+              <option value="">— ไม่ระบุ / ให้ผอ.พิจารณา —</option>
+              {officers.filter(o=>o.active).map(o=>(
+                <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>หมายเหตุถึงผู้อำนวยการ</label>
+            <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="เหตุผลที่นำเสนอ หรือข้อมูลเพิ่มเติม"/>
+          </div>
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4}}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> ส่งนำเสนอ</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- หน้าข้อเสนอรอพิจารณา (dir_legal) ---------------- */
+function AssignProposalsPage({ proposals, officers, onApproved }) {
+  const [modal, setModal] = useState(null); // proposal object
+
+  if (proposals.length === 0) {
+    return (
+      <div className="fade-in">
+        <PageHead title="ข้อเสนอรอพิจารณา" sub="ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ"/>
+        <div className="card card-pad" style={{textAlign:'center',color:'var(--ink-3)'}}>ไม่มีข้อเสนอที่รอพิจารณา</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-in">
+      <PageHead title="ข้อเสนอรอพิจารณา" sub="ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ">
+        <span className="badge badge-warn">{proposals.length} รายการ</span>
+      </PageHead>
+      <div className="card">
+        <div className="table-wrap">
+          <table className="tbl">
+            <thead><tr><th>สำนวน</th><th>เรื่อง</th><th>เสนอโดย</th><th>นิติกรที่เสนอ</th><th>หมายเหตุ</th><th>วันที่เสนอ</th><th></th></tr></thead>
+            <tbody>
+              {proposals.map(p=>{
+                const o = officerById(officers, p.proposed_officer);
+                return (
+                  <tr key={p.id}>
+                    <td><div className="code sm">{p.case_id}</div></td>
+                    <td style={{maxWidth:220}}><div style={{fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.case_subject}</div></td>
+                    <td className="sm">{p.proposed_by_name}</td>
+                    <td>{o ? <div className="vcenter"><span className="avatar avatar-sm">{o.init}</span><span className="sm">{o.name}</span></div> : <span className="faint sm">ไม่ระบุ</span>}</td>
+                    <td className="sm muted">{p.propose_note || '—'}</td>
+                    <td className="sm muted tnum">{thDate(p.created_at?.slice(0,10))}</td>
+                    <td>
+                      <button className="btn btn-primary btn-sm" onClick={()=>setModal(p)}>
+                        <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {modal && (
+        <ApproveProposalModal proposal={modal} officers={officers}
+          onClose={()=>setModal(null)}
+          onApproved={(caseId)=>{ setModal(null); onApproved && onApproved(caseId); }}/>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Modal อนุมัติ/แก้ไขข้อเสนอ (dir_legal) ---------------- */
+function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
+  const [officerId, setOfficerId] = useState(proposal.proposed_officer || '');
+  const [note, setNote]           = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [err, setErr]             = useState('');
+
+  const submit = async (action) => {
+    if (action === 'approve' && !officerId) { setErr('กรุณาเลือกนิติกรก่อนอนุมัติ'); return; }
+    setSaving(true); setErr('');
+    try {
+      await api.approveAssign(proposal.id, { action, final_officer: officerId, review_note: note });
+      onApproved(proposal.case_id);
+    } catch(e) {
+      setErr(e.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <h3 style={{margin:0,fontSize:16}}>พิจารณาข้อเสนอมอบหมาย</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
+        </div>
+        <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+          <div className="notice notice-info" style={{fontSize:13}}>
+            <Icon name="inbox"/><div>สำนวน <b>{proposal.case_id}</b> — {proposal.case_subject}</div>
+          </div>
+          <div className="faint sm">เสนอโดย: <b>{proposal.proposed_by_name}</b></div>
+          {proposal.propose_note && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
+            <b style={{fontSize:12,color:'var(--ink-3)'}}>หมายเหตุจากหัวหน้าธุรการ:</b><br/>{proposal.propose_note}
+          </div>}
+          {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+          <div className="field">
+            <label>มอบหมายให้นิติกร <span className="req">*</span></label>
+            <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
+              <option value="">— เลือกนิติกร —</option>
+              {officers.filter(o=>o.active).map(o=>(
+                <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>หมายเหตุ (ไม่บังคับ)</label>
+            <textarea className="input" rows={2} value={note} onChange={e=>setNote(e.target.value)}/>
+          </div>
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4}}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
+            <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving}>
+              <Icon name="edit" style={{width:14,height:14}}/> เปลี่ยนและมอบหมาย
+            </button>
+            <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving}>
+              {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- รายการเรื่องทั้งหมด ---------------- */
 function CaseListPage({ cases, officers, openCase, title="จัดการเรื่องร้องเรียน–ร้องทุกข์", sub="เรื่องทั้งหมดในระบบ พร้อมสถานะและการติดตาม SLA", lockTrack }) {
   const [q, setQ]           = useState("");
@@ -743,6 +981,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showPropose, setShowPropose] = useState(false);
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
   const [loading, setLoading] = useState(!c || !(c.events));
 
@@ -756,7 +995,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   if (loading) return <LoadingSpinner/>;
   if (!c) return null;
   const o = officerById(officers, c.assignee);
-  const canAssign = role==="officer" || role==="dir_legal";
+  const canAssign = role==="officer" || role==="dir_legal" || role==="admin";
+  const isHeadSec = role==="head_secretary";
 
   return (
     <div className="fade-in">
@@ -781,7 +1021,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         <div className="vcenter" style={{gap:8}}>
           {canAssign && c.status!=="closed" &&
             <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
-          <button className="btn btn-outline"><Icon name="forward" style={{width:16,height:16}}/> เสนอตามลำดับชั้น</button>
+          {isHeadSec && !c.assignee && c.status!=="closed" &&
+            <button className="btn btn-primary" onClick={()=>setShowPropose(true)}>
+              <Icon name="flag" style={{width:16,height:16}}/> นำเสนอมอบหมาย
+            </button>}
           {role==="admin" &&
             <button className="btn btn-outline" style={{color:'var(--danger)',borderColor:'var(--danger)'}}
               onClick={()=>setShowDelete(true)}>
@@ -875,6 +1118,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
       </div>
 
+      {showPropose && <ProposeModal case_={c} officers={officers}
+        onClose={()=>setShowPropose(false)}
+        onSaved={()=>{ setShowPropose(false); back(); }}/>}
       {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={async (oid)=>{
         await updateCase(c.id, {assignee:oid, status:["screening","received","case"].includes(c.status)?"assigned":c.status});
         api.getCase(c.id).then(full => setC(full));
@@ -1008,4 +1254,4 @@ function ImportDocument({ back }) {
   );
 }
 
-Object.assign(window, { PageHead, StatCard, OfficerDashboard, CaseListPage, CaseDetail, AssignModal, ImportDocument });
+Object.assign(window, { PageHead, StatCard, OfficerDashboard, HeadSecretaryDashboard, CaseListPage, CaseDetail, AssignModal, ImportDocument, AssignProposalsPage });

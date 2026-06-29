@@ -180,6 +180,10 @@ const api = {
   updateCaseTask:    (id, data) => apiFetch('/api/case-tasks.php?id=' + id,       { method:'PATCH', body: JSON.stringify(data) }),
   completeTask:      (id, data) => apiFetch('/api/case-tasks.php?action=complete&id=' + id, { method:'POST', body: JSON.stringify(data) }),
   approveProposal:   (pid, data)=> apiFetch('/api/case-tasks.php?action=approve&proposal_id=' + pid, { method:'POST', body: JSON.stringify(data) }),
+  // ข้อเสนอมอบหมายสำนวน (head_secretary → dir_legal)
+  getAssignProposals: (caseId)  => apiFetch('/api/proposals.php' + (caseId ? '?case_id=' + encodeURIComponent(caseId) : '')),
+  proposeAssign:      (data)    => apiFetch('/api/proposals.php', { method:'POST', body: JSON.stringify(data) }),
+  approveAssign:      (id, data)=> apiFetch('/api/proposals.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)
@@ -225,13 +229,14 @@ function LoadingSpinner() {
 /* ---------------- Role label helpers ---------------- */
 const DEFAULT_ROLE_LABELS = {
   officer:          'เจ้าหน้าที่นิติการ / ธุรการ',
+  head_secretary:   'หัวหน้าธุรการ',
   dir_legal:        'ผอ.กลุ่มนิติการ',
   dir_admin:        'ผอ.สำนักอำนวยการ',
   secretary:        'เลขาธิการ สอศ.',
   deputy_secretary: 'รองเลขาธิการ สอศ.',
   admin:            'ผู้ดูแลระบบ',
 };
-const ROLE_ORDER = ['officer','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+const ROLE_ORDER = ['officer','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
 function roleLabel(role, rl) { return (rl && rl[role]) || DEFAULT_ROLE_LABELS[role] || role; }
 
 Object.assign(window, {

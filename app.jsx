@@ -94,7 +94,7 @@ function AdminLogin({ go, onLogin }) {
 /* ---------------- Admin shell ---------------- */
 
 function canManageUsers(user) {
-  return user?.role === 'admin' || !!user?.can_manage_users;
+  return user?.role === 'admin' || user?.role === 'dir_legal' || !!user?.can_manage_users;
 }
 
 function navFor(role, counts, user) {
@@ -121,14 +121,24 @@ function navFor(role, counts, user) {
     {v:"reports",   ic:"chart",    l:"รายงาน"},
     ...(canManageUsers(user) ? [{sec:"ระบบ"},{v:"users",ic:"users",l:"จัดการผู้ใช้"}] : []),
   ];
+  if (role === "head_secretary") return [
+    {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
+    {sec:"การดำเนินงาน"},
+    {v:"cases",     ic:"inbox",    l:"สำนวนรอมอบหมาย", count:counts.newQ},
+    {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
+    {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+  ];
   if (role === "dir_legal") return [
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"สำนวนทั้งหมด"},
+    {v:"proposals", ic:"flag",     l:"ข้อเสนอรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
     {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
+    {sec:"ระบบ"},
+    {v:"users",     ic:"users",    l:"จัดการผู้ใช้"},
   ];
   // deputy_secretary, secretary, dir_admin
   return [
@@ -487,6 +497,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const [officers, setOfficers]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [roleLabels, setRoleLabels] = useState(window.__ROLE_LABELS__ || {});
+  const [pendingProposals, setPendingProposals] = useState([]);
 
   useEffect(() => {
     Promise.all([api.getCases(), api.getOfficers()])
@@ -495,12 +506,21 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (role === 'dir_legal' || role === 'admin') {
+      api.getAssignProposals().then(setPendingProposals).catch(() => {});
+    }
+  }, [role]);
+
   const refreshCases = async () => {
     const fresh = await api.getCases().catch(() => cases);
     setCases(fresh);
   };
 
-  const counts = { newQ: cases.filter(c=>["received","screening"].includes(c.status)).length };
+  const counts = {
+    newQ: cases.filter(c=>["received","screening"].includes(c.status)).length,
+    pendingProposals: pendingProposals.length,
+  };
   const nav    = navFor(role, counts, user);
   const openCase = (id) => { setSel(id); setView("case-detail"); };
   const updateCase = async (id, patch) => {
@@ -516,7 +536,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     exec:"Dashboard ผู้บริหาร",
     dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
-    vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้",
+    vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้", proposals:"ข้อเสนอรอพิจารณา",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
     "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง",
     calendar:"ปฏิทินการดำเนินงาน",
@@ -530,14 +550,27 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       currentUser={user} onCaseDeleted={id=>setCases(cs=>cs.filter(c=>c.id!==id))}/>;
   } else if (view === "exec") {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
+  } else if (view === "proposals") {
+    content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
+      onApproved={(caseId) => {
+        api.getAssignProposals().then(setPendingProposals).catch(()=>{});
+        refreshCases();
+        openCase(caseId);
+      }}/>;
   } else if (view === "dashboard") {
     content = role === "officer"
       ? <OfficerDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
+      : role === "head_secretary"
+      ? <HeadSecretaryDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}
+          onProposed={() => refreshCases()}/>
       : role === "dir_legal"
       ? <DirLegalDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
       : <DirAdminDashboard cases={cases} officers={officers} setView={setView}/>;
   } else if (view === "cases") {
-    content = <CaseListPage cases={cases} officers={officers} openCase={openCase}/>;
+    const caseListTitle = role === "head_secretary" ? "สำนวนรอมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
+    const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : undefined;
+    content = <CaseListPage cases={cases} officers={officers} openCase={openCase}
+      title={caseListTitle} sub={caseListSub}/>;
   } else if (view === "import") {
     content = <ImportDocument back={()=>{ setView("dashboard"); refreshCases(); }}/>;
   } else if (view === "vault") {

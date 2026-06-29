@@ -215,11 +215,31 @@ if ($method === 'GET' && $id !== '') {
 
 /* ====== GET /api/cases.php — รายการสำนวน (ต้อง login) ====== */
 if ($method === 'GET') {
-    require_auth();
+    $auth = require_auth();
     $db = getDB();
+
+    // ดึง officer_id ของผู้ใช้ปัจจุบัน
+    $uInfo = $db->prepare('SELECT officer_id FROM users WHERE id=?');
+    $uInfo->execute([$auth['id']]);
+    $myOfficerId = $uInfo->fetchColumn();
 
     $where  = [];
     $params = [];
+
+    // กรองตาม role
+    if ($auth['role'] === 'head_secretary') {
+        // หัวหน้าธุรการ: เห็นเฉพาะสำนวนที่ยังไม่ได้มอบหมาย
+        $where[] = 'c.assignee_id IS NULL';
+    } elseif (in_array($auth['role'], ['officer', 'secretary'], true)) {
+        // เจ้าหน้าที่/ธุรการทั่วไป: เห็นเฉพาะสำนวนที่มอบหมายให้ตัวเอง
+        if ($myOfficerId) {
+            $where[] = 'c.assignee_id = ?';
+            $params[] = $myOfficerId;
+        } else {
+            $where[] = '0=1'; // ไม่เชื่อมกับ officer → ไม่เห็นอะไร
+        }
+    }
+    // admin, dir_legal, dir_admin, deputy_secretary, secretary ระดับสูง: เห็นทุกสำนวน
 
     if (!empty($_GET['track'])) {
         $where[] = 'c.track = ?';
