@@ -49,7 +49,7 @@ function AdminLogin({ go, onLogin }) {
           <div><div style={{fontWeight:700,fontSize:15}}>สำนักงานคณะกรรมการการอาชีวศึกษา</div><div style={{fontSize:12,opacity:.85}}>Office of Vocational Education Commission</div></div>
         </div>
         <div style={{position:"relative"}}>
-          <h1 style={{fontSize:32,fontWeight:700,letterSpacing:"-.02em"}}>ระบบบริหารจัดการ<br/>งานนิติการ</h1>
+          <h1 style={{fontSize:32,fontWeight:700,letterSpacing:"-.02em"}}>ระบบบริหารงานนิติการ</h1>
           <p style={{opacity:.9,marginTop:14,lineHeight:1.7,maxWidth:380}}>สำหรับเจ้าหน้าที่กลุ่มนิติการและผู้บริหาร ในการรับเรื่อง คัดกรอง สอบสวน และติดตามผลการดำเนินงานอย่างปลอดภัยและตรวจสอบได้</p>
           <div className="vcenter" style={{gap:18,marginTop:26,flexWrap:"wrap"}}>
             <span className="vcenter tiny" style={{gap:7,opacity:.9}}><Icon name="shieldCheck" style={{width:16,height:16}}/> RBAC + Audit</span>
@@ -647,7 +647,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       <aside className="sidebar" style={user.is_impersonating ? {marginTop:36} : {}}>
         <div className="sb-brand">
           <img src="assets/ovec-logo.svg" alt=""/>
-          <div><div className="t1">งานนิติการ สอศ.</div><div className="t2">ระบบบริหารจัดการ</div></div>
+          <div><div className="t1">งานนิติการ สอศ.</div><div className="t2">ระบบบริหารงานนิติการ</div></div>
         </div>
         <nav className="sb-nav">
           {nav.map((n,i) => n.sec
