@@ -509,6 +509,12 @@ if ($confirm === 'clerk_role') {
         $db = getDB();
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+        // แก้ไข role ที่ไม่อยู่ใน ENUM ใหม่ก่อน ALTER (ป้องกัน "Data truncated")
+        $valid = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+        $in    = implode(',', array_map(fn($v) => "'$v'", $valid));
+        $fixed = $db->exec("UPDATE users SET role='officer' WHERE role IS NULL OR role NOT IN ($in)");
+        if ($fixed > 0) echo "✓ แก้ไข $fixed แถวที่มี role ไม่ถูกต้อง → officer\n";
+
         $db->exec("ALTER TABLE users MODIFY role ENUM('officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin') NOT NULL DEFAULT 'officer'");
         echo "✓ ALTER users.role ENUM เพิ่ม clerk\n";
 
