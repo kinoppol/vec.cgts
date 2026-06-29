@@ -168,6 +168,11 @@ const api = {
   createOfficer:     (data)     => apiFetch('/api/officers.php', { method:'POST', body: JSON.stringify(data) }),
   updateOfficer:     (id, data) => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
   deactivateOfficer: (id)       => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
+  // ปฏิทิน
+  getCalendar:    (y,m)     => apiFetch(`/api/calendar.php?year=${y}&month=${m}`),
+  createCalEvent: (data)    => apiFetch('/api/calendar.php', { method:'POST', body: JSON.stringify(data) }),
+  updateCalEvent: (id,data) => apiFetch('/api/calendar.php?id='+id, { method:'PATCH', body: JSON.stringify(data) }),
+  deleteCalEvent: (id)      => apiFetch('/api/calendar.php?id='+id, { method:'DELETE' }),
   // งานย่อย (case tasks)
   getCaseTasks:      (caseId)   => apiFetch('/api/case-tasks.php?case_id=' + encodeURIComponent(caseId)),
   initCaseTasks:     (data)     => apiFetch('/api/case-tasks.php?action=init',    { method:'POST', body: JSON.stringify(data) }),

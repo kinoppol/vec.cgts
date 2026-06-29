@@ -117,7 +117,7 @@ window.__APP_VERSION__   = <?= json_encode(appVersion(), JSON_UNESCAPED_UNICODE)
         crossorigin="anonymous"></script>
 
 <?php
-$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','admin-roles','admin-officers','admin-lookup','admin-exec','admin-case-tasks','app'];
+$jsxFiles = ['data','public','admin-officer','admin-directors','admin-users','admin-sla','admin-roles','admin-officers','admin-lookup','admin-exec','admin-case-tasks','admin-calendar','app'];
 foreach ($jsxFiles as $f):
     $mt = filemtime(__DIR__ . "/{$f}.jsx");
 ?>
