@@ -129,6 +129,13 @@ if ($method === 'PATCH' && $id) {
             if ($b[$col] === 'admin' && $actor['role'] !== 'admin') err('ไม่มีสิทธิ์ตั้ง role admin', 403);
             if ($actor['role'] === 'dir_legal' && !in_array($b[$col], ['officer','head_secretary',''])) err('ไม่มีสิทธิ์กำหนด role นี้', 403);
             $b[$col] = ($b[$col] === '' || $b[$col] === null) ? null : $b[$col];
+            // ถ้า role=NULL แต่ column ยังไม่ nullable (migration [15] ยังไม่รัน) → skip
+            if ($b[$col] === null) {
+                $colInfo = $db->query("SHOW COLUMNS FROM users LIKE 'role'")->fetch();
+                if ($colInfo && $colInfo['Null'] === 'NO') {
+                    continue; // ไม่ update role ถ้า column ยังเป็น NOT NULL
+                }
+            }
         }
         $sets[] = "`{$col}` = ?";
         $vals[] = $b[$col] === '' ? null : $b[$col];
