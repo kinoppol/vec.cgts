@@ -329,15 +329,18 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
 
 /* ---------------- Modal อนุมัติ/แก้ไขข้อเสนอ (dir_legal) ---------------- */
 function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
-  const [officerId, setOfficerId] = useState(proposal.proposed_officer || '');
-  const [note, setNote]           = useState('');
-  const [saving, setSaving]       = useState(false);
-  const [err, setErr]             = useState('');
-
   const proposedGroups = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
-  // แบ่งนิติกรตามกลุ่มงานที่เสนอ (ถ้ามี)
-  const inGroups    = proposedGroups.length ? officers.filter(o => o.active && proposedGroups.includes(o.group_name)) : [];
-  const otherOfficers = officers.filter(o => o.active && !inGroups.includes(o));
+
+  const [officerId,   setOfficerId]   = useState(proposal.proposed_officer || '');
+  const [filterGroup, setFilterGroup] = useState(proposedGroups[0] || '');
+  const [note, setNote]               = useState('');
+  const [saving, setSaving]           = useState(false);
+  const [err, setErr]                 = useState('');
+
+  // รายการกลุ่มทั้งหมดจาก officers
+  const allGroups = [...new Set(officers.map(o => o.group).filter(Boolean))].sort();
+  // กรองนิติกรตามกลุ่มที่เลือก (ถ้าไม่เลือกกลุ่ม = แสดงทั้งหมด)
+  const filteredOfficers = filterGroup ? officers.filter(o => o.group === filterGroup) : officers;
 
   const submit = async (action) => {
     if (action === 'approve' && !officerId) { setErr('กรุณาเลือกนิติกรก่อนอนุมัติ'); return; }
@@ -401,19 +404,19 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
           </div>}
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
           <div className="field">
+            <label>กลุ่มงาน</label>
+            <select className="input" value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setOfficerId('');}}>
+              <option value="">— ทุกกลุ่ม —</option>
+              {allGroups.map(g=>(
+                <option key={g} value={g}>{g}{proposedGroups.includes(g) ? ' ✓' : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
             <label>มอบหมายให้นิติกร <span className="req">*</span></label>
             <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
               <option value="">— เลือกนิติกร —</option>
-              {inGroups.length > 0 && <>
-                <optgroup label="กลุ่มงานที่เสนอ">
-                  {inGroups.map(o=><option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>)}
-                </optgroup>
-                {otherOfficers.length > 0 &&
-                  <optgroup label="นิติกรอื่น">
-                    {otherOfficers.map(o=><option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>)}
-                  </optgroup>}
-              </>}
-              {inGroups.length === 0 && otherOfficers.map(o=>(
+              {filteredOfficers.map(o=>(
                 <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
               ))}
             </select>
