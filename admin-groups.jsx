@@ -45,7 +45,7 @@ function GroupFormModal({ group, onSave, onClose }) {
 function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
   const [search, setSearch]   = useState("");
   const hasRoles = group.roles && group.roles.length > 0;
-  const [selRole, setSelRole] = useState(hasRoles ? group.roles[0] : "");
+  const [selRole, setSelRole] = useState("");
   const memberIds = new Set(members.map(m => m.id));
   const available = allUsers.filter(u =>
     !memberIds.has(u.id) &&
@@ -64,12 +64,10 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
           {hasRoles && (
             <div>
               <label className="label">บทบาท <span className="badge badge-maroon" style={{marginLeft:4,fontSize:10}}>กำหนดโดยกลุ่ม</span></label>
-              {group.roles.length === 1
-                ? <div className="input" style={{background:"var(--surface-3)",color:"var(--ink-2)",cursor:"default"}}>{DEFAULT_ROLE_LABELS[group.roles[0]]||group.roles[0]}</div>
-                : <select className="select" value={selRole} onChange={e=>setSelRole(e.target.value)}>
-                    {group.roles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
-                  </select>
-              }
+              <select className="select" value={selRole} onChange={e=>setSelRole(e.target.value)}>
+                <option value="">ไม่กำหนดบทบาท (ยึดตามกลุ่ม)</option>
+                {group.roles.map(r => <option key={r} value={r}>{DEFAULT_ROLE_LABELS[r]||r}</option>)}
+              </select>
             </div>
           )}
         </div>
@@ -85,8 +83,7 @@ function AddMemberModal({ group, allUsers, members, onAdd, onClose }) {
                 </div>
               </div>
               <button className="btn btn-sm btn-outline"
-                disabled={hasRoles && !selRole}
-                onClick={()=>onAdd(u, hasRoles ? selRole : null)}>+ เพิ่ม</button>
+                onClick={()=>onAdd(u, selRole||null)}>+ เพิ่ม</button>
             </div>
           ))}
         </div>
