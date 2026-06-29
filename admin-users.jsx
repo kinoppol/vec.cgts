@@ -36,7 +36,7 @@ function LookupSelect({ value, items, placeholder, onChange, style }) {
 }
 
 /* ---------- modal เพิ่ม / แก้ไข ---------- */
-function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose }) {
+function UserModal({ user, officers, roleLabels, isAdmin, onSave, onAvatarChange, onClose }) {
   const roleOpts = ROLE_ORDER.map(v => ({ v, l: roleLabel(v, roleLabels) }));
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
@@ -137,7 +137,7 @@ function UserModal({ user, officers, roleLabels, onSave, onAvatarChange, onClose
           <div className="field">
             <label>ชื่อผู้ใช้ <span className="req">*</span></label>
             <input className="input" value={form.username} onChange={e=>set('username',e.target.value)}
-              disabled={!isNew} required placeholder="a-z, 0-9, _"/>
+              disabled={!isNew && !isAdmin} required placeholder="a-z, 0-9, _"/>
           </div>
 
           {isNew && (
@@ -443,11 +443,11 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       )}
 
       {modal?.type === 'add' && (
-        <UserModal officers={officers} roleLabels={roleLabels}
+        <UserModal officers={officers} roleLabels={roleLabels} isAdmin={currentUser?.role==='admin'}
           onSave={handleSave} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'edit' && (
-        <UserModal user={modal.user} officers={officers} roleLabels={roleLabels}
+        <UserModal user={modal.user} officers={officers} roleLabels={roleLabels} isAdmin={currentUser?.role==='admin'}
           onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
       )}
       {modal?.type === 'reset' && (

@@ -104,6 +104,20 @@ if ($method === 'PATCH' && $id) {
 
     $allowed = ['display_name','email','role','init','job_title','group_name','officer_id','active','can_manage_users'];
     $sets = []; $vals = [];
+
+    // admin เปลี่ยน username ได้
+    if ($actor['role'] === 'admin' && array_key_exists('username', $b)) {
+        $newUsername = trim($b['username'] ?? '');
+        if ($newUsername === '') err('ชื่อผู้ใช้ห้ามว่าง');
+        if (!preg_match('/^[a-zA-Z0-9_@.]+$/', $newUsername)) err('ชื่อผู้ใช้ใช้ได้เฉพาะ a-z A-Z 0-9 _ @ .');
+        // ตรวจ duplicate (ยกเว้นตัวเอง)
+        $dup = $db->prepare('SELECT id FROM users WHERE username=? AND id!=?');
+        $dup->execute([$newUsername, $id]);
+        if ($dup->fetch()) err("ชื่อผู้ใช้ '{$newUsername}' มีอยู่แล้ว");
+        $sets[] = '`username` = ?';
+        $vals[] = $newUsername;
+    }
+
     foreach ($allowed as $col) {
         if (!array_key_exists($col, $b)) continue;
         if ($col === 'role') {
