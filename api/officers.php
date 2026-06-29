@@ -27,6 +27,16 @@ if ($method === 'GET') {
         json_out($rows);
     }
 
+    /* ?group=xxx → officers ในกลุ่มนั้น */
+    if (!empty($_GET['group'])) {
+        $stmt = $db->prepare(
+            "SELECT o.id, o.name, o.job_title AS role, o.group_name AS `group`, o.init
+             FROM officers o WHERE o.active=1 AND o.group_name=? ORDER BY o.name"
+        );
+        $stmt->execute([trim($_GET['group'])]);
+        json_out($stmt->fetchAll());
+    }
+
     /* default → active เท่านั้น + alias role/group (backward compat) */
     $rows = $db->query(
         "SELECT o.id, o.name, o.job_title AS role, o.duty, o.group_name AS `group`, o.init,

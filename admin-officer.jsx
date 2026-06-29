@@ -1273,13 +1273,40 @@ function AssignModal({ c, officers, close, onAssign }) {
 
 /* ---------------- นำเข้าเรื่องจากเอกสาร ---------------- */
 function ImportDocument({ back }) {
-  const [d, setD] = useState({ reg:"", subject:"", track:"", cat:"", channel:"หนังสือราชการ", agency:"", priority:"ปกติ", cls:"public", complainant:"", contact:"", detail:"", files:[] });
-  const [done, setDone] = useState(false);
-  const set=(k,v)=>setD(s=>({...s,[k]:v}));
-  const [saving, setSaving] = useState(false);
+  const [d, setD] = useState({ subject:"", group:"", officerId:"", channelType:"", channelItem:"", agency:"", priority:"ปกติ", cls:"public", complainant:"", contact:"", detail:"", files:[] });
+  const set = (k,v) => setD(s=>({...s,[k]:v}));
+
+  const [groups,       setGroups]       = useState([]);
+  const [officers,     setOfficers]     = useState([]);
+  const [channelTypes, setChannelTypes] = useState([]);
+  const [channelItems, setChannelItems] = useState([]);
+
+  const [done,    setDone]    = useState(false);
+  const [saving,  setSaving]  = useState(false);
   const [saveErr, setSaveErr] = useState("");
-  const valid = d.subject.trim() && d.track && d.cat;
-  if(done) return (
+
+  // โหลดกลุ่มงาน + ประเภทช่องทาง ครั้งเดียวตอน mount
+  React.useEffect(() => {
+    api.getLookups('group_name').then(setGroups).catch(()=>{});
+    api.getChannelTypes().then(setChannelTypes).catch(()=>{});
+  }, []);
+
+  // เมื่อเลือกกลุ่มงาน → โหลดนิติกรในกลุ่มนั้น
+  React.useEffect(() => {
+    if (!d.group) { setOfficers([]); set("officerId",""); return; }
+    api.getOfficersByGroup(d.group).then(rows=>{ setOfficers(rows); set("officerId",""); }).catch(()=>{});
+  }, [d.group]);
+
+  // เมื่อเลือกประเภทช่องทาง → โหลดรายชื่อหน่วยงาน
+  React.useEffect(() => {
+    if (!d.channelType) { setChannelItems([]); set("channelItem",""); return; }
+    api.getChannelItems(d.channelType).then(rows=>{ setChannelItems(rows); set("channelItem",""); }).catch(()=>{});
+  }, [d.channelType]);
+
+  const channelFull = d.channelType && d.channelItem ? d.channelType + ' — ' + d.channelItem : (d.channelType || '');
+  const valid = d.subject.trim() && d.group && d.channelType;
+
+  if (done) return (
     <div className="fade-in" style={{maxWidth:560,margin:"40px auto",textAlign:"center"}}>
       <div style={{width:76,height:76,borderRadius:"50%",background:"var(--ok-bg)",display:"grid",placeItems:"center",margin:"0 auto 18px"}}><Icon name="checkCircle" style={{width:38,height:38,color:"var(--ok)"}}/></div>
       <h1 style={{fontSize:24}}>นำเข้าเรื่องเรียบร้อย</h1>
@@ -1290,23 +1317,27 @@ function ImportDocument({ back }) {
       </div>
     </div>
   );
+
   return (
-    <div className="fade-in" style={{maxWidth:860}}>
+    <div className="fade-in" style={{maxWidth:900}}>
       <button className="btn btn-ghost btn-sm" onClick={back} style={{marginBottom:12}}><Icon name="chevL" style={{width:16,height:16}}/> กลับ</button>
-      <PageHead title="นำเข้าเรื่องจากเอกสาร" sub="ลงทะเบียนเรื่องที่เข้ามาทางหนังสือราชการ ศูนย์ดำรงธรรม หรือช่องทางอื่น เข้าสู่ระบบ"/>
+      <PageHead title="นำเข้าเรื่องจากเอกสาร" sub="ลงทะเบียนหนังสือราชการและเรื่องที่รับมาจากหน่วยงานภายนอกเข้าสู่ระบบ"/>
       <div className="notice notice-info" style={{marginBottom:18}}><Icon name="info"/><div>เมื่อบันทึก ระบบจะออกเลขรับเรื่อง แปลงเป็นสำนวน และเริ่มนับ SLA โดยอัตโนมัติ</div></div>
       <div className="grid" style={{gridTemplateColumns:"1.5fr 1fr",gap:18,alignItems:"start"}}>
+        {/* ── คอลัมน์ซ้าย ── */}
         <div className="card card-pad" style={{display:"grid",gap:16}}>
           <div className="field"><label>หัวข้อเรื่อง <span className="req">*</span></label>
             <input className="input" value={d.subject} onChange={e=>set("subject",e.target.value)} placeholder="สรุปเรื่องจากเอกสาร"/></div>
           <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div className="field"><label>สายงาน <span className="req">*</span></label>
-              <select className="select" value={d.track} onChange={e=>{set("track",e.target.value);set("cat","");}}>
-                <option value="">— เลือก —</option><option value="discipline">ด้านวินัย</option><option value="legal">ด้านกฎหมาย</option><option value="general">บริหารงานทั่วไป</option>
+            <div className="field"><label>กลุ่มงาน <span className="req">*</span></label>
+              <select className="select" value={d.group} onChange={e=>set("group",e.target.value)}>
+                <option value="">— เลือกกลุ่มงาน —</option>
+                {groups.map(g=><option key={g.id} value={g.name}>{g.name}</option>)}
               </select></div>
-            <div className="field"><label>หมวดหมู่ <span className="req">*</span></label>
-              <select className="select" value={d.cat} onChange={e=>set("cat",e.target.value)} disabled={!d.track}>
-                <option value="">— เลือก —</option>{d.track&&TRACKS[d.track].cats.map(x=><option key={x}>{x}</option>)}
+            <div className="field"><label>รายชื่อนิติกร</label>
+              <select className="select" value={d.officerId} onChange={e=>set("officerId",e.target.value)} disabled={!d.group || officers.length===0}>
+                <option value="">{!d.group ? "— เลือกกลุ่มงานก่อน —" : officers.length===0 ? "— ไม่มีนิติกรในกลุ่มนี้ —" : "— เลือก —"}</option>
+                {officers.map(o=><option key={o.id} value={o.id}>{o.name}{o.role ? " · " + o.role : ""}</option>)}
               </select></div>
           </div>
           <div className="field"><label>หน่วยงาน/สถานศึกษาที่เกี่ยวข้อง</label>
@@ -1321,15 +1352,22 @@ function ImportDocument({ back }) {
             {d.files.map((f,i)=><div key={i} className="file-row" style={{marginTop:8}}><Icon name="file" style={{width:17,height:17,color:"var(--maroon)"}}/><span style={{fontWeight:500}}>{f.n}</span><span className="fmeta">{f.s}</span></div>)}
           </div>
         </div>
+        {/* ── คอลัมน์ขวา ── */}
         <div className="grid" style={{gap:16}}>
           <div className="card card-pad" style={{display:"grid",gap:14}}>
             <h3 style={{fontSize:15}}>ข้อมูลการลงทะเบียน</h3>
-            <div className="field"><label>ช่องทางรับเรื่อง</label>
-              <select className="select" value={d.channel} onChange={e=>set("channel",e.target.value)}>
-                {CHANNELS.filter(c=>!c.includes("เว็บไซต์")).map(c=><option key={c}>{c}</option>)}
+            <div className="field"><label>ประเภทหน่วยงาน <span className="req">*</span></label>
+              <select className="select" value={d.channelType} onChange={e=>set("channelType",e.target.value)}>
+                <option value="">— เลือกประเภท —</option>
+                {channelTypes.map(t=><option key={t.id} value={t.name}>{t.name}</option>)}
+              </select></div>
+            <div className="field"><label>หน่วยงานที่ส่งเรื่อง</label>
+              <select className="select" value={d.channelItem} onChange={e=>set("channelItem",e.target.value)} disabled={!d.channelType || channelItems.length===0}>
+                <option value="">{!d.channelType ? "— เลือกประเภทก่อน —" : channelItems.length===0 ? "— ไม่มีรายการ —" : "— เลือก —"}</option>
+                {channelItems.map(i=><option key={i.id} value={i.name}>{i.name}</option>)}
               </select></div>
             <div className="field"><label>ระดับความเร่งด่วน</label>
-              <div className="seg" style={{width:"fit-content"}}>
+              <div className="seg" style={{flexWrap:"wrap"}}>
                 {["ปกติ","ด่วน","ด่วนมาก","ด่วนที่สุด"].map(p=><button key={p} className={d.priority===p?"active":""} onClick={()=>set("priority",p)}>{p}</button>)}
               </div></div>
             <div className="field"><label>ชั้นความลับ</label>
@@ -1345,8 +1383,16 @@ function ImportDocument({ back }) {
           {saveErr && <div className="notice notice-warn"><Icon name="alert"/><div>{saveErr}</div></div>}
           <button className="btn btn-primary btn-lg btn-block" disabled={!valid||saving} onClick={async()=>{
             setSaving(true); setSaveErr("");
-            try { await api.createCase({...d, identity:'staff'}); setDone(true); }
-            catch(e) { setSaveErr(e.message); }
+            try {
+              await api.createCase({
+                subject: d.subject, track: 'general', cat: d.group,
+                channel: channelFull || 'หนังสือราชการ',
+                agency: d.agency, priority: d.priority, cls: d.cls,
+                complainant: d.complainant, contact: d.contact, detail: d.detail,
+                identity: 'staff',
+              });
+              setDone(true);
+            } catch(e) { setSaveErr(e.message); }
             finally { setSaving(false); }
           }}><Icon name="hash" style={{width:17,height:17}}/> ลงทะเบียน & แปลงเป็นสำนวน</button>
         </div>

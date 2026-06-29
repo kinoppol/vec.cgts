@@ -6,7 +6,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-$VALID_CATS = ['group_name', 'job_title'];
+$VALID_CATS = ['group_name', 'job_title', 'channel_type', 'channel_item'];
 
 function needAdmin($actor) {
     if ($actor['role'] !== 'admin' && empty($actor['can_manage_users']))
@@ -56,15 +56,25 @@ if ($method === 'GET' && ($_GET['action'] ?? '') === 'export') {
 /* ── GET ?cat= — รายการในหมวดนั้น ───────────────────────── */
 if ($method === 'GET') {
     global $VALID_CATS;
-    $cat = trim($_GET['cat'] ?? '');
+    $cat    = trim($_GET['cat'] ?? '');
+    $subCat = trim($_GET['sub_cat'] ?? '');
     if (!in_array($cat, $VALID_CATS)) err('category ไม่ถูกต้อง', 400);
 
-    $stmt = $db->prepare(
-        "SELECT id, name, sort_order FROM lookup_items
-         WHERE category=? AND active=1
-         ORDER BY sort_order, name"
-    );
-    $stmt->execute([$cat]);
+    if ($subCat !== '') {
+        $stmt = $db->prepare(
+            "SELECT id, name, sub_category, sort_order FROM lookup_items
+             WHERE category=? AND sub_category=? AND active=1
+             ORDER BY sort_order, name"
+        );
+        $stmt->execute([$cat, $subCat]);
+    } else {
+        $stmt = $db->prepare(
+            "SELECT id, name, sub_category, sort_order FROM lookup_items
+             WHERE category=? AND active=1
+             ORDER BY sort_order, name"
+        );
+        $stmt->execute([$cat]);
+    }
     json_out($stmt->fetchAll());
 }
 

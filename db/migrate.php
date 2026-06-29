@@ -190,6 +190,90 @@ if ($confirm === 'head_secretary') {
     exit;
 }
 
+/* ── [10] sub_category + channel seed ─────────────────────── */
+if ($confirm === 'channel_lookup') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [10]: ช่องทางรับเรื่อง (lookup)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // เพิ่ม sub_category column
+        $cols = $db->query("SHOW COLUMNS FROM lookup_items")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('sub_category', $cols)) {
+            $db->exec("ALTER TABLE lookup_items ADD COLUMN sub_category VARCHAR(100) DEFAULT NULL AFTER category");
+            echo "✓ ALTER lookup_items ADD sub_category\n";
+        } else {
+            echo "– sub_category มีอยู่แล้ว ข้าม\n";
+        }
+
+        // seed channel_type
+        $types = ['องค์กรอิสระ','ศาล','ภายใน','เอกชน'];
+        foreach ($types as $i => $t) {
+            $ex = $db->prepare("SELECT id FROM lookup_items WHERE category='channel_type' AND name=?")->execute([$t]);
+            $ex = $db->query("SELECT id FROM lookup_items WHERE category='channel_type' AND name=" . $db->quote($t))->fetch();
+            if (!$ex) {
+                $db->prepare("INSERT INTO lookup_items (category, name, sort_order) VALUES ('channel_type',?,?)")->execute([$t, ($i+1)*10]);
+                echo "✓ INSERT channel_type: $t\n";
+            } else {
+                echo "– channel_type '$t' มีอยู่แล้ว ข้าม\n";
+            }
+        }
+
+        // seed channel_item
+        $items = [
+            ['องค์กรอิสระ','ป.ป.ช.',10],
+            ['องค์กรอิสระ','ป.ป.ท.',20],
+            ['องค์กรอิสระ','ป.ป.ง.',30],
+            ['องค์กรอิสระ','สตง.',40],
+            ['องค์กรอิสระ','สมาชิกวุฒิสภา',50],
+            ['องค์กรอิสระ','ศูนย์ดำรงธรรม',60],
+            ['องค์กรอิสระ','คณะกรรมการสิทธิมนุษยชนแห่งชาติ',70],
+            ['องค์กรอิสระ','สำนักนายกรัฐมนตรี',80],
+            ['องค์กรอิสระ','ศาลากลาง',90],
+            ['องค์กรอิสระ','สำนักตรวจการแผ่นดิน',100],
+            ['องค์กรอิสระ','องค์การปกครองท้องถิ่น',110],
+            ['องค์กรอิสระ','สำนักงานตำรวจแห่งชาติ',120],
+            ['องค์กรอิสระ','การไฟฟ้า',130],
+            ['องค์กรอิสระ','การประปา',140],
+            ['องค์กรอิสระ','รัฐสภา',150],
+            ['องค์กรอิสระ','อื่น ๆ',999],
+            ['ศาล','ศาลปกครอง',10],
+            ['ศาล','ศาลแพ่ง',20],
+            ['ศาล','ศาลอาญา',30],
+            ['ศาล','ศาลเยาวชนและครอบครัว',40],
+            ['ศาล','อนุญาโตตุลาการ',50],
+            ['ศาล','อื่น ๆ',999],
+            ['ภายใน','สป.ศธ.',10],
+            ['ภายใน','รมว.ศธ.',20],
+            ['ภายใน','สถาบันอาชีวศึกษา',30],
+            ['ภายใน','กรรมการวิทยาลัย',40],
+            ['ภายใน','วิทยาลัย',50],
+            ['ภายใน','กลุ่มงานจริยธรรม',60],
+            ['ภายใน','คุรุสภา',70],
+            ['ภายใน','ก.ค.ศ.',80],
+            ['ภายใน','อื่น ๆ',999],
+            ['เอกชน','สื่อออนไลน์',10],
+            ['เอกชน','อื่น ๆ',999],
+        ];
+        foreach ($items as [$sub, $name, $ord]) {
+            $ex = $db->query("SELECT id FROM lookup_items WHERE category='channel_item' AND sub_category=" . $db->quote($sub) . " AND name=" . $db->quote($name))->fetch();
+            if (!$ex) {
+                $db->prepare("INSERT INTO lookup_items (category, sub_category, name, sort_order) VALUES ('channel_item',?,?,?)")->execute([$sub, $name, $ord]);
+                echo "✓ INSERT channel_item [$sub] $name\n";
+            } else {
+                echo "– [$sub] $name มีอยู่แล้ว ข้าม\n";
+            }
+        }
+
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [9] เพิ่ม general ใน track ENUM ──────────────────────── */
 if ($confirm === 'track_general') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -336,6 +420,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[5] หัวหน้าธุรการ</b> — เพิ่ม head_secretary ใน users.role ENUM<br><code><a href="?confirm=head_secretary">migrate.php?confirm=head_secretary</a></code></li>';
     echo '<li><b>[8] ตาราง case_task_proposals</b> — สร้างตาราง (รวม proposed_groups + proposed_personnel)<br><code><a href="?confirm=proposals_table">migrate.php?confirm=proposals_table</a></code></li>';
     echo '<li><b>[9] สายงานบริหารงานทั่วไป</b> — เพิ่ม general ใน track ENUM ของ cases + sla_settings<br><code><a href="?confirm=track_general">migrate.php?confirm=track_general</a></code></li>';
+    echo '<li><b>[10] ช่องทางรับเรื่อง</b> — เพิ่ม sub_category ใน lookup_items + seed ประเภทหน่วยงาน 4 ประเภท<br><code><a href="?confirm=channel_lookup">migrate.php?confirm=channel_lookup</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';

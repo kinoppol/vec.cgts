@@ -378,7 +378,7 @@ if ($method === 'POST') {
     $subject = trim($body['subject'] ?? '');
     $track   = $body['track'] ?? '';
     $cat     = $body['cat'] ?? '';
-    if (!$subject || !in_array($track, ['discipline','legal'], true)) {
+    if (!$subject || !in_array($track, ['discipline','legal','general'], true)) {
         err('ข้อมูลไม่ครบถ้วน');
     }
 
