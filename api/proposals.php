@@ -12,7 +12,7 @@ if ($method === 'GET') {
     $caseId = trim($_GET['case_id'] ?? '');
     $sql = "
         SELECT p.id, p.case_id, p.from_task_no, p.to_task_no,
-               p.proposed_officer, p.proposed_groups, p.proposed_by,
+               p.proposed_officer, p.proposed_groups, p.proposed_personnel, p.proposed_by,
                p.propose_note, p.status, p.final_officer,
                p.reviewed_by, p.review_note, p.created_at, p.reviewed_at,
                u.display_name AS proposed_by_name,
@@ -45,8 +45,11 @@ if ($method === 'POST') {
     $proposedOfficer = trim($b['proposed_officer'] ?? '') ?: null;
     $note            = trim($b['note'] ?? '') ?: null;
     // proposed_groups: array of group name strings
-    $proposedGroups  = (isset($b['proposed_groups']) && is_array($b['proposed_groups']) && count($b['proposed_groups']))
-                       ? json_encode($b['proposed_groups'], JSON_UNESCAPED_UNICODE) : null;
+    $proposedGroups     = (isset($b['proposed_groups']) && is_array($b['proposed_groups']) && count($b['proposed_groups']))
+                          ? json_encode($b['proposed_groups'], JSON_UNESCAPED_UNICODE) : null;
+    // proposed_personnel: array of officer id strings
+    $proposedPersonnel  = (isset($b['proposed_personnel']) && is_array($b['proposed_personnel']) && count($b['proposed_personnel']))
+                          ? json_encode($b['proposed_personnel'], JSON_UNESCAPED_UNICODE) : null;
 
     if (!$caseId) err('ต้องระบุ case_id');
 
@@ -61,24 +64,19 @@ if ($method === 'POST') {
     $db->prepare("UPDATE case_task_proposals SET status='changed' WHERE case_id=? AND from_task_no=0 AND status='pending'")
        ->execute([$caseId]);
 
-    // ตรวจว่า proposed_groups column มีอยู่แล้วหรือยัง (graceful fallback)
-    $hasPropGroups = false;
-    try {
-        $chk = $db->query("SHOW COLUMNS FROM case_task_proposals WHERE Field='proposed_groups'")->fetch();
-        $hasPropGroups = (bool)$chk;
-    } catch (Throwable) {}
+    // ตรวจ columns ที่อาจยังไม่ได้ migrate (graceful fallback)
+    $existCols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
+    $hasPropGroups    = in_array('proposed_groups',    $existCols);
+    $hasPropPersonnel = in_array('proposed_personnel', $existCols);
 
-    if ($hasPropGroups) {
-        $db->prepare("
-            INSERT INTO case_task_proposals (case_id, from_task_no, to_task_no, proposed_officer, proposed_groups, proposed_by, propose_note)
-            VALUES (?, 0, 1, ?, ?, ?, ?)
-        ")->execute([$caseId, $proposedOfficer, $proposedGroups, (int)$auth['id'], $note]);
-    } else {
-        $db->prepare("
-            INSERT INTO case_task_proposals (case_id, from_task_no, to_task_no, proposed_officer, proposed_by, propose_note)
-            VALUES (?, 0, 1, ?, ?, ?)
-        ")->execute([$caseId, $proposedOfficer, (int)$auth['id'], $note]);
-    }
+    $cols   = ['case_id','from_task_no','to_task_no','proposed_officer','proposed_by','propose_note'];
+    $vals   = [$caseId, 0, 1, $proposedOfficer, (int)$auth['id'], $note];
+    if ($hasPropGroups)    { $cols[] = 'proposed_groups';    $vals[] = $proposedGroups; }
+    if ($hasPropPersonnel) { $cols[] = 'proposed_personnel'; $vals[] = $proposedPersonnel; }
+
+    $placeholders = implode(',', array_fill(0, count($cols), '?'));
+    $db->prepare("INSERT INTO case_task_proposals (" . implode(',', $cols) . ") VALUES ($placeholders)")
+       ->execute($vals);
 
     $propId = (int)$db->lastInsertId();
     audit('propose_case', $caseId, "นำเสนอ officer={$proposedOfficer}");

@@ -148,7 +148,7 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
       </div>
 
       {propModal && (
-        <ProposeModal case_={propModal.case}
+        <ProposeModal case_={propModal.case} officers={officers}
           onClose={()=>setPropModal(null)}
           onSaved={()=>{ setPropModal(null); onProposed && onProposed(); }}/>
       )}
@@ -157,23 +157,24 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
 }
 
 /* ---------------- Modal นำเสนอมอบหมาย (head_secretary) ---------------- */
-function ProposeModal({ case_, onClose, onSaved }) {
-  const [groups, setGroups]   = useState([]);       // lookup items
-  const [selGroups, setSelGroups] = useState([]);   // selected group names
+function ProposeModal({ case_, officers, onClose, onSaved }) {
+  const [groups, setGroups]           = useState([]);
+  const [selGroups, setSelGroups]     = useState([]);
+  const [selPersonnel, setSelPersonnel] = useState([]); // officer ids
   const NOTE_PREFIX = 'เรียน ผู้อำนวยการสำนักนิติการ\n';
-  const [note, setNote]       = useState(NOTE_PREFIX);
-  const [saving, setSaving]   = useState(false);
-  const [err, setErr]         = useState('');
+  const [note, setNote]   = useState(NOTE_PREFIX);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr]       = useState('');
 
   useEffect(() => {
     api.getLookups('group_name').then(setGroups).catch(() => {});
   }, []);
 
-  const toggleGroup = (name) => {
-    setSelGroups(prev =>
-      prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]
-    );
-  };
+  const toggleGroup = (name) =>
+    setSelGroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]);
+
+  const togglePersonnel = (id) =>
+    setSelPersonnel(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -181,7 +182,8 @@ function ProposeModal({ case_, onClose, onSaved }) {
     try {
       await api.proposeAssign({
         case_id: case_.id,
-        proposed_groups: selGroups.length ? selGroups : null,
+        proposed_groups:    selGroups.length    ? selGroups    : null,
+        proposed_personnel: selPersonnel.length ? selPersonnel : null,
         note: note.trim() || null,
       });
       onSaved();
@@ -191,45 +193,66 @@ function ProposeModal({ case_, onClose, onSaved }) {
     setSaving(false);
   };
 
+  const checkboxRow = (checked, onToggle, label) => (
+    <label style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',borderRadius:8,cursor:'pointer',
+      background: checked ? 'var(--maroon-50,rgba(120,20,30,.08))' : 'var(--surface-2)',
+      border: checked ? '1.5px solid var(--maroon)' : '1.5px solid transparent',
+      transition:'background .12s,border .12s'}}>
+      <input type="checkbox" checked={checked} onChange={onToggle}
+        style={{width:15,height:15,accentColor:'var(--maroon)',flexShrink:0}}/>
+      <span style={{fontSize:14,fontWeight: checked ? 600 : 400}}>{label}</span>
+    </label>
+  );
+
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
-      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:500,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:520,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <h3 style={{margin:0,fontSize:16}}>นำเสนอมอบหมายสำนวน</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
+        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
           </div>
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
 
+          {/* กลุ่มงาน */}
           <div className="field">
             <label>เสนอมอบหมายให้กลุ่มงาน <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายกลุ่ม)</span></label>
             {groups.length === 0
               ? <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการกลุ่มงาน</div>
               : <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                  {groups.map(g => (
-                    <label key={g.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',borderRadius:8,cursor:'pointer',
-                      background: selGroups.includes(g.name) ? 'var(--maroon-50,rgba(120,20,30,.08))' : 'var(--surface-2)',
-                      border: selGroups.includes(g.name) ? '1.5px solid var(--maroon)' : '1.5px solid transparent',
-                      transition:'background .12s,border .12s'}}>
-                      <input type="checkbox" checked={selGroups.includes(g.name)}
-                        onChange={()=>toggleGroup(g.name)}
-                        style={{width:15,height:15,accentColor:'var(--maroon)',flexShrink:0}}/>
-                      <span style={{fontSize:14,fontWeight: selGroups.includes(g.name) ? 600 : 400}}>{g.name}</span>
-                    </label>
-                  ))}
+                  {groups.map(g => checkboxRow(selGroups.includes(g.name), ()=>toggleGroup(g.name), g.name))}
                 </div>
             }
           </div>
 
+          {/* บุคลากรที่เกี่ยวข้อง */}
+          <div className="field">
+            <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
+            {officers && officers.filter(o=>o.active).length > 0
+              ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
+                  {officers.filter(o=>o.active).map(o =>
+                    checkboxRow(
+                      selPersonnel.includes(o.id),
+                      ()=>togglePersonnel(o.id),
+                      <span>{o.name}{o.job_title && <span className="faint" style={{fontSize:12}}> · {o.job_title}</span>}</span>
+                    )
+                  )}
+                </div>
+              : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการบุคลากร</div>
+            }
+          </div>
+
+          {/* หมายเหตุ */}
           <div className="field">
             <label>หมายเหตุถึงผู้อำนวยการ</label>
             <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
               style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
-          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4,flexShrink:0}}>
+
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <LoadingSpinner/> : <><Icon name="flag" style={{width:14,height:14}}/> ส่งนำเสนอ</>}
@@ -342,6 +365,26 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
                 <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6}}>กลุ่มงานที่เสนอ:</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                   {grps.map((g,i)=><span key={i} className="badge badge-info">{g}</span>)}
+                </div>
+              </div>
+            );
+          })()}
+          {(() => {
+            const pers = (() => { try { return proposal.proposed_personnel ? JSON.parse(proposal.proposed_personnel) : []; } catch { return []; } })();
+            if (!pers.length) return null;
+            return (
+              <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px'}}>
+                <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6}}>บุคลากรที่เกี่ยวข้อง:</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {pers.map(pid => {
+                    const o = officerById(officers, pid);
+                    return o
+                      ? <div key={pid} className="vcenter" style={{gap:6,background:'var(--surface)',borderRadius:6,padding:'3px 10px',border:'1px solid var(--line)'}}>
+                          <span className="avatar avatar-sm" style={{width:22,height:22,fontSize:10}}>{o.init}</span>
+                          <span style={{fontSize:13}}>{o.name}</span>
+                        </div>
+                      : <span key={pid} className="faint sm">{pid}</span>;
+                  })}
                 </div>
               </div>
             );
@@ -1176,7 +1219,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
       </div>
 
-      {showPropose && <ProposeModal case_={c}
+      {showPropose && <ProposeModal case_={c} officers={officers}
         onClose={()=>setShowPropose(false)}
         onSaved={()=>{ setShowPropose(false); back(); }}/>}
       {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={async (oid)=>{
