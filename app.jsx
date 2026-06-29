@@ -106,11 +106,11 @@ function navFor(role, counts, user) {
     {sec:"ระบบ"},
     {v:"users",        ic:"users",       l:"จัดการผู้ใช้"},
     {v:"officers-mgt", ic:"gavel",      l:"จัดการบุคลากร"},
+    {v:"groups",       ic:"users",      l:"จัดการกลุ่ม"},
     {v:"lookup",       ic:"filter",     l:"รายการอ้างอิง"},
     {v:"roles",        ic:"flag",       l:"ชื่อบทบาท"},
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
-    {v:"groups",       ic:"users",      l:"จัดการกลุ่ม"},
   ];
   if (role === "officer") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
