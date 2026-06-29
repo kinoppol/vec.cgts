@@ -22,7 +22,7 @@ function PubHeader({ go, active, theme, setTheme }) {
         <div className="pub-logo" style={{cursor:"pointer"}} onClick={()=>go("home")}>
           <img src="assets/ovec-logo.svg" alt="ตราสำนักงานคณะกรรมการการอาชีวศึกษา" />
           <div>
-            <div className="t1">ระบบรับเรื่องร้องเรียน–ร้องทุกข์</div>
+            <div className="t1">ระบบบริหารงานนิติการ</div>
             <div className="t2">สำนักงานคณะกรรมการการอาชีวศึกษา · กลุ่มนิติการ</div>
           </div>
         </div>
