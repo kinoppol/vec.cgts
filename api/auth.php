@@ -3,6 +3,18 @@ require_once __DIR__ . '/_common.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+/* resolve role จาก group_roles ถ้า users.role เป็น NULL */
+function resolveRoleFromGroup(PDO $db, ?string $groupName): string {
+    if (!$groupName) return 'officer';
+    $s = $db->prepare(
+        "SELECT gr.role FROM group_roles gr
+         JOIN groups g ON g.id = gr.group_id
+         WHERE g.name = ? ORDER BY gr.role LIMIT 1"
+    );
+    $s->execute([$groupName]);
+    return $s->fetchColumn() ?: 'officer';
+}
+
 // GET /api/auth.php — ดึงข้อมูลผู้ใช้ปัจจุบัน
 if ($method === 'GET') {
     if (empty($_SESSION['user_id'])) {
@@ -33,7 +45,7 @@ if ($method === 'POST') {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, init, can_manage_users, avatar_path FROM users WHERE username = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, password_hash, display_name, role, group_name, init, can_manage_users, avatar_path FROM users WHERE username = ? AND active = 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -41,9 +53,11 @@ if ($method === 'POST') {
         err('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 401);
     }
 
+    $effectiveRole = $user['role'] ?? resolveRoleFromGroup($db, $user['group_name']);
+
     session_regenerate_id(true);
     $_SESSION['user_id']          = $user['id'];
-    $_SESSION['role']             = $user['role'];
+    $_SESSION['role']             = $effectiveRole;
     $_SESSION['can_manage_users'] = (bool)$user['can_manage_users'];
 
     audit('login', null, 'เข้าสู่ระบบสำเร็จ');
@@ -52,7 +66,7 @@ if ($method === 'POST') {
         'id'           => $user['id'],
         'username'     => $user['username'],
         'display_name' => $user['display_name'],
-        'role'            => $user['role'],
+        'role'            => $effectiveRole,
         'can_manage_users'=> (bool)$user['can_manage_users'],
         'init'         => $user['init'],
         'avatar_path'  => $user['avatar_path'],

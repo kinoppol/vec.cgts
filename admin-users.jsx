@@ -4,6 +4,7 @@
 
 const ROLE_BADGE = {
   officer:          'badge',
+  clerk:            'badge',
   head_secretary:   'badge-ok',
   dir_legal:        'badge-info',
   dir_admin:        'badge-warn',
@@ -42,10 +43,13 @@ function UserModal({ user, officers, roleLabels, isAdmin, isDirLegal, onSave, on
   const allowedRoles = isDirLegal && !isAdmin
     ? ['officer', 'head_secretary']
     : ROLE_ORDER;
-  const roleOpts = allowedRoles.map(v => ({ v, l: roleLabel(v, roleLabels) }));
+  const roleOpts = [
+    { v: '', l: 'ไม่กำหนดบทบาท (ยึดตามกลุ่ม)' },
+    ...allowedRoles.map(v => ({ v, l: roleLabel(v, roleLabels) }))
+  ];
   const isNew = !user?.id;
   const [form, setForm] = useState(user ? { ...user, password:'' } : {
-    username:'', display_name:'', role:'officer',
+    username:'', display_name:'', role:'',
     officer_id:'', can_manage_users:false, active:true, password:''
   });
   const [saving, setSaving] = useState(false);

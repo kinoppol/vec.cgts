@@ -257,7 +257,7 @@ const DEFAULT_ROLE_LABELS = {
   admin:            'ผู้ดูแลระบบ',
 };
 const ROLE_ORDER = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
-function roleLabel(role, rl) { return (rl && rl[role]) || DEFAULT_ROLE_LABELS[role] || role; }
+function roleLabel(role, rl) { if (!role) return 'ไม่กำหนดบทบาท'; return (rl && rl[role]) || DEFAULT_ROLE_LABELS[role] || role; }
 
 Object.assign(window, {
   React, useState, useEffect, useRef, useMemo, useCallback, createContext, useContext,

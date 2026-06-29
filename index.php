@@ -33,10 +33,20 @@ $initialUser = null;
 if (!empty($_SESSION['user_id'])) {
     try {
         $db   = getDB();
-        $stmt = $db->prepare('SELECT id, username, display_name, role, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
+        $stmt = $db->prepare('SELECT id, username, display_name, role, group_name, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
         $stmt->execute([$_SESSION['user_id']]);
         $initialUser = $stmt->fetch() ?: null;
         if ($initialUser) {
+            // resolve role จาก group ถ้า users.role เป็น NULL
+            if (!$initialUser['role'] && $initialUser['group_name']) {
+                $rStmt = $db->prepare(
+                    "SELECT gr.role FROM group_roles gr JOIN groups g ON g.id=gr.group_id WHERE g.name=? ORDER BY gr.role LIMIT 1"
+                );
+                $rStmt->execute([$initialUser['group_name']]);
+                $initialUser['role'] = $rStmt->fetchColumn() ?: 'officer';
+            } elseif (!$initialUser['role']) {
+                $initialUser['role'] = 'officer';
+            }
             $initialUser['can_manage_users']  = (bool)($initialUser['can_manage_users'] ?? false);
             $initialUser['is_impersonating']  = !empty($_SESSION['impersonator_id']);
             // ตรวจว่าเป็นหัวหน้ากลุ่มหรือเปล่า

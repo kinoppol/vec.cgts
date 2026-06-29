@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(100) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name  VARCHAR(200) NOT NULL,
-  role             ENUM('officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin') NOT NULL DEFAULT 'officer',
+  role             ENUM('officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin') DEFAULT NULL,
   init             VARCHAR(10)  DEFAULT NULL,
   job_title        VARCHAR(200) DEFAULT NULL,
   group_name       VARCHAR(200) DEFAULT NULL,
