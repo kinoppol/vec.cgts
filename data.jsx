@@ -168,6 +168,12 @@ const api = {
   createOfficer:     (data)     => apiFetch('/api/officers.php', { method:'POST', body: JSON.stringify(data) }),
   updateOfficer:     (id, data) => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),
   deactivateOfficer: (id)       => apiFetch('/api/officers.php?id=' + encodeURIComponent(id), { method:'DELETE' }),
+  // งานย่อย (case tasks)
+  getCaseTasks:      (caseId)   => apiFetch('/api/case-tasks.php?case_id=' + encodeURIComponent(caseId)),
+  initCaseTasks:     (data)     => apiFetch('/api/case-tasks.php?action=init',    { method:'POST', body: JSON.stringify(data) }),
+  updateCaseTask:    (id, data) => apiFetch('/api/case-tasks.php?id=' + id,       { method:'PATCH', body: JSON.stringify(data) }),
+  completeTask:      (id, data) => apiFetch('/api/case-tasks.php?action=complete&id=' + id, { method:'POST', body: JSON.stringify(data) }),
+  approveProposal:   (pid, data)=> apiFetch('/api/case-tasks.php?action=approve&proposal_id=' + pid, { method:'POST', body: JSON.stringify(data) }),
 };
 
 // ตรวจสอบ base path ว่าถูกต้องหรือไม่ (debug เฉพาะ dev)

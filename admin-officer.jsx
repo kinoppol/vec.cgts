@@ -738,7 +738,7 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
   );
 }
 
-function CaseDetail({ cid, cases, officers, back, updateCase, role, onCaseDeleted }) {
+function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted }) {
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
@@ -792,10 +792,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, onCaseDelete
       <div className="grid" style={{gridTemplateColumns:"1.7fr 1fr",alignItems:"start"}}>
         <div className="card">
           <div className="tabs" style={{padding:"0 18px"}}>
-            {[["info","รายละเอียด"],["files","คลังสำนวน"],["timeline","ไทม์ไลน์ & SLA"]].map(([v,l])=>
+            {[["info","รายละเอียด"],["tasks","งานย่อย"],["files","คลังสำนวน"],["timeline","ไทม์ไลน์ & SLA"]].map(([v,l])=>
               <button key={v} className={"tab "+(tab===v?"active":"")} onClick={()=>setTab(v)}>{l}</button>)}
           </div>
           <div className="card-pad" style={{padding:24}}>
+            {tab==="tasks" && <CaseTasksTab caseId={c.id} caseAssignee={c.assignee} officers={officers} currentUser={currentUser} role={role}/>}
             {tab==="info" && <>
               <h3 style={{fontSize:15,marginBottom:10}}>เนื้อหาเรื่อง</h3>
               <p className="muted" style={{lineHeight:1.7,fontSize:14.5}}>{c.detail}</p>
