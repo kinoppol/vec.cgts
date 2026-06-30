@@ -280,7 +280,7 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   ];
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset', user?}
+  const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset'|'impersonate'|'deactivate', user?}
   const [search, setSearch]     = useState('');
   const [filterRole, setFilterRole] = useState('');
 
@@ -302,19 +302,25 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   };
 
   const handleImpersonate = async (u) => {
-    if (!confirm(`สวมสิทธิ์เป็น "${u.display_name}" (${u.username})?\nระบบจะเข้าสู่การใช้งานในมุมมองของผู้ใช้คนนี้ทันที`)) return;
+    setModal({ type: 'impersonate', user: u });
+  };
+
+  const doImpersonate = async (u) => {
     try {
-      const result = await api.impersonate(u.id);
-      // โหลดหน้าใหม่เพื่อให้ React state ถูก re-init จาก server session
+      await api.impersonate(u.id);
       window.location.reload();
     } catch(e) { alert(e.message); }
   };
 
   const deactivate = async (u) => {
-    if (!confirm(`ปิดใช้งานบัญชี "${u.display_name}" (${u.username})?`)) return;
+    setModal({ type: 'deactivate', user: u });
+  };
+
+  const doDeactivate = async (u) => {
     try {
       await apiFetch('/api/users.php?id='+u.id, { method:'DELETE' });
       setUsers(us => us.map(x => x.id === u.id ? {...x, active:0} : x));
+      setModal(null);
     } catch(e) { alert(e.message); }
   };
 
@@ -474,6 +480,66 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
       {modal?.type === 'reset' && (
         <ResetPassModal user={modal.user} onClose={() => setModal(null)}/>
       )}
+
+      {modal?.type === 'impersonate' && (() => { const u = modal.user; return (
+        <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:24}}
+          onClick={()=>setModal(null)}>
+          <div style={{background:'var(--surface)',borderRadius:14,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:400,padding:'28px 28px 24px'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,textAlign:'center'}}>
+              <div style={{width:56,height:56,borderRadius:'50%',background:'color-mix(in srgb,var(--maroon) 12%,transparent)',display:'grid',placeItems:'center'}}>
+                <Icon name="eye" style={{width:26,height:26,color:'var(--maroon)'}}/>
+              </div>
+              <div>
+                <div style={{fontWeight:700,fontSize:17,marginBottom:6}}>สวมสิทธิ์ผู้ใช้</div>
+                <div className="muted" style={{fontSize:13,lineHeight:1.6}}>
+                  ระบบจะเข้าสู่การใช้งานในมุมมองของ<br/>
+                  <b style={{color:'var(--ink)'}}>{u.display_name}</b>
+                  <span className="faint"> ({u.username})</span><br/>
+                  ทันที — คลิก <b>คืนสิทธิ์ Admin</b> ที่แถบด้านบนเพื่อออก
+                </div>
+              </div>
+              <div style={{display:'flex',gap:10,marginTop:4}}>
+                <button className="btn btn-ghost" onClick={()=>setModal(null)}>ยกเลิก</button>
+                <button className="btn btn-primary" style={{background:'var(--maroon)'}}
+                  onClick={()=>doImpersonate(u)}>
+                  <Icon name="eye" style={{width:14,height:14}}/> สวมสิทธิ์เลย
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ); })()}
+
+      {modal?.type === 'deactivate' && (() => { const u = modal.user; return (
+        <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:24}}
+          onClick={()=>setModal(null)}>
+          <div style={{background:'var(--surface)',borderRadius:14,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:400,padding:'28px 28px 24px'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,textAlign:'center'}}>
+              <div style={{width:56,height:56,borderRadius:'50%',background:'var(--danger-bg,#fef2f2)',display:'grid',placeItems:'center'}}>
+                <Icon name="x" style={{width:26,height:26,color:'var(--danger,#dc2626)'}}/>
+              </div>
+              <div>
+                <div style={{fontWeight:700,fontSize:17,marginBottom:6}}>ปิดใช้งานบัญชี</div>
+                <div className="muted" style={{fontSize:13,lineHeight:1.6}}>
+                  ต้องการปิดใช้งานบัญชีของ<br/>
+                  <b style={{color:'var(--ink)'}}>{u.display_name}</b>
+                  <span className="faint"> ({u.username})</span><br/>
+                  บัญชีจะไม่สามารถเข้าสู่ระบบได้จนกว่าจะเปิดใช้งานอีกครั้ง
+                </div>
+              </div>
+              <div style={{display:'flex',gap:10,marginTop:4}}>
+                <button className="btn btn-ghost" onClick={()=>setModal(null)}>ยกเลิก</button>
+                <button className="btn btn-primary" style={{background:'var(--danger,#dc2626)'}}
+                  onClick={()=>doDeactivate(u)}>
+                  <Icon name="x" style={{width:14,height:14}}/> ปิดใช้งาน
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ); })()}
     </div>
   );
 }
