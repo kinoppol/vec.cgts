@@ -1231,6 +1231,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const o = officerById(officers, c.assignee);
   const canAssign = role==="officer" || role==="dir_legal" || role==="dir_admin" || role==="admin";
   const isHeadSec = role==="head_secretary";
+  // ผู้ดูเป็นนิติกรผู้ดำเนินการของเรื่องนี้หรือไม่ → ไม่มีอำนาจมอบหมายนิติกรคนอื่น
+  const viewerIsLawyer = currentUser?.officer_id && String(currentUser.officer_id) === String(c.lawyer);
 
   return (
     <div className="fade-in">
@@ -1330,12 +1332,15 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         <div className="grid" style={{gap:16}}>
           <div className="card card-pad">
             <h3 style={{fontSize:15,marginBottom:14}}>ผู้รับผิดชอบ</h3>
-            {o ? <div className="vcenter" style={{gap:12}}>
-                <span className="avatar" style={{width:44,height:44}}>{o.init}</span>
-                <div>
-                  {(c.assigned_group || o.group) && <div style={{fontSize:16,fontWeight:700,color:'var(--maroon)',marginBottom:3,lineHeight:1.3}}>{c.assigned_group || o.group}</div>}
-                  <div style={{fontWeight:600}}>{o.name}</div>
-                  <div className="muted sm">{o.role}</div>
+            {o ? <div>
+                {(c.assigned_group || o.group) && <div style={{fontSize:16,fontWeight:700,color:'var(--maroon)',marginBottom:8,lineHeight:1.3}}>{c.assigned_group || o.group}</div>}
+                <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>เจ้าหน้าที่ผู้รับผิดชอบ</div>
+                <div className="vcenter" style={{gap:12}}>
+                  <span className="avatar" style={{width:40,height:40}}>{o.init}</span>
+                  <div>
+                    <div style={{fontWeight:600}}>{o.name}</div>
+                    <div className="muted sm">{o.role}</div>
+                  </div>
                 </div>
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
@@ -1352,8 +1357,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
             </div>}
 
-            {/* เจ้าหน้าที่ผู้รับผิดชอบส่งเรื่องต่อให้นิติกรในกลุ่ม */}
-            {o && c.status!=="closed" &&
+            {/* เฉพาะเจ้าหน้าที่ผู้รับผิดชอบ/ผู้บริหารเท่านั้น — นิติกรไม่มีอำนาจมอบหมายนิติกร */}
+            {o && c.status!=="closed" && !viewerIsLawyer &&
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name?"เปลี่ยนนิติกรผู้ดำเนินการ":"มอบหมายนิติกร"}</button>}
           </div>
 

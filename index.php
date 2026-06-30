@@ -33,7 +33,7 @@ $initialUser = null;
 if (!empty($_SESSION['user_id'])) {
     try {
         $db   = getDB();
-        $stmt = $db->prepare('SELECT id, username, display_name, role, group_name, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
+        $stmt = $db->prepare('SELECT id, username, display_name, role, group_name, init, officer_id, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
         $stmt->execute([$_SESSION['user_id']]);
         $initialUser = $stmt->fetch() ?: null;
         if ($initialUser) {
