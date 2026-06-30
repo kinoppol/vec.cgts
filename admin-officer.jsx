@@ -1255,7 +1255,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
             return (<button key="mark-assign" className="btn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setShowAssignDone(true)}>
-              <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายนิติกร
+              <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายผู้ดำเนินการ
             </button>);
           })()}
           {isHeadSec && !c.assignee && c.status!=="closed" &&
@@ -1357,7 +1357,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 
       {showAssignDone && (() => {
         const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
-        const fakeStep = { label:'มอบหมายนิติกร', step_key:'assign', event_id: assignStep?.event_id, _case_id: c.id };
+        const fakeStep = { label:'มอบหมายผู้ดำเนินการ', step_key:'assign', event_id: assignStep?.event_id, _case_id: c.id };
         const handleConfirm = async ({ note, file }) => {
           let eid = assignStep?.event_id;
           if (!eid) {
