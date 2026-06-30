@@ -450,9 +450,10 @@ if ($method === 'GET') {
 
     $lawyerCol = in_array('lawyer_id', $caseColsList) ? 'c.lawyer_id AS lawyer' : 'NULL AS lawyer';
     $groupCol  = in_array('assigned_group', $caseColsList) ? 'c.assigned_group' : 'NULL AS assigned_group';
+    $recvCol   = in_array('group_recv_no', $caseColsList) ? 'c.group_recv_no' : 'NULL AS group_recv_no';
     $sql = "SELECT c.id, c.reg_number AS reg, c.subject, c.track, c.cat, c.channel,
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
-                   c.agency, c.assignee_id AS assignee, $lawyerCol, $groupCol,
+                   c.agency, c.assignee_id AS assignee, $lawyerCol, $groupCol, $recvCol,
                    c.progress, c.received_date AS received, c.due_date AS due,
                    COALESCE(ss.days, 30) AS sla_days
             FROM cases c

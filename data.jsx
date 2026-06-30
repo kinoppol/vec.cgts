@@ -145,6 +145,8 @@ const api = {
   getCases:    (params={})=> apiFetch('/api/cases.php?' + new URLSearchParams(params).toString()),
   getAuditReport: ()      => apiFetch('/api/reports.php?action=audit'),
   switchRole:  (role)     => apiFetch('/api/auth.php?action=switch_role', { method:'POST', body: JSON.stringify({ role }) }),
+  previewGroupReceipt: (caseId) => apiFetch('/api/group_receipt.php?action=preview&case_id=' + encodeURIComponent(caseId)),
+  issueGroupReceipt:   (data)   => apiFetch('/api/group_receipt.php', { method:'POST', body: JSON.stringify(data) }),
   getCase:     (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
   createCase:  (data)     => apiFetch('/api/cases.php', { method:'POST', body: JSON.stringify(data) }),
   updateCase:  (id, data) => apiFetch('/api/cases.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),

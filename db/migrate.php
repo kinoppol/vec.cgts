@@ -733,6 +733,50 @@ if ($confirm === 'dept_name') {
 }
 
 /* ── [21] case_events DATETIME ─────────────────────────── */
+if ($confirm === 'group_receipt') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [25]: เลขรับภายในกลุ่ม (เกษียนถึงหัวหน้ากลุ่ม)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $gcols = $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('recv_prefix', $gcols)) {
+            $db->exec("ALTER TABLE groups ADD COLUMN recv_prefix VARCHAR(20) DEFAULT NULL AFTER dept_name");
+            echo "✓ ALTER groups ADD recv_prefix\n";
+        } else { echo "– groups.recv_prefix มีอยู่แล้ว ข้าม\n"; }
+
+        $ccols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('group_recv_no', $ccols)) {
+            $db->exec("ALTER TABLE cases ADD COLUMN group_recv_no VARCHAR(40) DEFAULT NULL AFTER assigned_group");
+            echo "✓ ALTER cases ADD group_recv_no\n";
+        } else { echo "– cases.group_recv_no มีอยู่แล้ว ข้าม\n"; }
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS group_receipts (
+              id         INT NOT NULL AUTO_INCREMENT,
+              group_id   INT NOT NULL,
+              year       SMALLINT NOT NULL,
+              seq        INT NOT NULL,
+              recv_no    VARCHAR(40) NOT NULL,
+              case_id    VARCHAR(20) DEFAULT NULL,
+              note       TEXT DEFAULT NULL,
+              created_by INT DEFAULT NULL,
+              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uq_group_year_seq (group_id, year, seq),
+              KEY idx_gr_case (case_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        echo "✓ CREATE TABLE group_receipts\n";
+        echo '<span class="ok">✓ เสร็จสิ้น</span>';
+    } catch (Throwable $e) {
+        echo '<span class="err">✗ '.$e->getMessage().'</span>';
+    }
+    echo '</pre>';
+    exit;
+}
+
 if ($confirm === 'order_template') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
     echo '<h2>Migration [24]: รูปแบบการออกคำสั่ง + order_items</h2><pre>';
@@ -881,6 +925,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[25] เลขรับภายในกลุ่ม</b> — groups.recv_prefix + cases.group_recv_no + ตาราง group_receipts<br><code><a href="?confirm=group_receipt">migrate.php?confirm=group_receipt</a></code></li>';
     echo '<li><b>[24] รูปแบบการออกคำสั่ง</b> — เพิ่ม case_events.order_items + seed เทมเพลตคำสั่ง 7 รายการ<br><code><a href="?confirm=order_template">migrate.php?confirm=order_template</a></code></li>';
     echo '<li><b>[23] Lawyer ID</b> — เพิ่ม cases.lawyer_id (นิติกรผู้ดำเนินการที่เจ้าหน้าที่มอบหมาย)<br><code><a href="?confirm=lawyer_id">migrate.php?confirm=lawyer_id</a></code></li>';
     echo '<li><b>[22] Assigned Group</b> — เพิ่ม cases.assigned_group และ case_task_proposals.final_group เพื่อบันทึกกลุ่มที่ dir_admin มอบหมาย<br><code><a href="?confirm=assigned_group">migrate.php?confirm=assigned_group</a></code></li>';

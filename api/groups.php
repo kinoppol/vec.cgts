@@ -17,10 +17,14 @@ function fetchGroupRoles($db, $groupId): array {
     return $s->fetchAll(PDO::FETCH_COLUMN);
 }
 
+// recv_prefix อาจยังไม่ได้ migrate
+$HAS_RECV_PREFIX = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN), true);
+$RECV_SEL = $HAS_RECV_PREFIX ? 'g.recv_prefix' : 'NULL AS recv_prefix';
+
 /* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
 if ($method === 'GET' && $id) {
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, $RECV_SEL,
                 u.display_name AS leader_name, u.init AS leader_init
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );
@@ -41,7 +45,7 @@ if ($method === 'GET' && $id) {
 /* ── GET — รายการกลุ่มทั้งหมด ──────────────────────────────── */
 if ($method === 'GET') {
     $rows = $db->query(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, $RECV_SEL,
                 u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id ORDER BY g.name"
@@ -210,6 +214,12 @@ if ($method === 'PATCH' && $id) {
         audit('group_set_dept', $id, "dept_name=" . ($deptName ?? 'null'));
     }
 
+    if (array_key_exists('recv_prefix', $body) && $HAS_RECV_PREFIX) {
+        $pfx = preg_replace('/[^A-Za-z0-9ก-๙]/u', '', trim($body['recv_prefix'] ?? '')) ?: null;
+        $db->prepare("UPDATE groups SET recv_prefix=? WHERE id=?")->execute([$pfx, $id]);
+        audit('group_set_prefix', $id, "recv_prefix=" . ($pfx ?? 'null'));
+    }
+
     if (array_key_exists('leader_role', $body)) {
         $leaderRole = $body['leader_role'] ?: null;
         $db->prepare("UPDATE groups SET leader_role=? WHERE id=?")->execute([$leaderRole, $id]);
@@ -226,7 +236,7 @@ if ($method === 'PATCH' && $id) {
     }
 
     $stmt = $db->prepare(
-        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, u.display_name AS leader_name, u.init AS leader_init,
+        "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, $RECV_SEL, u.display_name AS leader_name, u.init AS leader_init,
                 (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
          FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.id=?"
     );

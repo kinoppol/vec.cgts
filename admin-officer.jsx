@@ -1290,6 +1290,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
   const [assignLawyer, setAssignLawyer] = useState(false);
+  const [forwardGroup, setForwardGroup] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showPropose, setShowPropose] = useState(false);
   const [markingAssign, setMarkingAssign] = useState(false);
@@ -1450,6 +1451,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
 
+            {/* เลขรับภายในกลุ่ม (หลังเกษียนถึงผู้อำนวยการกลุ่ม) */}
+            {c.group_recv_no && <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--line)'}}>
+              <div className="faint tiny" style={{marginBottom:4,textTransform:'uppercase',letterSpacing:'.04em'}}>เลขรับภายในกลุ่ม</div>
+              <div className="code" style={{fontSize:15,color:'var(--maroon)',fontWeight:700}}>{c.group_recv_no}</div>
+            </div>}
+
             {/* นิติกรผู้ดำเนินการ (เจ้าหน้าที่ส่งต่อให้) */}
             {c.lawyer_name && <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--line)'}}>
               <div className="faint tiny" style={{marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>นิติกรผู้ดำเนินการ</div>
@@ -1462,9 +1469,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
             </div>}
 
-            {/* เฉพาะเจ้าหน้าที่ผู้รับผิดชอบ/ผู้บริหารเท่านั้น — นิติกรไม่มีอำนาจมอบหมายนิติกร */}
+            {/* เจ้าหน้าที่ผู้รับผิดชอบเกษียนเรื่องถึงผู้อำนวยการกลุ่ม */}
             {o && c.status!=="closed" && !viewerIsLawyer &&
-              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name?"เปลี่ยนนิติกรผู้ดำเนินการ":"มอบหมายนิติกร"}</button>}
+              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> {c.group_recv_no?"เกษียนเรื่องอีกครั้ง":"เกษียนเรื่อง"}</button>}
           </div>
 
           <div className="card card-pad">
@@ -1519,6 +1526,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         api.getCase(c.id).then(full => setC(full));
         setAssignLawyer(false);
       }}/>}
+      {forwardGroup && <ForwardToGroupModal c={c} close={()=>setForwardGroup(false)} onDone={async ()=>{
+        setForwardGroup(false);
+        const fresh = await api.getCase(c.id); setC(fresh);
+        if (onRefresh) onRefresh();
+      }}/>}
       {showDelete && <DeleteCaseModal c={c} onClose={()=>setShowDelete(false)} onDeleted={(id)=>{
         setShowDelete(false);
         if (onCaseDeleted) onCaseDeleted(id);
@@ -1569,6 +1581,92 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
           <button className="btn btn-outline" onClick={close}>ยกเลิก</button>
           <button className="btn btn-primary" disabled={!sel} onClick={()=>onAssign(sel)}><Icon name="check" style={{width:16,height:16}}/> ยืนยันมอบหมาย</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal เกษียนเรื่องถึงผู้อำนวยการกลุ่ม ---------------- */
+function ForwardToGroupModal({ c, close, onDone }) {
+  const [preview, setPreview] = useState(null); // {recv_no, group_name, leader_name, has_prefix}
+  const [loadErr, setLoadErr] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState(null); // {ok,msg,recv_no}
+
+  useEffect(() => {
+    api.previewGroupReceipt(c.id)
+      .then(p => {
+        setPreview(p);
+        setNote('เรียน ผู้อำนวยการ' + (p.group_name || '') + '\n');
+      })
+      .catch(e => setLoadErr(e.message));
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await api.issueGroupReceipt({ case_id: c.id, note: note.trim() || null });
+      setResult({ ok: true, recv_no: res.recv_no });
+    } catch(ex) {
+      setResult({ ok: false, msg: ex.message });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:24}} onClick={close}>
+      <div style={{background:'var(--surface)',borderRadius:12,width:'100%',maxWidth:480,maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 8px 40px rgba(0,0,0,.35)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <div className="vcenter"><Icon name="flag" style={{width:20,height:20,color:'var(--maroon)'}}/><h3 style={{margin:0,fontSize:16,marginLeft:8}}>เกษียนเรื่องถึงผู้อำนวยการกลุ่ม</h3></div>
+          <button className="icon-btn" onClick={close}><Icon name="x"/></button>
+        </div>
+
+        {result ? (
+          <div style={{padding:'32px 24px',textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
+            {result.ok ? <>
+              <div style={{width:60,height:60,borderRadius:'50%',background:'var(--ok-bg)',display:'grid',placeItems:'center'}}><Icon name="checkCircle" style={{width:30,height:30,color:'var(--ok)'}}/></div>
+              <div><div style={{fontWeight:700,fontSize:16}}>เกษียนเรื่องสำเร็จ</div>
+                <div className="muted sm" style={{marginTop:4}}>เลขรับภายในกลุ่ม <b className="code">{result.recv_no}</b></div></div>
+              <button className="btn btn-primary" onClick={onDone}><Icon name="check" style={{width:15,height:15}}/> ปิด</button>
+            </> : <>
+              <div style={{width:60,height:60,borderRadius:'50%',background:'var(--danger-bg,#fef2f2)',display:'grid',placeItems:'center'}}><Icon name="alert" style={{width:30,height:30,color:'var(--danger)'}}/></div>
+              <div className="notice notice-danger" style={{textAlign:'left'}}><Icon name="alert"/><div style={{fontSize:13}}>{result.msg}</div></div>
+              <div className="vcenter" style={{gap:10}}>
+                <button className="btn btn-ghost" onClick={close}>ปิด</button>
+                <button className="btn btn-primary" onClick={()=>setResult(null)}>ลองอีกครั้ง</button>
+              </div>
+            </>}
+          </div>
+        ) : loadErr ? (
+          <div style={{padding:'24px'}}><div className="notice notice-danger"><Icon name="alert"/><div>{loadErr}</div></div>
+            <button className="btn btn-ghost btn-block" style={{marginTop:14}} onClick={close}>ปิด</button></div>
+        ) : !preview ? (
+          <div style={{padding:'40px',textAlign:'center'}}><LoadingSpinner/></div>
+        ) : (
+          <form onSubmit={submit} style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:14,overflowY:'auto',flex:1}}>
+              {/* เลขรับที่จะได้รับ */}
+              <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
+                <div className="faint tiny" style={{marginBottom:3}}>เลขรับภายในกลุ่ม {preview.group_name} ที่เรื่องนี้จะได้รับ</div>
+                <div style={{fontFamily:'monospace',fontWeight:700,fontSize:18,letterSpacing:'.04em',color:'var(--maroon)'}}>{preview.recv_no}</div>
+                {!preview.has_prefix && <div className="tiny" style={{color:'var(--warn)',marginTop:4}}>⚠ กลุ่มนี้ยังไม่ได้ตั้ง PREFIX — admin ตั้งได้ในจัดการกลุ่ม</div>}
+                {preview.leader_name && <div className="faint tiny" style={{marginTop:4}}>เสนอถึง: {preview.leader_name}</div>}
+              </div>
+              {/* ข้อความเกษียน */}
+              <div>
+                <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อความเกษียน</label>
+                <textarea className="input" rows={6} value={note} onChange={e=>setNote(e.target.value)}
+                  style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end',padding:'14px 20px',borderTop:'1px solid var(--line)',flexShrink:0}}>
+              <button type="button" className="btn btn-ghost" onClick={close} disabled={saving}>ยกเลิก</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}><Icon name="flag" style={{width:14,height:14}}/> {saving?'กำลังบันทึก…':'เกษียน'}</button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS cases (
   detail        TEXT         DEFAULT NULL,
   assignee_id   VARCHAR(10)  DEFAULT NULL,
   assigned_group VARCHAR(200) DEFAULT NULL,
+  group_recv_no VARCHAR(40)  DEFAULT NULL,
   lawyer_id     VARCHAR(10)  DEFAULT NULL,
   sla           ENUM('g','a','r') NOT NULL DEFAULT 'g',
   progress      TINYINT      NOT NULL DEFAULT 0,
@@ -295,11 +296,30 @@ CREATE TABLE IF NOT EXISTS groups (
   leader_id   INT          DEFAULT NULL,
   leader_role VARCHAR(50)  DEFAULT NULL,
   dept_name   VARCHAR(200) DEFAULT NULL,
+  recv_prefix VARCHAR(20)  DEFAULT NULL,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_group_name (name),
   KEY idx_group_leader (leader_id),
   CONSTRAINT fk_group_leader FOREIGN KEY (leader_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
+-- group_receipts: เลขรับภายในกลุ่ม (เกษียนถึงหัวหน้ากลุ่ม)
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS group_receipts (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  group_id   INT          NOT NULL,
+  year       SMALLINT     NOT NULL,
+  seq        INT          NOT NULL,
+  recv_no    VARCHAR(40)  NOT NULL,
+  case_id    VARCHAR(20)  DEFAULT NULL,
+  note       TEXT         DEFAULT NULL,
+  created_by INT          DEFAULT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_group_year_seq (group_id, year, seq),
+  KEY idx_gr_case (case_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS group_roles (

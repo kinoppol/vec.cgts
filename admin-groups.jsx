@@ -6,6 +6,7 @@ function GroupFormModal({ group, onSave, onClose }) {
   const [name,       setName]       = useState(group ? group.name : "");
   const [leaderRole, setLeaderRole] = useState(group ? (group.leader_role||"") : "");
   const [deptName,   setDeptName]   = useState(group ? (group.dept_name||"") : "");
+  const [recvPrefix, setRecvPrefix] = useState(group ? (group.recv_prefix||"") : "");
   const [lookupGroups, setLookupGroups] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -19,7 +20,7 @@ function GroupFormModal({ group, onSave, onClose }) {
     if (!name.trim()) { setErr("กรุณาระบุชื่อกลุ่ม"); return; }
     setSaving(true); setErr("");
     try {
-      const payload = { name: name.trim(), leader_role: leaderRole||null, dept_name: deptName||null };
+      const payload = { name: name.trim(), leader_role: leaderRole||null, dept_name: deptName||null, recv_prefix: recvPrefix.trim()||null };
       const result = group
         ? await api.updateGroup(group.id, payload)
         : await api.createGroup(payload);
@@ -49,6 +50,14 @@ function GroupFormModal({ group, onSave, onClose }) {
               : <input className="input" value={deptName} placeholder="เช่น กลุ่มงานวินัย อุทธรณ์" onChange={e=>setDeptName(e.target.value)}/>
             }
             <div className="tiny faint" style={{marginTop:4}}>บุคลากรในกลุ่มนี้จะได้รับกลุ่มงานนี้โดยอัตโนมัติ</div>
+          </div>
+          <div className="field">
+            <label className="label">PREFIX เลขรับภายในกลุ่ม</label>
+            <input className="input" value={recvPrefix} maxLength={20}
+              onChange={e=>setRecvPrefix(e.target.value)} placeholder="เช่น วน, กม, นต"/>
+            <div className="tiny faint" style={{marginTop:4}}>
+              ใช้ออกเลขรับเมื่อเกษียนเรื่องเข้ากลุ่ม รูปแบบ <b>{(recvPrefix.trim()||'PREFIX')}-{new Date().getFullYear()+543}-00001</b>
+            </div>
           </div>
           <div className="field">
             <label className="label">บทบาทเฉพาะสำหรับหัวหน้ากลุ่ม</label>

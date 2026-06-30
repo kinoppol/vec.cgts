@@ -563,7 +563,11 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       ? cases.filter(c => !c.assignee && c.status === 'received').length
       : cases.filter(c=>["received","screening"].includes(c.status)).length,
     pendingProposals: role === 'dir_legal'
-      ? cases.filter(c => user?.officer_id && String(c.lawyer) === String(user.officer_id)).length
+      ? cases.filter(c => {
+          const myGroups = (user?.leader_groups || []).map(g => g.name);
+          return (c.group_recv_no && myGroups.includes(c.assigned_group)) ||
+                 (user?.officer_id && String(c.lawyer) === String(user.officer_id));
+        }).length
       : pendingProposals.length,
   };
   const nav    = navFor(role, counts, user);
@@ -598,10 +602,14 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "proposals") {
     const canApproveProposals = role === "dir_admin" || role === "admin";
     if (role === "dir_legal") {
-      // นิติการ: เห็นเฉพาะเรื่องที่ clerk มอบหมายให้ตนเอง (lawyer_id = officer_id ของตน)
-      const myCases = (cases || []).filter(c => user?.officer_id && String(c.lawyer) === String(user.officer_id));
+      // นิติการ: เห็นเรื่องที่ clerk เกษียนเข้ากลุ่มที่ตนเป็นหัวหน้า + เรื่องที่ถูกมอบหมายเป็นนิติกร
+      const myGroups = (user?.leader_groups || []).map(g => g.name);
+      const myCases = (cases || []).filter(c =>
+        (c.group_recv_no && myGroups.includes(c.assigned_group)) ||
+        (user?.officer_id && String(c.lawyer) === String(user.officer_id))
+      );
       content = <CaseListPage cases={myCases} officers={officers} openCase={openCase}
-        title="เรื่องที่ได้รับมอบหมาย" sub="เรื่องที่เจ้าหน้าที่ผู้รับผิดชอบมอบหมายให้ท่านดำเนินการ"/>;
+        title="เรื่องที่ได้รับมอบหมาย" sub="เรื่องที่เกษียนเข้ากลุ่มของท่าน รอพิจารณามอบหมายนิติกร"/>;
     } else {
       content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
         openCase={openCase}
