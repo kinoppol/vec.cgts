@@ -859,6 +859,67 @@ function StepDoneModal({ step, onConfirm, onClose }) {
   );
 }
 
+/* ---------------- CaseMemosTab — รวมข้อความเกษียนทุกขั้นตอน ---------------- */
+function CaseMemosTab({ caseId }) {
+  const [memos, setMemos] = React.useState(null);
+  const [err, setErr] = React.useState('');
+
+  React.useEffect(() => {
+    api.getCaseMemos(caseId).then(setMemos).catch(e => setErr(e.message));
+  }, [caseId]);
+
+  function fmtDateTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T'));
+    if (isNaN(d)) return iso;
+    const date = d.toLocaleDateString('th-TH', { day:'numeric', month:'long', year:'numeric' });
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    return `${date} ${hh}:${mm} น.`;
+  }
+  const kindColor = (k) => k==='รับเรื่องเข้าระบบ' ? 'var(--info)'
+    : k==='ผอ.สำนักพิจารณา' ? 'var(--ok)' : 'var(--maroon)';
+
+  if (err) return <div className="notice notice-danger"><Icon name="alert"/><div>{err}</div></div>;
+  if (!memos) return <LoadingSpinner/>;
+  if (memos.length === 0) return <div className="muted sm" style={{padding:16,textAlign:'center'}}>ยังไม่มีการเกษียน</div>;
+
+  return (
+    <div>
+      <h3 style={{fontSize:15,marginBottom:14}}>การเกษียนเรื่อง <span className="faint sm">({memos.length} รายการ)</span></h3>
+      <div style={{display:'flex',flexDirection:'column'}}>
+        {memos.map((m,i) => {
+          const last = i === memos.length-1;
+          return (
+            <div key={i} style={{display:'flex',gap:0,position:'relative'}}>
+              {/* dot + เส้น */}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,width:24}}>
+                <div style={{width:13,height:13,borderRadius:'50%',background:kindColor(m.kind),border:'2px solid var(--surface)',boxShadow:'0 0 0 2px '+kindColor(m.kind),marginTop:5,zIndex:1}}/>
+                {!last && <div style={{width:2,flex:1,minHeight:20,background:'var(--border)',opacity:.5}}/>}
+              </div>
+              {/* เนื้อหา */}
+              <div style={{flex:1,paddingLeft:14,paddingBottom: last?0:18}}>
+                <div className="vcenter" style={{gap:8,flexWrap:'wrap',marginBottom:3}}>
+                  <span style={{fontWeight:700,fontSize:13,color:kindColor(m.kind)}}>{m.kind}</span>
+                  {m.extra && <span className="badge badge-maroon code" style={{fontSize:11}}>{m.extra}</span>}
+                  <span className="faint tiny">· {fmtDateTime(m.when)}</span>
+                </div>
+                <div className="vcenter" style={{gap:6,marginBottom:6}}>
+                  <span style={{fontWeight:600,fontSize:13}}>{m.actor_name}</span>
+                  {m.actor_title && <span className="faint sm">· {m.actor_title}</span>}
+                </div>
+                <div style={{fontSize:13.5,color:'var(--ink)',background:'var(--surface-2)',borderRadius:8,padding:'10px 14px',borderLeft:'3px solid '+kindColor(m.kind),whiteSpace:'pre-wrap',lineHeight:1.7}}>
+                  {m.text}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- CaseTimeline — เส้นเวลาการดำเนินการ ---------------- */
 function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
   // canEditStep(step_key) → bool ต่อขั้น; ถ้าไม่ส่งมา ใช้ canEdit รวม
@@ -1287,7 +1348,7 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
 
 function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted, onRefresh }) {
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
-  const [tab, setTab] = useState("info");
+  const [tab, setTab] = useState("memos");
   const [assign, setAssign] = useState(false);
   const [assignLawyer, setAssignLawyer] = useState(false);
   const [forwardGroup, setForwardGroup] = useState(false);
@@ -1383,10 +1444,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       <div className="grid" style={{gridTemplateColumns:"1.7fr 1fr",alignItems:"start"}}>
         <div className="card">
           <div className="tabs" style={{padding:"0 18px"}}>
-            {[["info","รายละเอียด"],["tasks","งานย่อย"],["files","คลังสำนวน"],["timeline","ไทม์ไลน์ & SLA"]].map(([v,l])=>
+            {[["memos","การเกษียน"],["info","รายละเอียด"],["tasks","งานย่อย"],["files","คลังสำนวน"],["timeline","ไทม์ไลน์ & SLA"]].map(([v,l])=>
               <button key={v} className={"tab "+(tab===v?"active":"")} onClick={()=>setTab(v)}>{l}</button>)}
           </div>
           <div className="card-pad" style={{padding:24}}>
+            {tab==="memos" && <CaseMemosTab caseId={c.id}/>}
             {tab==="tasks" && <CaseTasksTab caseId={c.id} caseAssignee={c.assignee} officers={officers} currentUser={currentUser} role={role}/>}
             {tab==="info" && <>
               <h3 style={{fontSize:15,marginBottom:10}}>เนื้อหาเรื่อง</h3>
