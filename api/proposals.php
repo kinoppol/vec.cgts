@@ -64,6 +64,10 @@ if ($method === 'POST') {
     $db->prepare("UPDATE case_task_proposals SET status='changed' WHERE case_id=? AND from_task_no=0 AND status='pending'")
        ->execute([$caseId]);
 
+    // ตรวจว่าตาราง case_task_proposals มีอยู่จริง
+    $tableExists = $db->query("SHOW TABLES LIKE 'case_task_proposals'")->fetchColumn();
+    if (!$tableExists) err('ระบบยังไม่ได้ติดตั้งโมดูลนำเสนอ กรุณาติดต่อผู้ดูแลระบบ (migration: proposals)', 500);
+
     // ตรวจ columns ที่อาจยังไม่ได้ migrate (graceful fallback)
     $existCols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
     $hasPropGroups    = in_array('proposed_groups',    $existCols);
