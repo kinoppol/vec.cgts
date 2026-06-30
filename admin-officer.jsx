@@ -243,7 +243,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={result?.ok ? onClose : onClose}>
-      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:520,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:680,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <h3 style={{margin:0,fontSize:16}}>เกษียนเรื่อง</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
@@ -287,43 +287,46 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
           </div>
-          {/* กลุ่มงาน */}
-          <div className="field">
-            <label>เสนอมอบหมายให้กลุ่มงาน <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายกลุ่ม)</span></label>
-            {groups.length === 0
-              ? <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการกลุ่มงาน</div>
-              : <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                  {groups.map(g => <React.Fragment key={g.name}>{checkboxRow(selGroups.includes(g.name), ()=>toggleGroup(g.name), g.name)}</React.Fragment>)}
-                </div>
-            }
-          </div>
-
-          {/* บุคลากรที่เกี่ยวข้อง */}
-          <div className="field">
-            <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
-            {(() => {
-              if (selGroups.length === 0) {
-                return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อสมาชิก</div>;
-              }
-              const pool = (officers||[]).filter(o => matchSet.has(o.group));
-              return pool.length > 0
-                ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                    {pool.map(o =>
-                      <React.Fragment key={o.id}>{checkboxRow(
-                        selPersonnel.includes(o.id),
-                        ()=>togglePersonnel(o.id),
-                        <span>{o.name}{o.role && <span className="faint" style={{fontSize:12}}> · {o.role}</span>}</span>
-                      )}</React.Fragment>
-                    )}
+          {/* กลุ่มงาน + บุคลากร — 2 คอลัมน์ */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
+            {/* กลุ่มงาน */}
+            <div className="field" style={{margin:0}}>
+              <label>เสนอมอบหมายให้กลุ่มงาน <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายกลุ่ม)</span></label>
+              {groups.length === 0
+                ? <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบรายการกลุ่มงาน</div>
+                : <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4,maxHeight:240,overflowY:'auto',paddingRight:2}}>
+                    {groups.map(g => <React.Fragment key={g.name}>{checkboxRow(selGroups.includes(g.name), ()=>toggleGroup(g.name), g.name)}</React.Fragment>)}
                   </div>
-                : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบบุคลากรในกลุ่มที่เลือก</div>;
-            })()}
+              }
+            </div>
+
+            {/* บุคลากรที่เกี่ยวข้อง */}
+            <div className="field" style={{margin:0}}>
+              <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
+              {(() => {
+                if (selGroups.length === 0) {
+                  return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อสมาชิก</div>;
+                }
+                const pool = (officers||[]).filter(o => matchSet.has(o.group));
+                return pool.length > 0
+                  ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4,maxHeight:240,overflowY:'auto',paddingRight:2}}>
+                      {pool.map(o =>
+                        <React.Fragment key={o.id}>{checkboxRow(
+                          selPersonnel.includes(o.id),
+                          ()=>togglePersonnel(o.id),
+                          <span>{o.name}{o.role && <span className="faint" style={{fontSize:12}}> · {o.role}</span>}</span>
+                        )}</React.Fragment>
+                      )}
+                    </div>
+                  : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบบุคลากรในกลุ่มที่เลือก</div>;
+              })()}
+            </div>
           </div>
 
           {/* หมายเหตุ */}
-          <div className="field">
+          <div className="field" style={{margin:0}}>
             <label>หมายเหตุถึงผู้อำนวยการ</label>
-            <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
+            <textarea className="input" rows={4} value={note} onChange={e=>setNote(e.target.value)}
               style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
 
