@@ -410,86 +410,118 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
     setSaving(false);
   };
 
+  const grps = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
+  const pers = (() => { try { return proposal.proposed_personnel ? JSON.parse(proposal.proposed_personnel) : []; } catch { return []; } })();
+
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
-      <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:480}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <h3 style={{margin:0,fontSize:16}}>พิจารณาข้อเสนอมอบหมาย</h3>
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:'20px 16px'}} onClick={onClose}>
+      <div style={{background:'var(--surface)',borderRadius:14,boxShadow:'0 12px 48px rgba(0,0,0,.38)',width:'100%',maxWidth:680,maxHeight:'92vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+
+        {/* ── Header ── */}
+        <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+          <div style={{width:36,height:36,borderRadius:10,background:'color-mix(in srgb,var(--maroon) 12%,transparent)',display:'grid',placeItems:'center',flexShrink:0}}>
+            <Icon name="gavel" style={{width:18,height:18,color:'var(--maroon)'}}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:15}}>พิจารณาข้อเสนอมอบหมาย</div>
+            <div className="faint tiny">เสนอโดย {proposal.proposed_by_name}</div>
+          </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
-        <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
-          <div className="notice notice-info" style={{fontSize:13}}>
-            <Icon name="inbox"/><div>สำนวน <b>{proposal.case_id}</b> — {proposal.case_subject}</div>
+
+        {/* ── Body (scrollable) ── */}
+        <div style={{overflowY:'auto',flex:1,padding:'20px 24px',display:'flex',flexDirection:'column',gap:16}}>
+
+          {/* สำนวน */}
+          <div style={{background:'var(--surface-2)',borderRadius:10,padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
+            <Icon name="inbox" style={{width:18,height:18,color:'var(--maroon)',flexShrink:0,marginTop:2}}/>
+            <div>
+              <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:2}}>สำนวน</div>
+              <div><span className="code" style={{fontSize:13}}>{proposal.case_id}</span> <span style={{fontWeight:500,fontSize:14}}>{proposal.case_subject}</span></div>
+            </div>
           </div>
-          <div className="faint sm">เสนอโดย: <b>{proposal.proposed_by_name}</b></div>
-          {(() => {
-            const grps = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
-            if (!grps.length) return null;
-            return (
-              <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px'}}>
-                <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6}}>กลุ่มงานที่เสนอ:</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                  {grps.map((g,i)=><span key={i} className="badge badge-info">{g}</span>)}
+
+          {/* กลุ่ม + บุคลากร (2 คอลัมน์ถ้ามีทั้งคู่) */}
+          {(grps.length > 0 || pers.length > 0) && (
+            <div style={{display:'grid',gridTemplateColumns: grps.length && pers.length ? '1fr 1fr' : '1fr',gap:12}}>
+              {grps.length > 0 && (
+                <div style={{background:'var(--surface-2)',borderRadius:10,padding:'12px 14px'}}>
+                  <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>กลุ่มงานที่เสนอ</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {grps.map((g,i)=><span key={i} className="badge badge-info" style={{fontSize:12}}>{g}</span>)}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
-          {(() => {
-            const pers = (() => { try { return proposal.proposed_personnel ? JSON.parse(proposal.proposed_personnel) : []; } catch { return []; } })();
-            if (!pers.length) return null;
-            return (
-              <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px'}}>
-                <div style={{fontSize:12,color:'var(--ink-3)',marginBottom:6}}>บุคลากรที่เกี่ยวข้อง:</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                  {pers.map(pid => {
-                    const o = officerById(officers, pid);
-                    return o
-                      ? <div key={pid} className="vcenter" style={{gap:6,background:'var(--surface)',borderRadius:6,padding:'3px 10px',border:'1px solid var(--line)'}}>
-                          <span className="avatar avatar-sm" style={{width:22,height:22,fontSize:10}}>{o.init}</span>
-                          <span style={{fontSize:13}}>{o.name}</span>
-                        </div>
-                      : <span key={pid} className="faint sm">{pid}</span>;
-                  })}
+              )}
+              {pers.length > 0 && (
+                <div style={{background:'var(--surface-2)',borderRadius:10,padding:'12px 14px'}}>
+                  <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>บุคลากรที่เกี่ยวข้อง</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {pers.map(pid => {
+                      const o = officerById(officers, pid);
+                      return o
+                        ? <div key={pid} className="vcenter" style={{gap:5,background:'var(--surface)',borderRadius:6,padding:'3px 10px',border:'1px solid var(--line)'}}>
+                            <span className="avatar avatar-sm" style={{width:20,height:20,fontSize:9}}>{o.init}</span>
+                            <span style={{fontSize:12}}>{o.name}</span>
+                          </div>
+                        : <span key={pid} className="faint tiny">{pid}</span>;
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
-          {proposal.propose_note && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'10px 14px',fontSize:13}}>
-            <b style={{fontSize:12,color:'var(--ink-3)'}}>หมายเหตุจากหัวหน้าธุรการ:</b>
-            <pre style={{margin:'6px 0 0',fontFamily:'inherit',whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.6}}>{proposal.propose_note}</pre>
-          </div>}
+              )}
+            </div>
+          )}
+
+          {/* หมายเหตุจากหัวหน้าธุรการ */}
+          {proposal.propose_note && (
+            <div style={{borderLeft:'3px solid var(--maroon)',paddingLeft:14,background:'var(--surface-2)',borderRadius:'0 10px 10px 0',padding:'12px 14px 12px 16px'}}>
+              <div style={{fontSize:11,color:'var(--ink-3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.04em'}}>หมายเหตุจากหัวหน้าธุรการ</div>
+              <pre style={{margin:0,fontFamily:'inherit',whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.7,color:'var(--ink-2)'}}>{proposal.propose_note}</pre>
+            </div>
+          )}
+
+          <hr style={{border:'none',borderTop:'1px solid var(--line)',margin:'2px 0'}}/>
+
+          {/* Form: กลุ่มงาน + นิติกร (2 คอลัมน์) */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+            <div className="field" style={{margin:0}}>
+              <label style={{fontSize:13}}>กลุ่มงาน</label>
+              <select className="input" value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setOfficerId('');}}>
+                <option value="">— ทุกกลุ่ม —</option>
+                {allGroups.map(g=>(
+                  <option key={g} value={g}>{g}{proposedGroups.includes(g) ? ' ✓' : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field" style={{margin:0}}>
+              <label style={{fontSize:13}}>มอบหมายให้นิติกร <span className="req">*</span></label>
+              <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
+                <option value="">— เลือกนิติกร —</option>
+                {filteredOfficers.map(o=>(
+                  <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="field" style={{margin:0}}>
+            <label style={{fontSize:13}}>หมายเหตุ (ไม่บังคับ)</label>
+            <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="เช่น คำสั่งหรือเงื่อนไขพิเศษจากผู้อำนวยการ…"
+              style={{resize:'vertical'}}/>
+          </div>
+
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
-          <div className="field">
-            <label>กลุ่มงาน</label>
-            <select className="input" value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setOfficerId('');}}>
-              <option value="">— ทุกกลุ่ม —</option>
-              {allGroups.map(g=>(
-                <option key={g} value={g}>{g}{proposedGroups.includes(g) ? ' ✓' : ''}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>มอบหมายให้นิติกร <span className="req">*</span></label>
-            <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
-              <option value="">— เลือกนิติกร —</option>
-              {filteredOfficers.map(o=>(
-                <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>หมายเหตุ (ไม่บังคับ)</label>
-            <textarea className="input" rows={2} value={note} onChange={e=>setNote(e.target.value)}/>
-          </div>
-          <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:4}}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
-            <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving}>
-              <Icon name="edit" style={{width:14,height:14}}/> เปลี่ยนและมอบหมาย
-            </button>
-            <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving}>
-              {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ</>}
-            </button>
-          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{padding:'14px 24px',borderTop:'1px solid var(--line)',display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0,background:'var(--surface)'}}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
+          <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving}>
+            <Icon name="edit" style={{width:14,height:14}}/> เปลี่ยนและมอบหมาย
+          </button>
+          <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving}>
+            {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ</>}
+          </button>
         </div>
       </div>
     </div>
