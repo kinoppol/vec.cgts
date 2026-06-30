@@ -791,7 +791,7 @@ function StepDoneModal({ step, onConfirm, onClose }) {
           {isOrder && (
             <div>
               <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>
-                รูปแบบการออกคำสั่ง <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายข้อ)</span>
+                ข้อสั่งการ <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายข้อ)</span>
               </label>
               {orderTemplates.length === 0
                 ? <div className="faint sm" style={{padding:'6px 0'}}>ยังไม่มีรูปแบบคำสั่ง — เพิ่มได้ที่หน้า “รายการอ้างอิง”</div>
