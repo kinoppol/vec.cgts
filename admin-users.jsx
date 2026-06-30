@@ -283,6 +283,7 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   const [modal, setModal]       = useState(null); // null | {type:'edit'|'add'|'reset'|'impersonate'|'deactivate', user?}
   const [search, setSearch]     = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -334,9 +335,15 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
 
   const [showInactive, setShowInactive] = useState(false);
 
+  // รายชื่อกลุ่มที่สังกัด (distinct จาก users)
+  const groupOpts = [...new Set(users.map(u => u.group_name).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'th'));
+
   const filtered = users.filter(u => {
     if (filterRole === '__null__' && u.role) return false;
     if (filterRole && filterRole !== '__null__' && u.role !== filterRole) return false;
+    if (filterGroup === '__none__' && u.group_name) return false;
+    if (filterGroup && filterGroup !== '__none__' && u.group_name !== filterGroup) return false;
     if (search) {
       const q = search.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q);
@@ -437,6 +444,11 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
         <select className="input" style={{maxWidth:200}} value={filterRole} onChange={e=>setFilterRole(e.target.value)}>
           <option value="">ทุกบทบาท</option>
           {roleOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+        </select>
+        <select className="input" style={{maxWidth:220}} value={filterGroup} onChange={e=>setFilterGroup(e.target.value)}>
+          <option value="">ทุกกลุ่ม</option>
+          {groupOpts.map(g=><option key={g} value={g}>{g}</option>)}
+          <option value="__none__">— ไม่สังกัดกลุ่ม —</option>
         </select>
         <span className="faint sm">{activeUsers.length} บัญชีที่ใช้งาน</span>
       </div>
