@@ -267,7 +267,8 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
             )}
           </div>
         ) : (
-        <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
+        <form onSubmit={submit} style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
+         <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
           </div>
@@ -312,7 +313,8 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
 
-          <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0}}>
+         </div>
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0,padding:'14px 24px',borderTop:'1px solid var(--line)',background:'var(--surface)'}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               <Icon name="flag" style={{width:14,height:14}}/> {saving ? 'กำลังบันทึก…' : 'เกษียน'}
