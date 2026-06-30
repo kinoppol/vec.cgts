@@ -88,12 +88,14 @@ if (array_key_exists('ev_status', $body)) {
     $st = $body['ev_status'];
     if (!in_array($st, ['done','active','pending'])) err('ev_status ไม่ถูกต้อง');
 
-    // ยืนยันว่ากด "เสร็จแล้ว" ต้องมี detail หรือ attachment
-    if ($st === 'done') {
+    // ยืนยันว่ากด "เสร็จแล้ว" — เฉพาะขั้น "ออกคำสั่ง" ต้องมีอย่างน้อยอย่างใดอย่างหนึ่ง
+    // (เลือกการสั่งการ / พิมพ์ความเห็น / แนบไฟล์) ; ขั้นอื่นไม่บังคับ
+    if ($st === 'done' && $event['step_key'] === 'order') {
         $newDetail     = trim($body['detail'] ?? $event['detail'] ?? '');
         $hasAttachment = !empty($event['attachment_path']) || !empty($body['_has_file']);
-        if ($newDetail === '' && !$hasAttachment) {
-            err('กรุณาพิมพ์บันทึกการดำเนินการ หรือแนบไฟล์ PDF อย่างน้อยหนึ่งอย่าง');
+        $hasOrderItems = isset($body['order_items']) && is_array($body['order_items']) && count($body['order_items']) > 0;
+        if ($newDetail === '' && !$hasAttachment && !$hasOrderItems) {
+            err('กรุณาเลือกการสั่งการอย่างน้อย 1 ข้อ พิมพ์ความเห็นอย่างน้อย 3 ตัวอักษร หรือแนบไฟล์อย่างน้อย 1 ไฟล์');
         }
     }
 

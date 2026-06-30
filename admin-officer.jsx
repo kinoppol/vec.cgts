@@ -735,12 +735,15 @@ function StepDoneModal({ step, onConfirm, onClose }) {
   const [err,     setErr]     = React.useState('');
   const fileRef = React.useRef(null);
 
-  const valid = true;
-
   // เช็คลิสต์รูปแบบคำสั่ง (เฉพาะขั้น "ออกคำสั่ง")
   const isOrder = step.step_key === 'order';
   const [orderTemplates, setOrderTemplates] = React.useState([]);
   const [orderSel, setOrderSel] = React.useState(() => Array.isArray(step.order_items) ? step.order_items : []);
+
+  // ขั้น "ออกคำสั่ง": ต้องมีอย่างน้อยอย่างใดอย่างหนึ่ง — เลือกคำสั่ง ≥1 / พิมพ์ ≥3 ตัวอักษร / แนบไฟล์
+  const valid = isOrder
+    ? (orderSel.length >= 1 || note.trim().length >= 3 || !!file)
+    : true;
   React.useEffect(() => {
     if (isOrder) api.getLookups('order_template').then(setOrderTemplates).catch(()=>{});
   }, [isOrder]);
@@ -819,6 +822,11 @@ function StepDoneModal({ step, onConfirm, onClose }) {
             <input ref={fileRef} type="file" accept=".pdf,application/pdf" style={{display:'none'}}
               onChange={e=>{ const f=e.target.files[0]; if(f){ setFile(f); setErr(''); } }}/>
           </div>
+          {isOrder && !valid && (
+            <div className="faint sm" style={{margin:0}}>
+              เลือกการสั่งการอย่างน้อย 1 ข้อ หรือพิมพ์ความเห็นอย่างน้อย 3 ตัวอักษร หรือแนบไฟล์อย่างน้อย 1 ไฟล์
+            </div>
+          )}
           {err && <div className="notice notice-danger" style={{margin:0,padding:'8px 12px',fontSize:13}}>{err}</div>}
           <div style={{display:'flex',gap:8,justifyContent:'flex-end',paddingTop:4}}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} disabled={busy}>ยกเลิก</button>
