@@ -501,6 +501,32 @@ if ($method === 'POST') {
     // เริ่ม SLA ขั้น "รับเรื่อง" อัตโนมัติ
     startSlaStep($db, $newId, 'receive');
 
+    // ส่งอีเมลยืนยันให้ผู้ยื่น (ถ้า MAIL_ENABLED และมีอีเมล)
+    $contactEmail = $body['email'] ?? ($body['contact'] ?? null);
+    if ($contactEmail && !$isStaff) {
+        if (!function_exists('sendMail')) @require_once __DIR__ . '/../config/mail.php';
+        if (function_exists('sendMail')) {
+            $displayToken = $trackToken ?: $newId;
+            $trackUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
+                        . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
+                        . (dirname($_SERVER['SCRIPT_NAME'] ?? '', 2)) . '/?view=track&ticket=' . urlencode($displayToken);
+            $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:sans-serif;background:#f5f4f2;margin:0;padding:32px 0">'
+                  . '<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">'
+                  . '<div style="background:#7a1e2e;padding:24px 28px"><h1 style="color:#fff;margin:0;font-size:20px">ระบบบริหารงานนิติการ · สอศ.</h1></div>'
+                  . '<div style="padding:28px">'
+                  . '<p style="margin:0 0 8px;font-size:15px">ระบบได้รับเรื่องของท่านเรียบร้อยแล้ว</p>'
+                  . '<p style="margin:0 0 20px;color:#666;font-size:14px">กรุณาบันทึกรหัสติดตามด้านล่างไว้ เพื่อใช้ตรวจสอบสถานะเรื่องของท่าน</p>'
+                  . '<div style="background:#f5f4f2;border-radius:8px;padding:18px 20px;margin-bottom:20px">'
+                  . '<div style="font-size:12px;color:#888;margin-bottom:6px">รหัสติดตามเรื่อง (Ticket Code)</div>'
+                  . '<div style="font-size:26px;font-weight:700;font-family:monospace;color:#7a1e2e;letter-spacing:.05em">' . htmlspecialchars($displayToken) . '</div>'
+                  . '</div>'
+                  . '<a href="' . htmlspecialchars($trackUrl) . '" style="display:inline-block;background:#7a1e2e;color:#fff;text-decoration:none;padding:11px 22px;border-radius:7px;font-size:14px;font-weight:600">ติดตามสถานะเรื่อง</a>'
+                  . '<p style="margin:20px 0 0;font-size:12px;color:#aaa">อีเมลนี้ส่งจากระบบอัตโนมัติ กรุณาอย่าตอบกลับ</p>'
+                  . '</div></div></body></html>';
+            @sendMail($contactEmail, '', 'รับเรื่องของท่านแล้ว — รหัสติดตาม ' . $displayToken, $html);
+        }
+    }
+
     audit('create_case', $newId);
     $out = ['id' => $newId];
     if ($trackToken !== null) $out['track_token'] = $trackToken;
