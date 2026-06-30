@@ -14,7 +14,7 @@ if ($method === 'GET') {
         "SELECT u.id, u.username, u.display_name, u.email, u.role, u.init, u.job_title, u.group_name, u.officer_id,
                 u.active, u.can_manage_users, u.avatar_path, u.created_at,
                 (SELECT gr.role FROM group_roles gr
-                 JOIN groups g ON g.id = gr.group_id
+                 JOIN `groups` g ON g.id = gr.group_id
                  WHERE g.name = u.group_name
                  ORDER BY gr.role LIMIT 1) AS group_role
          FROM users u ORDER BY u.role, u.display_name"

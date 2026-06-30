@@ -447,11 +447,11 @@ if ($confirm === 'groups_table') {
             KEY idx_group_leader (leader_id),
             CONSTRAINT fk_group_leader FOREIGN KEY (leader_id) REFERENCES users (id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        echo "✓ CREATE TABLE groups\n";
+        echo "✓ CREATE TABLE `groups`\n";
 
         // seed จากชื่อกลุ่มที่มีอยู่ใน users.group_name
         $existing = $db->query("SELECT DISTINCT group_name FROM users WHERE group_name IS NOT NULL AND group_name != ''")->fetchAll(PDO::FETCH_COLUMN);
-        $ins = $db->prepare("INSERT IGNORE INTO groups (name) VALUES (?)");
+        $ins = $db->prepare("INSERT IGNORE INTO `groups` (name) VALUES (?)");
         foreach ($existing as $gname) { $ins->execute([$gname]); echo "✓ seed กลุ่ม: $gname\n"; }
 
         echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
@@ -469,9 +469,9 @@ if ($confirm === 'leader_role') {
     try {
         $db = getDB();
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $cols = $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN);
+        $cols = $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('leader_role', $cols)) {
-            $db->exec("ALTER TABLE groups ADD COLUMN leader_role VARCHAR(50) DEFAULT NULL AFTER leader_id");
+            $db->exec("ALTER TABLE `groups` ADD COLUMN leader_role VARCHAR(50) DEFAULT NULL AFTER leader_id");
             echo "✓ ALTER groups ADD leader_role\n";
         } else {
             echo "– groups.leader_role มีอยู่แล้ว ข้าม\n";
@@ -717,9 +717,9 @@ if ($confirm === 'dept_name') {
     try {
         $db = getDB();
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $cols = $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN);
+        $cols = $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('dept_name', $cols)) {
-            $db->exec("ALTER TABLE groups ADD COLUMN dept_name VARCHAR(200) DEFAULT NULL AFTER leader_role");
+            $db->exec("ALTER TABLE `groups` ADD COLUMN dept_name VARCHAR(200) DEFAULT NULL AFTER leader_role");
             echo "✓ ALTER groups ADD dept_name\n";
         } else {
             echo "– groups.dept_name มีอยู่แล้ว ข้าม\n";

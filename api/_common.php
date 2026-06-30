@@ -87,13 +87,13 @@ function getRoleCandidates(PDO $db, int $userId, ?string $personalRole, ?string 
 
     if ($groupName) {
         try {
-            $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN groups g ON g.id = gr.group_id WHERE g.name = ?");
+            $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN `groups` g ON g.id = gr.group_id WHERE g.name = ?");
             $gr->execute([$groupName]);
             foreach ($gr->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
         } catch (Throwable) {}
     }
     try {
-        $lg = $db->prepare('SELECT leader_role FROM groups WHERE leader_id = ? AND leader_role IS NOT NULL');
+        $lg = $db->prepare('SELECT leader_role FROM `groups` WHERE leader_id = ? AND leader_role IS NOT NULL');
         $lg->execute([$userId]);
         foreach ($lg->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
     } catch (Throwable) {}
@@ -112,7 +112,7 @@ function resolveEffectiveRole(PDO $db, int $userId, ?string $personalRole, ?stri
 /** getLeaderGroups — กลุ่มที่ผู้ใช้เป็นหัวหน้า พร้อม leader_role (สำหรับแสดงชื่อกลุ่มต่อท้ายบทบาท) */
 function getLeaderGroups(PDO $db, int $userId): array {
     try {
-        $s = $db->prepare('SELECT name, leader_role FROM groups WHERE leader_id = ?');
+        $s = $db->prepare('SELECT name, leader_role FROM `groups` WHERE leader_id = ?');
         $s->execute([$userId]);
         return $s->fetchAll() ?: [];
     } catch (Throwable) { return []; }

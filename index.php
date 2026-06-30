@@ -46,7 +46,7 @@ if (!empty($_SESSION['user_id'])) {
             // (2) บทบาทของทุกกลุ่มที่ผู้ใช้สังกัด
             if (!empty($initialUser['group_name'])) {
                 try {
-                    $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN groups g ON g.id = gr.group_id WHERE g.name = ?");
+                    $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN `groups` g ON g.id = gr.group_id WHERE g.name = ?");
                     $gr->execute([$initialUser['group_name']]);
                     foreach ($gr->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
                 } catch (Throwable) {}
@@ -55,13 +55,13 @@ if (!empty($_SESSION['user_id'])) {
             // (3) บทบาทหัวหน้ากลุ่ม (ถ้าได้รับแต่งตั้งเป็นหัวหน้ากลุ่มใด ๆ)
             $leaderGroup = null;
             try {
-                $lg = $db->prepare('SELECT id, name, leader_role FROM groups WHERE leader_id = ? LIMIT 1');
+                $lg = $db->prepare('SELECT id, name, leader_role FROM `groups` WHERE leader_id = ? LIMIT 1');
                 $lg->execute([$_SESSION['user_id']]);
                 $leaderGroup = $lg->fetch() ?: null;
             } catch (Throwable) {
                 // กรณียังไม่มีคอลัมน์ leader_role
                 try {
-                    $lg = $db->prepare('SELECT id, name FROM groups WHERE leader_id = ? LIMIT 1');
+                    $lg = $db->prepare('SELECT id, name FROM `groups` WHERE leader_id = ? LIMIT 1');
                     $lg->execute([$_SESSION['user_id']]);
                     $leaderGroup = $lg->fetch() ?: null;
                 } catch (Throwable) { $leaderGroup = null; }
@@ -88,7 +88,7 @@ if (!empty($_SESSION['user_id'])) {
             $initialUser['leader_of_group']   = $leaderGroup ? ['id' => $leaderGroup['id'], 'name' => $leaderGroup['name']] : null;
             // กลุ่มทั้งหมดที่เป็นหัวหน้า + leader_role (ใช้แสดงชื่อกลุ่มต่อท้ายบทบาทในตัวสลับ)
             try {
-                $lgs = $db->prepare('SELECT name, leader_role FROM groups WHERE leader_id = ?');
+                $lgs = $db->prepare('SELECT name, leader_role FROM `groups` WHERE leader_id = ?');
                 $lgs->execute([$_SESSION['user_id']]);
                 $initialUser['leader_groups'] = $lgs->fetchAll() ?: [];
             } catch (Throwable) { $initialUser['leader_groups'] = []; }
