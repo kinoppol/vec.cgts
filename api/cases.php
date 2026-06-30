@@ -315,6 +315,10 @@ if ($method === 'GET') {
     $uInfo->execute([$auth['id']]);
     $myOfficerId = $uInfo->fetchColumn();
 
+    // lawyer_id อาจยังไม่ได้ migrate
+    $caseColsList = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+    $hasLawyerCol = in_array('lawyer_id', $caseColsList);
+
     $where  = [];
     $params = [];
 
@@ -323,10 +327,19 @@ if ($method === 'GET') {
         // หัวหน้าธุรการ: เห็นเฉพาะสำนวนที่ยังไม่ได้มอบหมาย
         $where[] = 'c.assignee_id IS NULL';
     } elseif (in_array($auth['role'], ['officer', 'secretary', 'clerk'], true)) {
-        // เจ้าหน้าที่/ธุรการทั่วไป: เห็นเฉพาะสำนวนที่มอบหมายให้ตัวเอง
+        // เจ้าหน้าที่/ธุรการทั่วไป: เห็นสำนวนที่มอบหมายให้ตัวเอง (ในฐานะ clerk ผู้รับผิดชอบ)
+        // หรือในฐานะนิติกรผู้ดำเนินการ — แต่เห็นได้เฉพาะเมื่อ clerk กด "เสร็จแล้ว" ในขั้น "มอบหมายนิติกร" (step_key=assign)
         if ($myOfficerId) {
-            $where[] = 'c.assignee_id = ?';
+            $cond = ['c.assignee_id = ?'];
             $params[] = $myOfficerId;
+            if ($hasLawyerCol) {
+                $cond[] = "(c.lawyer_id = ? AND EXISTS (
+                    SELECT 1 FROM case_events ce
+                    WHERE ce.case_id = c.id AND ce.step_key = 'assign' AND ce.ev_status = 'done'
+                ))";
+                $params[] = $myOfficerId;
+            }
+            $where[] = '(' . implode(' OR ', $cond) . ')';
         } else {
             $where[] = '0=1'; // ไม่เชื่อมกับ officer → ไม่เห็นอะไร
         }
