@@ -232,14 +232,26 @@ if ($method === 'GET' && $id !== '') {
         if ($qEmail !== '' && $row['contact'] !== null) {
             $emailOk = strtolower($qEmail) === strtolower($row['contact']);
         }
+        // ดึง SLA steps สาธารณะ (เฉพาะที่มี started_at หรือ completed_at)
+        $pubSteps = $db->prepare(
+            "SELECT ce.step_key, ce.started_at, ce.completed_at, ce.ev_status,
+                    ss.label, ss.days AS sla_days, ss.sort_order
+             FROM case_events ce
+             LEFT JOIN sla_steps ss ON ss.step_key = ce.step_key AND ss.active = 1
+             WHERE ce.case_id = ? AND ce.step_key IS NOT NULL
+             ORDER BY ss.sort_order, ce.id"
+        );
+        $pubSteps->execute([$row['id']]);
         json_out([
-            'id'       => $row['id'],
-            'status'   => $row['status'],
-            'channel'  => $row['channel'],
-            'received' => $row['received_date'],
-            'sla'      => $row['sla'],
-            'subject'  => $row['subject'],
-            'email_ok' => $emailOk,
+            'id'          => $row['id'],
+            'track_token' => $row['track_token'] ?? null,
+            'status'      => $row['status'],
+            'channel'     => $row['channel'],
+            'received'    => $row['received_date'],
+            'sla'         => $row['sla'],
+            'subject'     => $row['subject'],
+            'email_ok'    => $emailOk,
+            'steps'       => $pubSteps->fetchAll(),
         ]);
     }
 

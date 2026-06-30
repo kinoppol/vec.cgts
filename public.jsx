@@ -685,7 +685,7 @@ function TrackStatus({ go, preset }) {
           <div className="between" style={{flexWrap:"wrap",gap:12}}>
             <div>
               <div className="muted sm">รหัสติดตาม</div>
-              <div className="code" style={{fontSize:20}}>{result.id}</div>
+              <div className="code" style={{fontSize:20}}>{result.track_token || result.id}</div>
             </div>
             <StatusBadge s={result.status}/>
           </div>
@@ -697,18 +697,68 @@ function TrackStatus({ go, preset }) {
               {!result.email_ok && <span className="muted tiny" style={{marginLeft:"auto"}}>ระบุอีเมลที่ถูกต้องเพื่อดูเพิ่มเติม</span>}
             </div>}
           <hr className="hr" style={{margin:"18px 0"}}/>
-          <div className="stepper" style={{marginBottom:8}}>
-            {pubSteps.map((s,i)=>{
-              const cur = stepOf(result.status);
-              return (<React.Fragment key={i}>
-                <div className={"step "+(i===cur?"active":i<cur?"done":"")}>
-                  <div className="num">{i<cur?<Icon name="check" style={{width:14,height:14}}/>:i+1}</div>
-                  <div className="stt">{s}</div>
-                </div>
-                {i<pubSteps.length-1 && <div className={"bar "+(i<cur?"done":"")}></div>}
-              </React.Fragment>);
-            })}
-          </div>
+          {/* Timeline SLA steps */}
+          {result.steps && result.steps.length > 0 ? (
+            <div style={{display:"grid",gap:0}}>
+              {result.steps.map((st,i)=>{
+                const done = st.ev_status === 'done';
+                const active = st.ev_status === 'active';
+                const ts = done ? st.completed_at : (active ? st.started_at : null);
+                const dateStr = ts ? (() => {
+                  const d = new Date(ts);
+                  const thY = d.getFullYear() + 543;
+                  const mo = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][d.getMonth()+1];
+                  const hh = String(d.getHours()).padStart(2,'0');
+                  const mm = String(d.getMinutes()).padStart(2,'0');
+                  return `${d.getDate()} ${mo} ${thY} ${hh}:${mm}`;
+                })() : null;
+                const isLast = i === result.steps.length - 1;
+                return (
+                  <div key={i} style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+                    {/* dot + line */}
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:28,flexShrink:0}}>
+                      <div style={{
+                        width:28,height:28,borderRadius:"50%",display:"grid",placeItems:"center",flexShrink:0,
+                        background: done ? "var(--ok-bg)" : active ? "var(--maroon)" : "var(--surface-2)",
+                        border: active ? "2px solid var(--maroon)" : done ? "2px solid var(--ok)" : "2px solid var(--border)",
+                      }}>
+                        {done
+                          ? <Icon name="check" style={{width:13,height:13,color:"var(--ok)"}}/>
+                          : active
+                            ? <div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}/>
+                            : <div style={{width:8,height:8,borderRadius:"50%",background:"var(--ink-4)"}}/>}
+                      </div>
+                      {!isLast && <div style={{width:2,flex:1,minHeight:20,background:"var(--border)",margin:"2px 0"}}/>}
+                    </div>
+                    {/* content */}
+                    <div style={{paddingBottom: isLast?0:16,flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        <span style={{fontWeight:600,fontSize:14,color: done?"var(--ok)":active?"var(--maroon)":"var(--ink-3)"}}>{st.label||st.step_key}</span>
+                        {st.sla_days && <span className="badge" style={{fontSize:11,opacity:.8}}>{st.sla_days} วัน</span>}
+                        {active && <span className="badge" style={{background:"var(--maroon)",color:"#fff",fontSize:11}}>กำลังดำเนินการ</span>}
+                      </div>
+                      {dateStr && <div className="muted tiny" style={{marginTop:2}}>
+                        {done?"เสร็จสิ้น":"เริ่ม"}: {dateStr}
+                      </div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="stepper" style={{marginBottom:8}}>
+              {pubSteps.map((s,i)=>{
+                const cur = stepOf(result.status);
+                return (<React.Fragment key={i}>
+                  <div className={"step "+(i===cur?"active":i<cur?"done":"")}>
+                    <div className="num">{i+1}</div>
+                    <div className="stt">{s}</div>
+                  </div>
+                  {i<pubSteps.length-1 && <div className={"bar "+(i<cur?"done":"")}></div>}
+                </React.Fragment>);
+              })}
+            </div>
+          )}
           <div className="notice notice-info" style={{marginTop:18}}><Icon name="info"/><div>เรื่องของท่านอยู่ระหว่างการดำเนินการของกลุ่มนิติการ หากต้องการข้อมูลเพิ่มเติม เจ้าหน้าที่จะติดต่อกลับผ่านช่องทางที่ท่านให้ไว้</div></div>
           <div className="muted tiny" style={{marginTop:14}}>อัปเดตล่าสุด: {thDate(result.received)} · ช่องทางยื่น: {result.channel}</div>
         </div>}
