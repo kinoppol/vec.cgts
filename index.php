@@ -68,15 +68,20 @@ if (!empty($_SESSION['user_id'])) {
             }
             if ($leaderGroup && !empty($leaderGroup['leader_role'])) $candidates[] = $leaderGroup['leader_role'];
 
-            // เลือกบทบาทที่มีสิทธิ์สูงสุด
-            $best = null; $bestRank = -1;
-            foreach ($candidates as $c) {
-                $rank = array_search($c, $ROLE_ORDER, true);
-                if ($rank !== false && $rank > $bestRank) { $bestRank = $rank; $best = $c; }
-            }
-            $initialUser['role'] = $best ?: 'officer';
-            // sync บทบาทที่ resolve แล้วเข้า session เพื่อให้ API ใช้ตรงกัน (ไม่ต้อง login ใหม่)
-            $_SESSION['role'] = $initialUser['role'];
+            // รายการบทบาททั้งหมด (ไม่ซ้ำ) เรียงสิทธิ์สูง→ต่ำ
+            $roleList = array_values(array_unique(array_filter($candidates, fn($c) => in_array($c, $ROLE_ORDER, true))));
+            usort($roleList, fn($a, $b) => array_search($b, $ROLE_ORDER, true) - array_search($a, $ROLE_ORDER, true));
+            if (!$roleList) $roleList = ['officer'];
+
+            // บทบาทที่ใช้งานอยู่: เคารพที่ผู้ใช้เลือกไว้ (active_role) ถ้ายังอยู่ในสิทธิ์ ไม่งั้นใช้สูงสุด
+            $activeRole = (!empty($_SESSION['active_role']) && in_array($_SESSION['active_role'], $roleList, true))
+                ? $_SESSION['active_role'] : $roleList[0];
+
+            $initialUser['role']  = $activeRole;
+            $initialUser['roles'] = $roleList;
+            // sync session ให้ API ใช้ตรงกัน
+            $_SESSION['role']  = $activeRole;
+            $_SESSION['roles'] = $roleList;
 
             $initialUser['can_manage_users']  = (bool)($initialUser['can_manage_users'] ?? false);
             $initialUser['is_impersonating']  = !empty($_SESSION['impersonator_id']);

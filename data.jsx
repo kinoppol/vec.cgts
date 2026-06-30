@@ -144,6 +144,7 @@ const api = {
   removeAvatar: (userId)  => apiFetch('/api/avatar.php' + (userId ? '?user_id='+encodeURIComponent(userId) : ''), { method:'DELETE' }),
   getCases:    (params={})=> apiFetch('/api/cases.php?' + new URLSearchParams(params).toString()),
   getAuditReport: ()      => apiFetch('/api/reports.php?action=audit'),
+  switchRole:  (role)     => apiFetch('/api/auth.php?action=switch_role', { method:'POST', body: JSON.stringify({ role }) }),
   getCase:     (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
   createCase:  (data)     => apiFetch('/api/cases.php', { method:'POST', body: JSON.stringify(data) }),
   updateCase:  (id, data) => apiFetch('/api/cases.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),

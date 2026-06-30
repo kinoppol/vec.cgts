@@ -309,7 +309,7 @@ function ProfileModal({ user, onSave, onClose }) {
 }
 
 /* ---------------- User menu (dropdown) ---------------- */
-function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md" }) {
+function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, onSwitchRole, size = "md" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -341,7 +341,19 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md"
         <Icon name="chevD" style={{width:14,height:14,flexShrink:0,opacity:.6}}/>
       </button>
       {open && (
-        <div className="card" style={{position:"absolute",bottom:isSm?"auto":"calc(100% + 6px)",top:isSm?"calc(100% + 6px)":"auto",right:0,minWidth:190,padding:6,zIndex:100,boxShadow:"0 8px 30px rgba(0,0,0,.18)"}}>
+        <div className="card" style={{position:"absolute",bottom:isSm?"auto":"calc(100% + 6px)",top:isSm?"calc(100% + 6px)":"auto",right:0,minWidth:200,padding:6,zIndex:100,boxShadow:"0 8px 30px rgba(0,0,0,.18)"}}>
+          {Array.isArray(user.roles) && user.roles.length > 1 && (
+            <>
+              <div className="faint tiny" style={{padding:"6px 10px 4px",textTransform:"uppercase",letterSpacing:".04em"}}>ใช้งานในบทบาท</div>
+              {user.roles.map(r => (
+                <button key={r} className="nav-item" onClick={()=>{ setOpen(false); if (r!==role && onSwitchRole) onSwitchRole(r); }}
+                  style={{fontWeight: r===role?700:400}}>
+                  <Icon name={r===role?"check":"shield"} style={{width:16,height:16,opacity:r===role?1:.5}}/> {roleLabel(r, roleLabels)}
+                </button>
+              ))}
+              <div style={{borderTop:"1px solid var(--line)",margin:"4px 0"}}/>
+            </>
+          )}
           <button className="nav-item" onClick={()=>{ setOpen(false); onEditProfile(); }}>
             <Icon name="edit" style={{width:16,height:16}}/> แก้ไขโปรไฟล์
           </button>
@@ -665,6 +677,13 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     } catch(e) { alert(e.message); }
   };
 
+  const handleSwitchRole = async (newRole) => {
+    try {
+      await api.switchRole(newRole);
+      window.location.reload(); // โหลดใหม่เพื่อให้เมนู/สิทธิ์ตรงกับบทบาทใหม่
+    } catch(e) { alert(e.message); }
+  };
+
   return (
     <div className="admin">
       {user.is_impersonating && (
@@ -717,7 +736,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
           <div className="vcenter" style={{gap:8}}>
             <ThemeToggle theme={theme} setTheme={setTheme}/>
             <NotificationBell onOpenCase={openCase}/>
-            <UserMenu user={user} role={role} roleLabels={roleLabels} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} size="sm"/>
+            <UserMenu user={user} role={role} roleLabels={roleLabels} onEditProfile={()=>setShowProfile(true)} onLogout={handleLogout} onSwitchRole={handleSwitchRole} size="sm"/>
           </div>
         </div>
         <div className="content">{content}</div>

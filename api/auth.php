@@ -13,8 +13,13 @@ if ($method === 'GET') {
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     if (!$user) { json_out(null); }
-    $user['role'] = resolveEffectiveRole($db, (int)$user['id'], $user['role'], $user['group_name']);
-    $_SESSION['role'] = $user['role'];
+    $roles = getRoleCandidates($db, (int)$user['id'], $user['role'], $user['group_name']);
+    $active = (!empty($_SESSION['active_role']) && in_array($_SESSION['active_role'], $roles, true))
+        ? $_SESSION['active_role'] : $roles[0];
+    $user['role']  = $active;
+    $user['roles'] = $roles;
+    $_SESSION['role']  = $active;
+    $_SESSION['roles'] = $roles;
     $user['can_manage_users']  = (bool)($user['can_manage_users'] ?? false);
     $user['is_impersonating']  = !empty($_SESSION['impersonator_id']);
     if ($user['is_impersonating']) {
@@ -22,6 +27,24 @@ if ($method === 'GET') {
         $user['impersonator_name'] = $_SESSION['impersonator_name'] ?? '';
     }
     json_out($user);
+}
+
+// POST /api/auth.php?action=switch_role — สลับบทบาทที่ใช้งาน (สำหรับผู้ที่มีหลายบทบาท)
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'switch_role') {
+    if (empty($_SESSION['user_id'])) err('ยังไม่ได้เข้าสู่ระบบ', 401);
+    $b = json_decode(file_get_contents('php://input'), true) ?? [];
+    $want = trim($b['role'] ?? '');
+    $db = getDB();
+    $u = $db->prepare('SELECT id, role, group_name FROM users WHERE id = ? AND active = 1');
+    $u->execute([$_SESSION['user_id']]);
+    $u = $u->fetch();
+    if (!$u) err('ไม่พบผู้ใช้', 404);
+    $roles = getRoleCandidates($db, (int)$u['id'], $u['role'], $u['group_name']);
+    if (!in_array($want, $roles, true)) err('ไม่มีสิทธิ์ใช้บทบาทนี้', 403);
+    $_SESSION['active_role'] = $want;
+    $_SESSION['role']        = $want;
+    audit('switch_role', null, "role={$want}");
+    json_out(['ok' => true, 'role' => $want, 'roles' => $roles]);
 }
 
 // POST /api/auth.php — เข้าสู่ระบบ
@@ -43,11 +66,14 @@ if ($method === 'POST') {
         err('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 401);
     }
 
-    $effectiveRole = resolveEffectiveRole($db, (int)$user['id'], $user['role'], $user['group_name']);
+    $roles         = getRoleCandidates($db, (int)$user['id'], $user['role'], $user['group_name']);
+    $effectiveRole = $roles[0];
 
     session_regenerate_id(true);
     $_SESSION['user_id']          = $user['id'];
     $_SESSION['role']             = $effectiveRole;
+    $_SESSION['roles']            = $roles;
+    unset($_SESSION['active_role']); // เริ่มที่บทบาทสูงสุดเสมอ
     $_SESSION['can_manage_users'] = (bool)$user['can_manage_users'];
 
     audit('login', null, 'เข้าสู่ระบบสำเร็จ');
@@ -57,6 +83,7 @@ if ($method === 'POST') {
         'username'     => $user['username'],
         'display_name' => $user['display_name'],
         'role'            => $effectiveRole,
+        'roles'        => $roles,
         'can_manage_users'=> (bool)$user['can_manage_users'],
         'init'         => $user['init'],
         'avatar_path'  => $user['avatar_path'],

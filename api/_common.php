@@ -75,16 +75,16 @@ function startSlaStep(PDO $db, string $caseId, string $stepKey): void {
     )->execute([$caseId, $step['label'], (int)$step['sort_order'], $stepKey]);
 }
 
+const ROLE_PRIORITY = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+
 /**
- * resolveEffectiveRole — รวมบทบาทจากทุกแหล่งแล้วคืนบทบาทที่มีสิทธิ์สูงสุด
+ * getRoleCandidates — รวมบทบาทจากทุกแหล่ง คืนเป็น array (ไม่ซ้ำ) เรียงจากสิทธิ์สูง→ต่ำ
  *   (1) บทบาทส่วนตัว  (2) บทบาทของทุกกลุ่มที่สังกัด  (3) บทบาทหัวหน้ากลุ่มที่ได้รับแต่งตั้ง
  */
-function resolveEffectiveRole(PDO $db, int $userId, ?string $personalRole, ?string $groupName): string {
-    static $ORDER = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+function getRoleCandidates(PDO $db, int $userId, ?string $personalRole, ?string $groupName): array {
     $candidates = [];
     if ($personalRole) $candidates[] = $personalRole;
 
-    // (2) บทบาทของกลุ่มที่สังกัด
     if ($groupName) {
         try {
             $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN groups g ON g.id = gr.group_id WHERE g.name = ?");
@@ -92,20 +92,21 @@ function resolveEffectiveRole(PDO $db, int $userId, ?string $personalRole, ?stri
             foreach ($gr->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
         } catch (Throwable) {}
     }
-
-    // (3) บทบาทหัวหน้ากลุ่ม
     try {
         $lg = $db->prepare('SELECT leader_role FROM groups WHERE leader_id = ? AND leader_role IS NOT NULL');
         $lg->execute([$userId]);
         foreach ($lg->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
     } catch (Throwable) {}
 
-    $best = null; $bestRank = -1;
-    foreach ($candidates as $c) {
-        $rank = array_search($c, $ORDER, true);
-        if ($rank !== false && $rank > $bestRank) { $bestRank = $rank; $best = $c; }
-    }
-    return $best ?: 'officer';
+    // unique + เรียงตามสิทธิ์ (สูง→ต่ำ)
+    $uniq = array_values(array_unique(array_filter($candidates, fn($c) => in_array($c, ROLE_PRIORITY, true))));
+    usort($uniq, fn($a, $b) => array_search($b, ROLE_PRIORITY, true) - array_search($a, ROLE_PRIORITY, true));
+    return $uniq ?: ['officer'];
+}
+
+/** resolveEffectiveRole — บทบาทสูงสุด (ตัวแรกของ candidates) */
+function resolveEffectiveRole(PDO $db, int $userId, ?string $personalRole, ?string $groupName): string {
+    return getRoleCandidates($db, $userId, $personalRole, $groupName)[0] ?? 'officer';
 }
 
 function audit(string $action, ?string $target = null, ?string $detail = null): void {

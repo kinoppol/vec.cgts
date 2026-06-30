@@ -26,7 +26,8 @@ if ($method === 'POST') {
     if ($target['id'] === $actor['id']) err('ไม่สามารถสวมสิทธิ์ตัวเองได้', 400);
 
     // บทบาทที่แท้จริงของ target (รวมบทบาทกลุ่ม/หัวหน้ากลุ่ม)
-    $targetRole = resolveEffectiveRole($db, (int)$target['id'], $target['role'], $target['group_name']);
+    $targetRoles = getRoleCandidates($db, (int)$target['id'], $target['role'], $target['group_name']);
+    $targetRole  = $targetRoles[0];
     if ($targetRole === 'admin')   err('ไม่สามารถสวมสิทธิ์ admin ด้วยกัน', 403);
 
     // บันทึก admin เดิมไว้
@@ -35,6 +36,8 @@ if ($method === 'POST') {
     // เปลี่ยน session เป็น target
     $_SESSION['user_id']           = $target['id'];
     $_SESSION['role']              = $targetRole;
+    $_SESSION['roles']             = $targetRoles;
+    unset($_SESSION['active_role']);
     $_SESSION['can_manage_users']  = (bool)$target['can_manage_users'];
 
     audit('impersonate_start', (string)$target['id'], "admin={$actor['id']} → user={$target['id']}");
@@ -44,6 +47,7 @@ if ($method === 'POST') {
         'username'         => $target['username'],
         'display_name'     => $target['display_name'],
         'role'             => $targetRole,
+        'roles'            => $targetRoles,
         'init'             => $target['init'],
         'avatar_path'      => $target['avatar_path'],
         'can_manage_users' => (bool)$target['can_manage_users'],
@@ -71,8 +75,9 @@ if ($method === 'DELETE') {
     // คืน session กลับเป็น admin
     $_SESSION['user_id']          = $admin['id'];
     $_SESSION['role']             = $admin['role'];
+    $_SESSION['roles']            = [$admin['role']];
     $_SESSION['can_manage_users'] = (bool)$admin['can_manage_users'];
-    unset($_SESSION['impersonator_id'], $_SESSION['impersonator_name']);
+    unset($_SESSION['impersonator_id'], $_SESSION['impersonator_name'], $_SESSION['active_role']);
 
     json_out([
         'id'               => $admin['id'],
