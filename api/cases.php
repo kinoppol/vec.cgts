@@ -235,11 +235,12 @@ if ($method === 'GET' && $id !== '') {
         // ดึง SLA steps สาธารณะ (เฉพาะที่มี started_at หรือ completed_at)
         $pubSteps = $db->prepare(
             "SELECT ce.step_key, ce.started_at, ce.completed_at, ce.ev_status,
-                    ss.label, ss.days AS sla_days, ss.sort_order
+                    COALESCE(ss.label, ce.title) AS label,
+                    ss.days_allowed AS sla_days, ss.sort_order
              FROM case_events ce
              LEFT JOIN sla_steps ss ON ss.step_key = ce.step_key AND ss.active = 1
              WHERE ce.case_id = ? AND ce.step_key IS NOT NULL
-             ORDER BY ss.sort_order, ce.id"
+             ORDER BY COALESCE(ss.sort_order, 999), ce.id"
         );
         $pubSteps->execute([$row['id']]);
         json_out([
