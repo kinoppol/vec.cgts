@@ -290,7 +290,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
 -- ----------------------------------------------------------------
 -- groups: กลุ่มผู้ใช้งาน
 -- ----------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS groups (
+CREATE TABLE IF NOT EXISTS `groups` (
   id          INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL,
   leader_id   INT          DEFAULT NULL,
@@ -326,7 +326,7 @@ CREATE TABLE IF NOT EXISTS group_roles (
   group_id INT         NOT NULL,
   role     VARCHAR(50) NOT NULL,
   PRIMARY KEY (group_id, role),
-  CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE
+  CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES `groups` (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------

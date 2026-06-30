@@ -419,7 +419,7 @@ if ($confirm === 'group_roles') {
             group_id INT NOT NULL,
             role     VARCHAR(50) NOT NULL,
             PRIMARY KEY (group_id, role),
-            CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE CASCADE
+            CONSTRAINT fk_grole_group FOREIGN KEY (group_id) REFERENCES `groups` (id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         echo "✓ CREATE TABLE group_roles\n";
         echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
@@ -438,7 +438,7 @@ if ($confirm === 'groups_table') {
         $db = getDB();
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $db->exec("CREATE TABLE IF NOT EXISTS groups (
+        $db->exec("CREATE TABLE IF NOT EXISTS `groups` (
             id         INT AUTO_INCREMENT PRIMARY KEY,
             name       VARCHAR(100) NOT NULL,
             leader_id  INT DEFAULT NULL,
