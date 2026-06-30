@@ -287,9 +287,10 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
           <div className="field">
             <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
             {(() => {
-              const pool = (officers||[]).filter(o =>
-                selGroups.length === 0 || selGroups.includes(o.group)
-              );
+              if (selGroups.length === 0) {
+                return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อสมาชิก</div>;
+              }
+              const pool = (officers||[]).filter(o => selGroups.includes(o.group));
               return pool.length > 0
                 ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
                     {pool.map(o =>
@@ -300,9 +301,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
                       )}</React.Fragment>
                     )}
                   </div>
-                : <div className="faint sm" style={{padding:'8px 0'}}>
-                    {selGroups.length > 0 ? 'ไม่พบบุคลากรในกลุ่มที่เลือก' : 'ไม่พบรายการบุคลากร'}
-                  </div>;
+                : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบบุคลากรในกลุ่มที่เลือก</div>;
             })()}
           </div>
 
