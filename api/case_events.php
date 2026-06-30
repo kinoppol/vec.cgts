@@ -38,9 +38,9 @@ if ($method === 'POST') {
     $ex->execute([$case_id, $step_key]);
     if ($ex->fetch()) err('มี event สำหรับขั้นตอนนี้อยู่แล้ว', 409);
 
-    $today      = date('Y-m-d');
-    $started_at = ($ev_status === 'active' || $ev_status === 'done') ? $today : null;
-    $completed_at = ($ev_status === 'done') ? $today : null;
+    $now = date('Y-m-d H:i:s');
+    $started_at   = ($ev_status === 'active' || $ev_status === 'done') ? $now : null;
+    $completed_at = ($ev_status === 'done') ? $now : null;
 
     $db->prepare("
         INSERT INTO case_events
@@ -100,11 +100,11 @@ if (array_key_exists('ev_status', $body)) {
     $sets[] = 'ev_status = ?'; $vals[] = $st;
     // auto-fill dates
     if ($st === 'active' && !$event['started_at']) {
-        $sets[] = 'started_at = ?'; $vals[] = date('Y-m-d');
+        $sets[] = 'started_at = NOW()';
     }
     if ($st === 'done' && !$event['completed_at']) {
-        $sets[] = 'completed_at = ?'; $vals[] = date('Y-m-d');
-        if (!$event['started_at']) { $sets[] = 'started_at = ?'; $vals[] = date('Y-m-d'); }
+        $sets[] = 'completed_at = NOW()';
+        if (!$event['started_at']) { $sets[] = 'started_at = NOW()'; }
     }
 }
 

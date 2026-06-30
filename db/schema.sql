@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS case_events (
   icon         VARCHAR(50)  DEFAULT 'dot',
   sort_order   SMALLINT     NOT NULL DEFAULT 0,
   step_key     VARCHAR(50)  DEFAULT NULL,
-  started_at   DATE         DEFAULT NULL,
-  completed_at DATE         DEFAULT NULL,
+  started_at   DATETIME     DEFAULT NULL,
+  completed_at DATETIME     DEFAULT NULL,
   PRIMARY KEY (id),
   KEY idx_case_events_case (case_id),
   CONSTRAINT fk_event_case FOREIGN KEY (case_id) REFERENCES cases (id) ON DELETE CASCADE

@@ -758,7 +758,12 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
   function thShortDate(iso) {
     if (!iso) return null;
     const d = new Date(iso);
-    return d.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+    const date = d.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+    const hasTime = iso.includes('T') || (iso.length > 10 && iso.includes(' '));
+    if (!hasTime) return date;
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    return `${date} ${hh}:${mm}`;
   }
 
   async function ensureEvent(s, ev_status) {

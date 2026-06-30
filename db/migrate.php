@@ -732,6 +732,37 @@ if ($confirm === 'dept_name') {
     exit;
 }
 
+/* ── [21] case_events DATETIME ─────────────────────────── */
+if ($confirm === 'event_datetime') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [21]: case_events — DATE → DATETIME</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $cols = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_ASSOC);
+        $types = array_column($cols, 'Type', 'Field');
+
+        if (stripos($types['started_at'] ?? '', 'datetime') === false) {
+            $db->exec("ALTER TABLE case_events MODIFY started_at DATETIME DEFAULT NULL");
+            echo "✓ ALTER case_events.started_at DATE → DATETIME\n";
+        } else {
+            echo "– case_events.started_at เป็น DATETIME แล้ว ข้าม\n";
+        }
+        if (stripos($types['completed_at'] ?? '', 'datetime') === false) {
+            $db->exec("ALTER TABLE case_events MODIFY completed_at DATETIME DEFAULT NULL");
+            echo "✓ ALTER case_events.completed_at DATE → DATETIME\n";
+        } else {
+            echo "– case_events.completed_at เป็น DATETIME แล้ว ข้าม\n";
+        }
+        echo '<span class="ok">✓ เสร็จสิ้น</span>';
+    } catch (Throwable $e) {
+        echo '<span class="err">✗ '.$e->getMessage().'</span>';
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [1] Personnel + password (เดิม) ────────────────────── */
 // ป้องกันการเรียกโดยไม่ตั้งใจ
 if ($confirm !== 'run') {
@@ -755,6 +786,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[21] Event DATETIME</b> — เปลี่ยน case_events.started_at / completed_at จาก DATE เป็น DATETIME (เพื่อแสดงชั่วโมง:นาทีใน timeline)<br><code><a href="?confirm=event_datetime">migrate.php?confirm=event_datetime</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';
