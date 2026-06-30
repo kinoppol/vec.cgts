@@ -410,14 +410,12 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
   // แสดงทุกคนที่มีบทบาทธุรการ — ช่องกลุ่มงานเป็นเพียงการระบุกลุ่มที่มอบหมาย ไม่กรองรายชื่อ
 
   const submit = async (action) => {
-    if (action === 'approve' && !staffId) { setErr('กรุณาเลือกเจ้าหน้าที่ก่อนอนุมัติ'); return; }
     setSaving(true); setErr('');
     try {
+      // ถ้าเลือก staff ไว้ → ใช้ officer_id ของคนนั้น
+      // ถ้าไม่ได้เลือก → ใช้ proposed_officer จาก proposal (เดิม)
       const user = allUsers.find(u => String(u.id) === String(staffId));
-      if (action === 'approve' && !user?.officer_id) {
-        setErr('เจ้าหน้าที่ที่เลือกยังไม่ได้เชื่อมกับบุคลากร (officer) ในระบบ'); setSaving(false); return;
-      }
-      const finalOfficer = user?.officer_id || null;
+      const finalOfficer = user?.officer_id || proposal.proposed_officer || null;
       await api.approveAssign(proposal.id, { action, final_officer: finalOfficer, review_note: note });
       onApproved(proposal.case_id);
     } catch(e) {
