@@ -143,6 +143,7 @@ const api = {
   uploadAvatar: (file, userId)=> { const fd = new FormData(); fd.append('avatar', file); return apiFetch('/api/avatar.php' + (userId ? '?user_id='+encodeURIComponent(userId) : ''), { method:'POST', body: fd }); },
   removeAvatar: (userId)  => apiFetch('/api/avatar.php' + (userId ? '?user_id='+encodeURIComponent(userId) : ''), { method:'DELETE' }),
   getCases:    (params={})=> apiFetch('/api/cases.php?' + new URLSearchParams(params).toString()),
+  getAuditReport: ()      => apiFetch('/api/reports.php?action=audit'),
   getCase:     (id)       => apiFetch('/api/cases.php?id=' + encodeURIComponent(id)),
   createCase:  (data)     => apiFetch('/api/cases.php', { method:'POST', body: JSON.stringify(data) }),
   updateCase:  (id, data) => apiFetch('/api/cases.php?id=' + encodeURIComponent(id), { method:'PATCH', body: JSON.stringify(data) }),

@@ -749,16 +749,216 @@ function VaultPage({ cases, openCase }) {
 }
 
 /* ---------------- ศูนย์รายงาน ---------------- */
+/* ---- helper: แปลงวันที่ พ.ศ. ---- */
+function reportThaiDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('th-TH', { day:'numeric', month:'long', year:'numeric' });
+}
+
+/* ---- เปิดหน้าต่างพิมพ์รายงาน A4 1 หน้า ---- */
+function printReportA4(title, bodyHtml) {
+  const today = new Date().toLocaleDateString('th-TH', { day:'numeric', month:'long', year:'numeric' });
+  const w = window.open('', '_blank', 'width=900,height=1000');
+  if (!w) { alert('กรุณาอนุญาต popup เพื่อพิมพ์รายงาน'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>${title}</title>
+  <style>
+    @page { size: A4 portrait; margin: 16mm 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body { font-family: "TH Sarabun New","Sarabun","Tahoma",sans-serif; color:#1a1a1a; margin:0; font-size:13px; line-height:1.5; }
+    .wm { position:fixed; top:42%; left:50%; transform:translate(-50%,-50%) rotate(-30deg); font-size:120px; color:rgba(122,30,46,.06); font-weight:700; z-index:0; pointer-events:none; }
+    .hd { text-align:center; border-bottom:2px solid #7a1e2e; padding-bottom:10px; margin-bottom:14px; position:relative; z-index:1; }
+    .hd h1 { font-size:20px; margin:0; color:#7a1e2e; }
+    .hd .sub { font-size:13px; color:#444; margin-top:2px; }
+    .meta { display:flex; justify-content:space-between; font-size:12px; color:#555; margin-bottom:12px; position:relative; z-index:1; }
+    h2.sec { font-size:15px; color:#7a1e2e; margin:14px 0 6px; border-left:4px solid #7a1e2e; padding-left:8px; position:relative; z-index:1; }
+    table { width:100%; border-collapse:collapse; margin:4px 0 8px; position:relative; z-index:1; }
+    th,td { border:1px solid #ccc; padding:4px 8px; text-align:left; font-size:12px; }
+    th { background:#f3ecec; color:#7a1e2e; font-weight:600; }
+    td.num, th.num { text-align:right; }
+    .cards { display:flex; gap:8px; margin:6px 0 10px; position:relative; z-index:1; }
+    .kpi { flex:1; border:1px solid #ddd; border-radius:6px; padding:8px 10px; text-align:center; }
+    .kpi .n { font-size:22px; font-weight:700; color:#7a1e2e; }
+    .kpi .l { font-size:11px; color:#666; }
+    .ft { position:fixed; bottom:6mm; left:16mm; right:16mm; font-size:10px; color:#999; display:flex; justify-content:space-between; border-top:1px solid #eee; padding-top:4px; }
+    .pill { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; }
+    .g{background:#e6f4ea;color:#1a7f37}.a{background:#fdf2e0;color:#9a6700}.r{background:#fbe9e9;color:#b42318}
+  </style></head><body>
+    <div class="wm">สำเนา</div>
+    <div class="hd"><h1>สำนักงานคณะกรรมการการอาชีวศึกษา</h1><div class="sub">งานนิติการ — ${title}</div></div>
+    <div class="meta"><span>วันที่ออกรายงาน: ${today}</span><span>เอกสารภายใน</span></div>
+    ${bodyHtml}
+    <div class="ft"><span>ระบบบริหารงานนิติการ สอศ.</span><span>${title} · ${today}</span></div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+/* ---- ดาวน์โหลด CSV ---- */
+function downloadCSV(filename, rows) {
+  const csv = rows.map(r => r.map(c => {
+    const s = String(c ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
 function ReportCenter({ role }) {
+  const [cases, setCases] = useState(null);
+  const [audit, setAudit] = useState(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    api.getCases().then(setCases).catch(e=>setErr(e.message));
+    api.getAuditReport().then(setAudit).catch(()=>{});
+  }, []);
+
+  const trackLabel = (t) => (TRACKS[t]?.label) || t || 'ไม่ระบุ';
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+
+  // ── คำนวณสรุป ──
+  const buildStats = () => {
+    const all = cases || [];
+    const now = new Date();
+    const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    const inMonth = (c) => (c.received || '').slice(0,7) === ym;
+    const open = (c) => !['closed','rejected'].includes(c.status);
+    return {
+      total: all.length,
+      monthNew: all.filter(inMonth).length,
+      open: all.filter(open).length,
+      closed: all.filter(c=>c.status==='closed').length,
+      overdue: all.filter(c=>open(c) && c.sla==='r').length,
+      amber: all.filter(c=>open(c) && c.sla==='a').length,
+      byTrack: Object.keys(TRACKS).map(t => ({
+        t, label: TRACKS[t].label,
+        total: all.filter(c=>c.track===t).length,
+        open:  all.filter(c=>c.track===t && open(c)).length,
+        closed:all.filter(c=>c.track===t && c.status==='closed').length,
+      })),
+      byStatus: Object.keys(STATUS).map(s => ({ s, label: STATUS[s].label, n: all.filter(c=>c.status===s).length })).filter(x=>x.n>0),
+      pending: all.filter(open).sort((a,b)=>{
+        const rank = {r:0,a:1,g:2};
+        if ((rank[a.sla]??3)!==(rank[b.sla]??3)) return (rank[a.sla]??3)-(rank[b.sla]??3);
+        return (a.due||'9999').localeCompare(b.due||'9999');
+      }),
+    };
+  };
+
+  // ── รายงานประจำเดือน ──
+  const monthlyHtml = () => {
+    const s = buildStats();
+    const monthName = new Date().toLocaleDateString('th-TH', { month:'long', year:'numeric' });
+    return `
+      <h2 class="sec">ภาพรวมประจำเดือน ${monthName}</h2>
+      <div class="cards">
+        <div class="kpi"><div class="n">${s.monthNew}</div><div class="l">รับเข้าใหม่ (เดือนนี้)</div></div>
+        <div class="kpi"><div class="n">${s.open}</div><div class="l">อยู่ระหว่างดำเนินการ</div></div>
+        <div class="kpi"><div class="n">${s.closed}</div><div class="l">เสร็จสิ้น (สะสม)</div></div>
+        <div class="kpi"><div class="n">${s.overdue}</div><div class="l">เกินกำหนด</div></div>
+      </div>
+      <h2 class="sec">แยกตามสายงาน</h2>
+      <table><thead><tr><th>สายงาน</th><th class="num">ทั้งหมด</th><th class="num">กำลังดำเนินการ</th><th class="num">เสร็จสิ้น</th></tr></thead><tbody>
+        ${s.byTrack.map(r=>`<tr><td>${esc(r.label)}</td><td class="num">${r.total}</td><td class="num">${r.open}</td><td class="num">${r.closed}</td></tr>`).join('')}
+      </tbody></table>
+      <h2 class="sec">แยกตามสถานะ</h2>
+      <table><thead><tr><th>สถานะ</th><th class="num">จำนวน</th></tr></thead><tbody>
+        ${s.byStatus.map(r=>`<tr><td>${esc(r.label)}</td><td class="num">${r.n}</td></tr>`).join('')}
+      </tbody></table>`;
+  };
+
+  // ── รายงานรายไตรมาส ──
+  const quarterlyHtml = () => {
+    const s = buildStats();
+    const q = Math.floor(new Date().getMonth()/3)+1;
+    const slaTotal = s.overdue + s.amber + (s.open - s.overdue - s.amber);
+    const pct = (n) => slaTotal ? Math.round(n/slaTotal*100) : 0;
+    return `
+      <h2 class="sec">สรุปผลการดำเนินงาน ไตรมาสที่ ${q}/${new Date().getFullYear()+543}</h2>
+      <div class="cards">
+        <div class="kpi"><div class="n">${s.total}</div><div class="l">เรื่องทั้งหมด</div></div>
+        <div class="kpi"><div class="n">${s.closed}</div><div class="l">เสร็จสิ้น</div></div>
+        <div class="kpi"><div class="n">${s.total? Math.round(s.closed/s.total*100):0}%</div><div class="l">อัตราเสร็จสิ้น</div></div>
+      </div>
+      <h2 class="sec">เปรียบเทียบตามสายงาน</h2>
+      <table><thead><tr><th>สายงาน</th><th class="num">ทั้งหมด</th><th class="num">เสร็จสิ้น</th><th class="num">% เสร็จสิ้น</th></tr></thead><tbody>
+        ${s.byTrack.map(r=>`<tr><td>${esc(r.label)}</td><td class="num">${r.total}</td><td class="num">${r.closed}</td><td class="num">${r.total?Math.round(r.closed/r.total*100):0}%</td></tr>`).join('')}
+      </tbody></table>
+      <h2 class="sec">สถานะ SLA (เรื่องที่กำลังดำเนินการ)</h2>
+      <table><thead><tr><th>ระดับ</th><th class="num">จำนวน</th><th class="num">สัดส่วน</th></tr></thead><tbody>
+        <tr><td><span class="pill r">เกินกำหนด</span></td><td class="num">${s.overdue}</td><td class="num">${pct(s.overdue)}%</td></tr>
+        <tr><td><span class="pill a">ใกล้ครบกำหนด</span></td><td class="num">${s.amber}</td><td class="num">${pct(s.amber)}%</td></tr>
+        <tr><td><span class="pill g">ตามกำหนด</span></td><td class="num">${s.open - s.overdue - s.amber}</td><td class="num">${pct(s.open - s.overdue - s.amber)}%</td></tr>
+      </tbody></table>`;
+  };
+
+  // ── รายการเรื่องคงค้าง ──
+  const pendingHtml = () => {
+    const s = buildStats();
+    const rows = s.pending.slice(0, 22); // จำกัดให้พอดี 1 หน้า A4
+    const slaPill = (v) => v==='r'?'<span class="pill r">เกิน</span>':v==='a'?'<span class="pill a">ใกล้ครบ</span>':'<span class="pill g">ปกติ</span>';
+    return `
+      <h2 class="sec">เรื่องคงค้าง ${s.open} เรื่อง (เกินกำหนด ${s.overdue} · ใกล้ครบ ${s.amber})</h2>
+      <table><thead><tr><th>รหัส</th><th>เรื่อง</th><th>สายงาน</th><th>สถานะ</th><th>ครบกำหนด</th><th>SLA</th></tr></thead><tbody>
+        ${rows.map(c=>`<tr>
+          <td>${esc(c.id)}</td>
+          <td>${esc((c.subject||'').slice(0,42))}</td>
+          <td>${esc(trackLabel(c.track))}</td>
+          <td>${esc(STATUS[c.status]?.label||c.status)}</td>
+          <td>${c.due?reportThaiDate(c.due):'—'}</td>
+          <td>${slaPill(c.sla)}</td>
+        </tr>`).join('')}
+      </tbody></table>
+      ${s.pending.length>22?`<p style="font-size:11px;color:#888">* แสดง 22 จากทั้งหมด ${s.pending.length} เรื่อง (เรียงตามความเสี่ยง) — ดูทั้งหมดในระบบหรือไฟล์ CSV</p>`:''}`;
+  };
+
+  // ── Audit & PDPA ──
+  const auditHtml = () => {
+    if (!audit) return '<p>ไม่สามารถโหลดข้อมูล audit ได้</p>';
+    const actLabel = { view_case:'เปิดดูสำนวน', update_case:'แก้ไขสำนวน', create_case:'สร้างสำนวน', login:'เข้าสู่ระบบ',
+      event_update:'อัปเดตขั้นตอน', event_create:'สร้างขั้นตอน', approve_proposal:'อนุมัติข้อเสนอ', propose_case:'เสนอมอบหมาย',
+      case_closed:'ปิดเรื่อง', case_reopen:'เปิดเรื่องใหม่' };
+    return `
+      <h2 class="sec">สรุปการเข้าถึงข้อมูล (30 วันล่าสุด)</h2>
+      <div class="cards">
+        <div class="kpi"><div class="n">${audit.total}</div><div class="l">เหตุการณ์ทั้งหมด</div></div>
+        <div class="kpi"><div class="n">${audit.pdpa.total_cases}</div><div class="l">สำนวนในระบบ</div></div>
+        <div class="kpi"><div class="n">${audit.pdpa.anon_cases}</div><div class="l">ปกปิดชื่อผู้ร้อง</div></div>
+        <div class="kpi"><div class="n">${audit.pdpa.classified_cases}</div><div class="l">ชั้นความลับ</div></div>
+      </div>
+      <h2 class="sec">กิจกรรมแยกตามประเภท</h2>
+      <table><thead><tr><th>ประเภทเหตุการณ์</th><th class="num">จำนวนครั้ง</th></tr></thead><tbody>
+        ${audit.by_action.map(r=>`<tr><td>${esc(actLabel[r.action]||r.action)}</td><td class="num">${r.n}</td></tr>`).join('')}
+      </tbody></table>
+      <h2 class="sec">ผู้ใช้ที่มีกิจกรรมสูงสุด</h2>
+      <table><thead><tr><th>ผู้ใช้</th><th class="num">จำนวนครั้ง</th></tr></thead><tbody>
+        ${audit.top_users.map(r=>`<tr><td>${esc(r.name)}</td><td class="num">${r.n}</td></tr>`).join('')}
+      </tbody></table>
+      <p style="font-size:11px;color:#888">* สอดคล้องตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล (PDPA) — บันทึกการเข้าถึงเพื่อการตรวจสอบ</p>`;
+  };
+
+  // ── CSV ──
+  const monthlyCSV = () => { const s=buildStats(); return [['สายงาน','ทั้งหมด','กำลังดำเนินการ','เสร็จสิ้น'],...s.byTrack.map(r=>[r.label,r.total,r.open,r.closed])]; };
+  const pendingCSV = () => { const s=buildStats(); return [['รหัส','เรื่อง','สายงาน','สถานะ','ครบกำหนด','SLA'],...s.pending.map(c=>[c.id,c.subject,trackLabel(c.track),STATUS[c.status]?.label||c.status,c.due||'',c.sla||''])]; };
+
   const reports = [
-    {ic:"calendar", t:"รายงานประจำเดือน",    d:"สรุปเรื่องรับเข้า ดำเนินการ และเสร็จสิ้น รายเดือน พร้อมสถานะ SLA"},
-    {ic:"chart",    t:"รายงานรายไตรมาส",     d:"ภาพรวมผลการดำเนินงานเชิงเปรียบเทียบ แยกตามสายงานและกลุ่มงาน"},
-    {ic:"alert",    t:"รายการเรื่องคงค้าง",   d:"เรื่องที่ยังไม่แล้วเสร็จ เรียงตามความเสี่ยงเกินกำหนด"},
-    {ic:"shield",   t:"รายงาน Audit & PDPA", d:"ประวัติการเข้าถึงข้อมูลและไฟล์ การจัดการข้อมูลส่วนบุคคล"},
+    {ic:"calendar", t:"รายงานประจำเดือน",    d:"สรุปเรื่องรับเข้า ดำเนินการ และเสร็จสิ้น รายเดือน พร้อมสถานะ SLA", html:monthlyHtml, csv:monthlyCSV},
+    {ic:"chart",    t:"รายงานรายไตรมาส",     d:"ภาพรวมผลการดำเนินงานเชิงเปรียบเทียบ แยกตามสายงานและกลุ่มงาน", html:quarterlyHtml, csv:monthlyCSV},
+    {ic:"alert",    t:"รายการเรื่องคงค้าง",   d:"เรื่องที่ยังไม่แล้วเสร็จ เรียงตามความเสี่ยงเกินกำหนด", html:pendingHtml, csv:pendingCSV},
+    {ic:"shield",   t:"รายงาน Audit & PDPA", d:"ประวัติการเข้าถึงข้อมูลและไฟล์ การจัดการข้อมูลส่วนบุคคล", html:auditHtml, csv:null},
   ];
+
+  const ready = cases !== null;
+
   return (
     <div className="fade-in">
-      <PageHead title={["dir_admin","secretary","deputy_secretary"].includes(role)?"รายงานผู้บริหาร":"ศูนย์รายงาน"} sub="ออกรายงานราชการ พร้อมหัวกระดาษ ลายน้ำ 'สำเนา' และปกปิดข้อมูลส่วนบุคคลอัตโนมัติ"/>
+      <PageHead title={["dir_admin","secretary","deputy_secretary"].includes(role)?"รายงานผู้บริหาร":"ศูนย์รายงาน"} sub="ออกรายงานราชการ พร้อมหัวกระดาษ ลายน้ำ 'สำเนา' พิมพ์ลงกระดาษ A4 ได้ 1 หน้า"/>
+      {err && <div className="notice notice-danger" style={{marginBottom:12}}>{err}</div>}
       <div className="grid" style={{gridTemplateColumns:"repeat(2,1fr)"}}>
         {reports.map((r,i) => (
           <div key={i} className="card card-pad" style={{display:"flex",gap:16,alignItems:"flex-start"}}>
@@ -767,8 +967,14 @@ function ReportCenter({ role }) {
               <h3 style={{fontSize:16}}>{r.t}</h3>
               <p className="muted sm" style={{margin:"6px 0 14px"}}>{r.d}</p>
               <div className="row" style={{gap:8}}>
-                <button className="btn btn-outline btn-sm"><Icon name="download" style={{width:15,height:15}}/> PDF</button>
-                <button className="btn btn-outline btn-sm"><Icon name="download" style={{width:15,height:15}}/> CSV</button>
+                <button className="btn btn-outline btn-sm" disabled={!ready}
+                  onClick={()=>printReportA4(r.t, r.html())}>
+                  <Icon name="download" style={{width:15,height:15}}/> {ready?'พิมพ์ / PDF':'กำลังโหลด…'}
+                </button>
+                {r.csv && <button className="btn btn-outline btn-sm" disabled={!ready}
+                  onClick={()=>downloadCSV(r.t+'.csv', r.csv())}>
+                  <Icon name="download" style={{width:15,height:15}}/> CSV
+                </button>}
               </div>
             </div>
           </div>
