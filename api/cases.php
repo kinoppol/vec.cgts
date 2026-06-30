@@ -188,7 +188,11 @@ function nextCaseId(PDO $db): string {
     return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 }
 
-function generateTrackToken(PDO $db): string {
+function generateTrackToken(PDO $db): ?string {
+    // graceful: คืน null ถ้าคอลัมน์ยังไม่มี
+    try {
+        $db->query("SELECT track_token FROM cases LIMIT 1");
+    } catch (Throwable) { return null; }
     do {
         $tok = strtoupper(bin2hex(random_bytes(5))); // 10 hex chars
         $ex  = $db->prepare("SELECT id FROM cases WHERE track_token=?");
@@ -414,28 +418,47 @@ if ($method === 'POST') {
 
     $thYear = date('Y') + 543;
     $newId  = nextCaseId($db);
-    $trackToken = generateTrackToken($db);
+    $trackToken = generateTrackToken($db); // null ถ้ายังไม่ได้ migrate
     $channel = $isStaff ? ($body['channel'] ?? 'หนังสือราชการ') : ('เว็บไซต์ (' . (($body['identity'] ?? '') === 'anon' ? 'ไม่ประสงค์ออกนาม' : 'ยืนยันตัวตน') . ')');
     $anon    = (($body['identity'] ?? '') === 'anon') ? 1 : 0;
     $cls     = $body['cls'] ?? 'public';
     $today   = date('Y-m-d');
 
-    $db->prepare(
-        'INSERT INTO cases (id, track_token, subject, track, cat, channel, cls, status, priority, anon,
-                            complainant, contact, agency, detail, created_by, received_date)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-    )->execute([
-        $newId, $trackToken, $subject, $track, $cat, $channel, $cls,
-        'received',
-        $body['priority'] ?? 'ปกติ',
-        $anon,
-        $anon ? 'ไม่ประสงค์ออกนาม' : ($body['name'] ?? null),
-        $body['email'] ?? ($body['contact'] ?? null),
-        $body['agency'] ?? null,
-        $body['detail'] ?? null,
-        $createdBy,
-        $today,
-    ]);
+    if ($trackToken !== null) {
+        $db->prepare(
+            'INSERT INTO cases (id, track_token, subject, track, cat, channel, cls, status, priority, anon,
+                                complainant, contact, agency, detail, created_by, received_date)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        )->execute([
+            $newId, $trackToken, $subject, $track, $cat, $channel, $cls,
+            'received',
+            $body['priority'] ?? 'ปกติ',
+            $anon,
+            $anon ? 'ไม่ประสงค์ออกนาม' : ($body['name'] ?? null),
+            $body['email'] ?? ($body['contact'] ?? null),
+            $body['agency'] ?? null,
+            $body['detail'] ?? null,
+            $createdBy,
+            $today,
+        ]);
+    } else {
+        $db->prepare(
+            'INSERT INTO cases (id, subject, track, cat, channel, cls, status, priority, anon,
+                                complainant, contact, agency, detail, created_by, received_date)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        )->execute([
+            $newId, $subject, $track, $cat, $channel, $cls,
+            'received',
+            $body['priority'] ?? 'ปกติ',
+            $anon,
+            $anon ? 'ไม่ประสงค์ออกนาม' : ($body['name'] ?? null),
+            $body['email'] ?? ($body['contact'] ?? null),
+            $body['agency'] ?? null,
+            $body['detail'] ?? null,
+            $createdBy,
+            $today,
+        ]);
+    }
 
     // auto-event
     $db->prepare(
@@ -475,7 +498,9 @@ if ($method === 'POST') {
     startSlaStep($db, $newId, 'receive');
 
     audit('create_case', $newId);
-    json_out(['id' => $newId, 'track_token' => $trackToken], 201);
+    $out = ['id' => $newId];
+    if ($trackToken !== null) $out['track_token'] = $trackToken;
+    json_out($out, 201);
 }
 
 /* ====== PATCH /api/cases.php — อัปเดตสำนวน (staff only) ====== */
