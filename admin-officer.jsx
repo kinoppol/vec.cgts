@@ -1142,7 +1142,7 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
   );
 }
 
-function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted }) {
+function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted, onRefresh }) {
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
@@ -1316,7 +1316,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       })()}
       {showPropose && <ProposeModal case_={c} officers={officers}
         onClose={()=>setShowPropose(false)}
-        onSaved={async ()=>{ setShowPropose(false); const fresh = await api.getCase(c.id); setC(fresh); back(); }}/>}
+        onSaved={async ()=>{ setShowPropose(false); if (onRefresh) await onRefresh(); const fresh = await api.getCase(c.id); setC(fresh); back(); }}/>}
       {assign && <AssignModal c={c} officers={officers} close={()=>setAssign(false)} onAssign={async (oid)=>{
         await updateCase(c.id, {assignee:oid, status:["screening","received","case"].includes(c.status)?"assigned":c.status});
         api.getCase(c.id).then(full => setC(full));

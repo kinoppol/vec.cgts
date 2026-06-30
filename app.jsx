@@ -570,7 +570,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <LoadingSpinner/>;
   } else if (view === "case-detail") {
     content = <CaseDetail cid={sel} cases={cases} officers={officers} back={()=>setView("cases")} updateCase={updateCase} role={role}
-      currentUser={user} onCaseDeleted={id=>setCases(cs=>cs.filter(c=>c.id!==id))}/>;
+      currentUser={user} onCaseDeleted={id=>setCases(cs=>cs.filter(c=>c.id!==id))} onRefresh={refreshCases}/>;
   } else if (view === "exec") {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
   } else if (view === "proposals") {
