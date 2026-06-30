@@ -48,6 +48,7 @@ if ($method === 'POST') {
         'display_name'     => $target['display_name'],
         'role'             => $targetRole,
         'roles'            => $targetRoles,
+        'leader_groups'    => getLeaderGroups($db, (int)$target['id']),
         'init'             => $target['init'],
         'avatar_path'      => $target['avatar_path'],
         'can_manage_users' => (bool)$target['can_manage_users'],

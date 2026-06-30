@@ -86,6 +86,12 @@ if (!empty($_SESSION['user_id'])) {
             $initialUser['can_manage_users']  = (bool)($initialUser['can_manage_users'] ?? false);
             $initialUser['is_impersonating']  = !empty($_SESSION['impersonator_id']);
             $initialUser['leader_of_group']   = $leaderGroup ? ['id' => $leaderGroup['id'], 'name' => $leaderGroup['name']] : null;
+            // กลุ่มทั้งหมดที่เป็นหัวหน้า + leader_role (ใช้แสดงชื่อกลุ่มต่อท้ายบทบาทในตัวสลับ)
+            try {
+                $lgs = $db->prepare('SELECT name, leader_role FROM groups WHERE leader_id = ?');
+                $lgs->execute([$_SESSION['user_id']]);
+                $initialUser['leader_groups'] = $lgs->fetchAll() ?: [];
+            } catch (Throwable) { $initialUser['leader_groups'] = []; }
             if ($initialUser['is_impersonating']) {
                 $initialUser['impersonator_id']   = (int)$_SESSION['impersonator_id'];
                 $initialUser['impersonator_name'] = $_SESSION['impersonator_name'] ?? '';

@@ -18,6 +18,7 @@ if ($method === 'GET') {
         ? $_SESSION['active_role'] : $roles[0];
     $user['role']  = $active;
     $user['roles'] = $roles;
+    $user['leader_groups'] = getLeaderGroups($db, (int)$user['id']);
     $_SESSION['role']  = $active;
     $_SESSION['roles'] = $roles;
     $user['can_manage_users']  = (bool)($user['can_manage_users'] ?? false);
@@ -84,6 +85,7 @@ if ($method === 'POST') {
         'display_name' => $user['display_name'],
         'role'            => $effectiveRole,
         'roles'        => $roles,
+        'leader_groups'=> getLeaderGroups($db, (int)$user['id']),
         'can_manage_users'=> (bool)$user['can_manage_users'],
         'init'         => $user['init'],
         'avatar_path'  => $user['avatar_path'],

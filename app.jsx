@@ -345,12 +345,18 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, onSwitchRol
           {Array.isArray(user.roles) && user.roles.length > 1 && (
             <>
               <div className="faint tiny" style={{padding:"6px 10px 4px",textTransform:"uppercase",letterSpacing:".04em"}}>ใช้งานในบทบาท</div>
-              {user.roles.map(r => (
-                <button key={r} className="nav-item" onClick={()=>{ setOpen(false); if (r!==role && onSwitchRole) onSwitchRole(r); }}
-                  style={{fontWeight: r===role?700:400}}>
-                  <Icon name={r===role?"check":"shield"} style={{width:16,height:16,opacity:r===role?1:.5}}/> {roleLabel(r, roleLabels)}
-                </button>
-              ))}
+              {(() => {
+                // map บทบาทหัวหน้ากลุ่ม → ชื่อกลุ่ม เพื่อต่อท้ายชื่อตำแหน่ง
+                const lgMap = {};
+                (user.leader_groups || []).forEach(g => { if (g.leader_role) lgMap[g.leader_role] = g.name; });
+                return user.roles.map(r => (
+                  <button key={r} className="nav-item" onClick={()=>{ setOpen(false); if (r!==role && onSwitchRole) onSwitchRole(r); }}
+                    style={{fontWeight: r===role?700:400}}>
+                    <Icon name={r===role?"check":"shield"} style={{width:16,height:16,opacity:r===role?1:.5}}/>
+                    {roleLabel(r, roleLabels)}{lgMap[r] ? ' ' + lgMap[r] : ''}
+                  </button>
+                ));
+              })()}
               <div style={{borderTop:"1px solid var(--line)",margin:"4px 0"}}/>
             </>
           )}

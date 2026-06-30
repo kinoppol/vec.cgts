@@ -109,6 +109,15 @@ function resolveEffectiveRole(PDO $db, int $userId, ?string $personalRole, ?stri
     return getRoleCandidates($db, $userId, $personalRole, $groupName)[0] ?? 'officer';
 }
 
+/** getLeaderGroups — กลุ่มที่ผู้ใช้เป็นหัวหน้า พร้อม leader_role (สำหรับแสดงชื่อกลุ่มต่อท้ายบทบาท) */
+function getLeaderGroups(PDO $db, int $userId): array {
+    try {
+        $s = $db->prepare('SELECT name, leader_role FROM groups WHERE leader_id = ?');
+        $s->execute([$userId]);
+        return $s->fetchAll() ?: [];
+    } catch (Throwable) { return []; }
+}
+
 function audit(string $action, ?string $target = null, ?string $detail = null): void {
     try {
         $db = getDB();
