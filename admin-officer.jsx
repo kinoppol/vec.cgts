@@ -94,8 +94,36 @@ function OfficerDashboard({ cases, officers, openCase, setView }) {
 
 /* ---------------- แดชบอร์ดหัวหน้าธุรการ ---------------- */
 function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed }) {
-  const unassigned = cases.filter(c => !c.assignee && !['closed','rejected'].includes(c.status));
-  const [propModal, setPropModal] = useState(null); // { case }
+  const pending   = cases.filter(c => !c.assignee && c.status === 'received');
+  const proposed  = cases.filter(c => !c.assignee && c.status === 'screening');
+  const [propModal, setPropModal] = useState(null);
+
+  const caseRow = (c, showPropBtn) => (
+    <tr key={c.id}>
+      <td onClick={()=>openCase(c.id)} style={{cursor:'pointer'}}>
+        <div className="code">{c.id}</div>
+        <div className="faint tiny">{c.reg!=="—"?c.reg:"ยังไม่ลงทะเบียน"}</div>
+      </td>
+      <td onClick={()=>openCase(c.id)} style={{cursor:'pointer',maxWidth:240}}>
+        <div style={{fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.subject}</div>
+        {c.anon && <span className="badge badge-warn" style={{marginTop:4,fontSize:11}}>ไม่ประสงค์ออกนาม</span>}
+      </td>
+      <td className="sm"><span className="badge badge-maroon">{TRACKS[c.track]?.label||'—'}</span></td>
+      <td><StatusBadge s={c.status}/></td>
+      <td className="sm muted tnum">{thDate(c.received)}</td>
+      <td><PriBadge p={c.priority}/></td>
+      <td>
+        {showPropBtn
+          ? <button className="btn btn-primary btn-sm" onClick={()=>setPropModal({case:c})}>
+              <Icon name="flag" style={{width:14,height:14}}/> นำเสนอ
+            </button>
+          : <span className="badge" style={{background:'var(--ok-bg)',color:'var(--ok)'}}>
+              <Icon name="check" style={{width:11,height:11}}/> ส่งเกษียนแล้ว
+            </span>
+        }
+      </td>
+    </tr>
+  );
 
   return (
     <div className="fade-in">
@@ -104,48 +132,43 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
       </PageHead>
 
       <div className="grid" style={{gridTemplateColumns:"repeat(3,1fr)",marginBottom:22}}>
-        <StatCard ic="inbox" lbl="รอมอบหมาย" num={unassigned.length} sub="ต้องนำเสนอผู้อำนวยการ" tone="warn"/>
-        <StatCard ic="alert" lbl="เร่งด่วน" num={unassigned.filter(c=>c.priority==='เร่งด่วน').length} sub="ต้องดำเนินการก่อน" tone="danger"/>
-        <StatCard ic="clock" lbl="รับเรื่องวันนี้" num={unassigned.filter(c=>c.received===new Date().toISOString().slice(0,10)).length} sub="เรื่องที่เข้ามาวันนี้" tone="info"/>
+        <StatCard ic="inbox"       lbl="รอเกษียน"       num={pending.length}  sub="ต้องนำเสนอผู้อำนวยการ"   tone="warn"/>
+        <StatCard ic="flag"        lbl="ส่งเกษียนแล้ว"  num={proposed.length} sub="รอผู้อำนวยการพิจารณา"     tone="info"/>
+        <StatCard ic="clock"       lbl="รับเรื่องวันนี้" num={[...pending,...proposed].filter(c=>c.received===new Date().toISOString().slice(0,10)).length} sub="เรื่องที่เข้ามาวันนี้" tone="info"/>
       </div>
 
-      <div className="card">
+      {/* รอเกษียน */}
+      <div className="card" style={{marginBottom:20}}>
         <div className="card-h">
-          <h3>สำนวนรอมอบหมาย</h3>
-          <span className="badge badge-warn">{unassigned.length} เรื่อง</span>
+          <h3>สำนวนรอเกษียน</h3>
+          {pending.length > 0 && <span className="badge badge-warn">{pending.length} เรื่อง</span>}
         </div>
         <div className="table-wrap">
           <table className="tbl">
             <thead><tr><th>รหัส/เลขรับ</th><th>เรื่อง</th><th>สายงาน</th><th>สถานะ</th><th>วันที่รับ</th><th>ความสำคัญ</th><th></th></tr></thead>
             <tbody>
-              {unassigned.map(c=>(
-                <tr key={c.id}>
-                  <td onClick={()=>openCase(c.id)} style={{cursor:'pointer'}}>
-                    <div className="code">{c.id}</div>
-                    <div className="faint tiny">{c.reg!=="—"?c.reg:"ยังไม่ลงทะเบียน"}</div>
-                  </td>
-                  <td style={{maxWidth:240}} onClick={()=>openCase(c.id)} style={{cursor:'pointer'}}>
-                    <div style={{fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.subject}</div>
-                    {c.anon && <span className="badge badge-warn" style={{marginTop:4,fontSize:11}}>ไม่ประสงค์ออกนาม</span>}
-                  </td>
-                  <td className="sm"><span className="badge badge-maroon">{TRACKS[c.track]?.label}</span></td>
-                  <td><StatusBadge s={c.status}/></td>
-                  <td className="sm muted tnum">{thDate(c.received)}</td>
-                  <td><PriBadge p={c.priority}/></td>
-                  <td>
-                    <button className="btn btn-primary btn-sm" onClick={()=>setPropModal({case:c})}>
-                      <Icon name="flag" style={{width:14,height:14}}/> นำเสนอ
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {unassigned.length===0 && (
-                <tr><td colSpan={7} style={{textAlign:"center",padding:"32px 0",color:"var(--ink-3)"}}>ไม่มีสำนวนรอมอบหมาย</td></tr>
-              )}
+              {pending.map(c => caseRow(c, true))}
+              {pending.length===0 && <tr><td colSpan={7} style={{textAlign:"center",padding:"28px 0",color:"var(--ink-3)"}}>ไม่มีสำนวนรอเกษียน</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ส่งเกษียนแล้ว รอผู้อำนวยการ */}
+      {proposed.length > 0 && (
+        <div className="card">
+          <div className="card-h">
+            <h3 style={{color:'var(--ink-2)'}}>ส่งเกษียนแล้ว — รอผู้อำนวยการพิจารณา</h3>
+            <span className="badge">{proposed.length} เรื่อง</span>
+          </div>
+          <div className="table-wrap">
+            <table className="tbl">
+              <thead><tr><th>รหัส/เลขรับ</th><th>เรื่อง</th><th>สายงาน</th><th>สถานะ</th><th>วันที่รับ</th><th>ความสำคัญ</th><th></th></tr></thead>
+              <tbody>{proposed.map(c => caseRow(c, false))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {propModal && (
         <ProposeModal case_={propModal.case} officers={officers}
