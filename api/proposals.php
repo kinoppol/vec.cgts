@@ -80,6 +80,10 @@ if ($method === 'POST') {
 
     $propId = (int)$db->lastInsertId();
 
+    // เปลี่ยน status เป็น screening เพื่อบอกว่ารอ dir_admin พิจารณา
+    $db->prepare("UPDATE cases SET status='screening' WHERE id=? AND status IN ('received','screening')")
+       ->execute([$caseId]);
+
     // เริ่ม SLA ขั้น "เสนอ ผอ.สำนัก" อัตโนมัติ
     startSlaStep($db, $caseId, 'propose_dir');
 
