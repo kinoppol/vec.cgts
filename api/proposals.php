@@ -60,18 +60,14 @@ if ($method === 'POST') {
     if (!$case) err('ไม่พบสำนวน', 404);
     if ($case['assignee_id']) err('สำนวนนี้มีผู้รับผิดชอบแล้ว ไม่สามารถนำเสนอได้');
 
-    // ยกเลิก proposal เก่าของสำนวนนี้ (ถ้ามี)
-    $db->prepare("UPDATE case_task_proposals SET status='changed' WHERE case_id=? AND from_task_no=0 AND status='pending'")
-       ->execute([$caseId]);
-
-    // ตรวจว่าตาราง case_task_proposals มีอยู่จริง
-    $tableExists = $db->query("SHOW TABLES LIKE 'case_task_proposals'")->fetchColumn();
-    if (!$tableExists) err('ระบบยังไม่ได้ติดตั้งโมดูลนำเสนอ กรุณาติดต่อผู้ดูแลระบบ (migration: proposals)', 500);
-
     // ตรวจ columns ที่อาจยังไม่ได้ migrate (graceful fallback)
     $existCols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
     $hasPropGroups    = in_array('proposed_groups',    $existCols);
     $hasPropPersonnel = in_array('proposed_personnel', $existCols);
+
+    // ยกเลิก proposal เก่าของสำนวนนี้ (ถ้ามี)
+    $db->prepare("UPDATE case_task_proposals SET status='changed' WHERE case_id=? AND from_task_no=0 AND status='pending'")
+       ->execute([$caseId]);
 
     $cols   = ['case_id','from_task_no','to_task_no','proposed_officer','proposed_by','propose_note'];
     $vals   = [$caseId, 0, 1, $proposedOfficer, (int)$auth['id'], $note];
@@ -79,10 +75,15 @@ if ($method === 'POST') {
     if ($hasPropPersonnel) { $cols[] = 'proposed_personnel'; $vals[] = $proposedPersonnel; }
 
     $placeholders = implode(',', array_fill(0, count($cols), '?'));
-    $db->prepare("INSERT INTO case_task_proposals (" . implode(',', $cols) . ") VALUES ($placeholders)")
-       ->execute($vals);
+    try {
+        $db->prepare("INSERT INTO case_task_proposals (" . implode(',', $cols) . ") VALUES ($placeholders)")
+           ->execute($vals);
+    } catch (PDOException $e) {
+        err('บันทึกไม่สำเร็จ: ' . $e->getMessage());
+    }
 
     $propId = (int)$db->lastInsertId();
+    if (!$propId) err('บันทึกไม่สำเร็จ: ไม่ได้รับ ID กลับมา');
 
     // เปลี่ยน status เป็น screening เพื่อบอกว่ารอ dir_admin พิจารณา
     $db->prepare("UPDATE cases SET status='screening' WHERE id=? AND status IN ('received','screening')")
