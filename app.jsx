@@ -328,7 +328,10 @@ function UserMenu({ user, role, roleLabels, onEditProfile, onLogout, size = "md"
         className="vcenter" style={{gap:isSm?9:10,padding:isSm?"0 6px":"6px 8px",background:"none",border:"none",cursor:"pointer",width:"100%",textAlign:"left",borderRadius:8,color:"inherit"}}>
         <Avatar user={user} size={isSm ? "sm" : "md"}/>
         {isSm ? (
-          <div style={{lineHeight:1.2}}><div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div></div>
+          <div style={{lineHeight:1.2}}>
+            <div className="sm" style={{fontWeight:600}}>{(user.display_name||"").split(" ")[0]}</div>
+            <div className="faint tiny">{roleLabel(role, roleLabels)}</div>
+          </div>
         ) : (
           <div style={{flex:1,minWidth:0}}>
             <div className="sm" style={{fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.display_name}</div>
