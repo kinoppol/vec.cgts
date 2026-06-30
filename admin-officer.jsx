@@ -1327,7 +1327,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             <h3 style={{fontSize:15,marginBottom:14}}>ผู้รับผิดชอบ</h3>
             {o ? <div className="vcenter" style={{gap:12}}>
                 <span className="avatar" style={{width:44,height:44}}>{o.init}</span>
-                <div><div style={{fontWeight:600}}>{o.name}</div><div className="muted sm">{o.role}</div><div className="faint tiny">{o.group}</div></div>
+                <div>
+                  {o.group && <div style={{fontSize:11,fontWeight:600,color:'var(--maroon)',marginBottom:2,letterSpacing:.3}}>{o.group}</div>}
+                  <div style={{fontWeight:600}}>{o.name}</div>
+                  <div className="muted sm">{o.role}</div>
+                </div>
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
             {canAssign && c.status!=="closed" &&
