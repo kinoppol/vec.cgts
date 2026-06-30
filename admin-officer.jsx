@@ -1205,6 +1205,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
   const [tab, setTab] = useState("info");
   const [assign, setAssign] = useState(false);
+  const [assignLawyer, setAssignLawyer] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showPropose, setShowPropose] = useState(false);
   const [markingAssign, setMarkingAssign] = useState(false);
@@ -1246,8 +1247,6 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           </div>
         </div>
         <div className="vcenter" style={{gap:8}}>
-          {canAssign && c.status!=="closed" &&
-            <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้ดำเนินการ":"แต่งตั้งผู้ดำเนินการ"}</button>}
           {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
@@ -1328,14 +1327,28 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {o ? <div className="vcenter" style={{gap:12}}>
                 <span className="avatar" style={{width:44,height:44}}>{o.init}</span>
                 <div>
-                  {(c.assigned_group || o.group) && <div style={{fontSize:11,fontWeight:600,color:'var(--maroon)',marginBottom:2,letterSpacing:.3}}>{c.assigned_group || o.group}</div>}
+                  {(c.assigned_group || o.group) && <div style={{fontSize:16,fontWeight:700,color:'var(--maroon)',marginBottom:3,lineHeight:1.3}}>{c.assigned_group || o.group}</div>}
                   <div style={{fontWeight:600}}>{o.name}</div>
                   <div className="muted sm">{o.role}</div>
                 </div>
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
-            {canAssign && c.status!=="closed" &&
-              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้ดำเนินการ":"แต่งตั้งผู้ดำเนินการ"}</button>}
+
+            {/* นิติกรผู้ดำเนินการ (เจ้าหน้าที่ส่งต่อให้) */}
+            {c.lawyer_name && <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--line)'}}>
+              <div className="faint tiny" style={{marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>นิติกรผู้ดำเนินการ</div>
+              <div className="vcenter" style={{gap:12}}>
+                <span className="avatar" style={{width:40,height:40}}>{c.lawyer_init}</span>
+                <div>
+                  <div style={{fontWeight:600}}>{c.lawyer_name}</div>
+                  {c.lawyer_role && <div className="muted sm">{c.lawyer_role}</div>}
+                </div>
+              </div>
+            </div>}
+
+            {/* เจ้าหน้าที่ผู้รับผิดชอบส่งเรื่องต่อให้นิติกรในกลุ่ม */}
+            {o && c.status!=="closed" &&
+              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name?"เปลี่ยนนิติกรผู้ดำเนินการ":"มอบหมายนิติกร"}</button>}
           </div>
 
           <div className="card card-pad">
@@ -1385,11 +1398,62 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         api.getCase(c.id).then(full => setC(full));
         setAssign(false);
       }}/>}
+      {assignLawyer && <AssignLawyerModal c={c} officers={officers} close={()=>setAssignLawyer(false)} onAssign={async (oid)=>{
+        await updateCase(c.id, {lawyer_id:oid});
+        api.getCase(c.id).then(full => setC(full));
+        setAssignLawyer(false);
+      }}/>}
       {showDelete && <DeleteCaseModal c={c} onClose={()=>setShowDelete(false)} onDeleted={(id)=>{
         setShowDelete(false);
         if (onCaseDeleted) onCaseDeleted(id);
         back();
       }}/>}
+    </div>
+  );
+}
+
+/* ---------------- Modal มอบหมายนิติกร (clerk ส่งต่อให้นิติกรในกลุ่ม) ---------------- */
+function AssignLawyerModal({ c, officers, close, onAssign }) {
+  const grp = c.assigned_group || null;
+  // นิติกรในกลุ่มที่ได้รับมอบหมาย; ถ้าไม่มีใครในกลุ่ม fallback แสดงทั้งหมด
+  const inGroup  = grp ? (officers||[]).filter(o => o.group === grp) : [];
+  const pool     = inGroup.length ? inGroup : (officers||[]);
+  const fallback = inGroup.length === 0;
+  const [sel, setSel] = useState(c.lawyer || '');
+
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="gavel" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>มอบหมายนิติกรผู้ดำเนินการ</h3></div>
+          <button className="icon-btn" onClick={close}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>
+            {grp
+              ? (fallback ? <>กลุ่มที่ได้รับมอบหมาย <b>{grp}</b> — ไม่พบนิติกรในกลุ่ม จึงแสดงทั้งหมด</> : <>เลือกนิติกรในกลุ่ม <b>{grp}</b> เพื่อส่งเรื่องต่อให้ดำเนินการ</>)
+              : <>ยังไม่ได้ระบุกลุ่มที่ได้รับมอบหมาย — แสดงนิติกรทั้งหมด</>}
+          </div></div>
+          {pool.length === 0
+            ? <div className="faint sm" style={{padding:'16px 0',textAlign:'center'}}>ไม่พบรายชื่อนิติกร</div>
+            : <div className="choices">
+                {pool.map(o=>(
+                  <div key={o.id} className={"choice "+(sel===o.id?"active":"")} onClick={()=>setSel(o.id)}>
+                    <span className="radio"></span>
+                    <span className="avatar">{o.init}</span>
+                    <div style={{flex:1}}>
+                      <div className="between"><div className="ct">{o.name}</div><span className="badge">{o.load} เรื่องในมือ</span></div>
+                      <div className="cd">{o.duty || o.role}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close}>ยกเลิก</button>
+          <button className="btn btn-primary" disabled={!sel} onClick={()=>onAssign(sel)}><Icon name="check" style={{width:16,height:16}}/> ยืนยันมอบหมาย</button>
+        </div>
+      </div>
     </div>
   );
 }

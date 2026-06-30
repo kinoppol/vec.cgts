@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS cases (
   detail        TEXT         DEFAULT NULL,
   assignee_id   VARCHAR(10)  DEFAULT NULL,
   assigned_group VARCHAR(200) DEFAULT NULL,
+  lawyer_id     VARCHAR(10)  DEFAULT NULL,
   sla           ENUM('g','a','r') NOT NULL DEFAULT 'g',
   progress      TINYINT      NOT NULL DEFAULT 0,
   received_date DATE         DEFAULT NULL,
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS cases (
   updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   CONSTRAINT fk_case_officer  FOREIGN KEY (assignee_id) REFERENCES officers (id) ON DELETE SET NULL,
+  CONSTRAINT fk_case_lawyer   FOREIGN KEY (lawyer_id)   REFERENCES officers (id) ON DELETE SET NULL,
   CONSTRAINT fk_case_creator  FOREIGN KEY (created_by)  REFERENCES users    (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

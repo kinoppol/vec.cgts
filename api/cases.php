@@ -146,6 +146,22 @@ function buildCase(array $row, PDO $db): array {
     // normalize field names ให้ตรงกับ list query
     $row['assignee'] = $row['assignee_id'] ?? null;
 
+    // นิติกรผู้ดำเนินการ (ถ้ามี)
+    $row['lawyer'] = $row['lawyer_id'] ?? null;
+    if (!empty($row['lawyer_id'])) {
+        try {
+            $lw = $db->prepare('SELECT name, init, job_title, group_name FROM officers WHERE id = ?');
+            $lw->execute([$row['lawyer_id']]);
+            $lwRow = $lw->fetch();
+            if ($lwRow) {
+                $row['lawyer_name']  = $lwRow['name'];
+                $row['lawyer_init']  = $lwRow['init'];
+                $row['lawyer_role']  = $lwRow['job_title'];
+                $row['lawyer_group'] = $lwRow['group_name'];
+            }
+        } catch (Throwable $e) { /* graceful */ }
+    }
+
     // กลุ่มที่ผู้บริหารมอบหมาย — ใช้ assigned_group ถ้ามี
     // ถ้ายังว่าง (เรื่องเก่า / ยังไม่ได้ migrate) → ดึงจาก proposal ที่อนุมัติล่าสุด
     $assignedGroup = $row['assigned_group'] ?? null;
@@ -584,13 +600,17 @@ if ($method === 'PATCH') {
     if (!$id) err('ต้องระบุ id');
 
     $allowed = ['status','assignee_id','progress','sla','reg_number','due_date','priority','cls'];
+    // lawyer_id รองรับเฉพาะถ้ามีคอลัมน์ (graceful ก่อน migrate)
+    $caseCols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('lawyer_id', $caseCols)) $allowed[] = 'lawyer_id';
     $set = [];
     $params = [];
     foreach ($allowed as $col) {
         if (array_key_exists($col, $body)) {
-            $key = $col === 'assignee_id' ? 'assignee' : $col;
-            $set[]    = "$col = ?";
-            $params[] = $col === 'assignee_id' ? ($body['assignee'] ?? null) : $body[$col];
+            $set[] = "$col = ?";
+            if ($col === 'assignee_id')   $params[] = $body['assignee'] ?? null;
+            elseif ($col === 'lawyer_id') $params[] = $body['lawyer_id'] ?: null;
+            else                          $params[] = $body[$col];
         }
     }
     // handle assignee alias
@@ -639,6 +659,41 @@ if ($method === 'PATCH') {
                     "📋 ได้รับมอบหมายสำนวนใหม่: {$subj}",
                     "สำนวน {$id} ถูกมอบหมายให้คุณดำเนินการ",
                 ]);
+            }
+        }
+    }
+
+    // มอบหมายนิติกรผู้ดำเนินการ (clerk ส่งต่อให้นิติกรในกลุ่ม)
+    if (array_key_exists('lawyer_id', $body) && in_array('lawyer_id', $caseCols)) {
+        $newLawyer = $body['lawyer_id'] ?: null;
+        if ($newLawyer) {
+            $lname = $db->prepare('SELECT name FROM officers WHERE id = ?');
+            $lname->execute([$newLawyer]);
+            $lname = $lname->fetchColumn() ?: $newLawyer;
+
+            $maxOrd = $db->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM case_events WHERE case_id = ?');
+            $maxOrd->execute([$id]);
+            $ord = $maxOrd->fetchColumn();
+            $thYear = date('Y') + 543;
+            $db->prepare(
+                'INSERT INTO case_events (case_id, title, actor, moment, detail, ev_status, icon, sort_order)
+                 VALUES (?,?,?,?,?,?,?,?)'
+            )->execute([$id, 'มอบหมายนิติกรผู้ดำเนินการ', 'เจ้าหน้าที่ผู้รับผิดชอบ',
+                date('j') . ' ' . ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][(int)date('n')] . ' ' . $thYear,
+                'ส่งเรื่องต่อให้ ' . $lname . ' ดำเนินการ', 'done', 'gavel', $ord]);
+
+            // แจ้งเตือนนิติกรที่ได้รับมอบหมาย
+            $uStmt = $db->prepare('SELECT id FROM users WHERE officer_id = ? AND active = 1 LIMIT 1');
+            $uStmt->execute([$newLawyer]);
+            $lawyerUser = $uStmt->fetch();
+            if ($lawyerUser) {
+                $cStmt = $db->prepare('SELECT subject FROM cases WHERE id = ?');
+                $cStmt->execute([$id]);
+                $subj = mb_substr($cStmt->fetchColumn() ?: $id, 0, 60);
+                $db->prepare("INSERT INTO notifications (user_id, case_id, notif_type, title, body) VALUES (?,?,?,?,?)")
+                   ->execute([(int)$lawyerUser['id'], $id, 'assigned',
+                       "⚖️ ได้รับมอบหมายเป็นนิติกรผู้ดำเนินการ: {$subj}",
+                       "สำนวน {$id} ถูกส่งต่อให้คุณดำเนินการ"]);
             }
         }
     }

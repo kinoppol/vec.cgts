@@ -733,6 +733,32 @@ if ($confirm === 'dept_name') {
 }
 
 /* ── [21] case_events DATETIME ─────────────────────────── */
+if ($confirm === 'lawyer_id') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [23]: lawyer_id — นิติกรผู้ดำเนินการที่ clerk มอบหมาย</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $cols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('lawyer_id', $cols)) {
+            $db->exec("ALTER TABLE cases ADD COLUMN lawyer_id VARCHAR(10) DEFAULT NULL AFTER assigned_group");
+            echo "✓ ALTER cases ADD lawyer_id\n";
+            // เพิ่ม FK (ไม่ critical ถ้าพลาด)
+            try {
+                $db->exec("ALTER TABLE cases ADD CONSTRAINT fk_case_lawyer FOREIGN KEY (lawyer_id) REFERENCES officers (id) ON DELETE SET NULL");
+                echo "✓ ADD FK fk_case_lawyer\n";
+            } catch (Throwable $e) { echo "– ข้าม FK: ".$e->getMessage()."\n"; }
+        } else { echo "– cases.lawyer_id มีอยู่แล้ว ข้าม\n"; }
+
+        echo '<span class="ok">✓ เสร็จสิ้น</span>';
+    } catch (Throwable $e) {
+        echo '<span class="err">✗ '.$e->getMessage().'</span>';
+    }
+    echo '</pre>';
+    exit;
+}
+
 if ($confirm === 'assigned_group') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
     echo '<h2>Migration [22]: assigned_group — เก็บกลุ่มที่ dir_admin มอบหมาย</h2><pre>';
@@ -813,6 +839,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[23] Lawyer ID</b> — เพิ่ม cases.lawyer_id (นิติกรผู้ดำเนินการที่เจ้าหน้าที่มอบหมาย)<br><code><a href="?confirm=lawyer_id">migrate.php?confirm=lawyer_id</a></code></li>';
     echo '<li><b>[22] Assigned Group</b> — เพิ่ม cases.assigned_group และ case_task_proposals.final_group เพื่อบันทึกกลุ่มที่ dir_admin มอบหมาย<br><code><a href="?confirm=assigned_group">migrate.php?confirm=assigned_group</a></code></li>';
     echo '<li><b>[21] Event DATETIME</b> — เปลี่ยน case_events.started_at / completed_at จาก DATE เป็น DATETIME (เพื่อแสดงชั่วโมง:นาทีใน timeline)<br><code><a href="?confirm=event_datetime">migrate.php?confirm=event_datetime</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
