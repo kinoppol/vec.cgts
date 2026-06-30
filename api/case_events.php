@@ -133,6 +133,20 @@ $vals[] = $id;
 $db->prepare("UPDATE case_events SET " . implode(', ', $sets) . " WHERE id = ?")
    ->execute($vals);
 
+// ── ขั้น "ออกคำสั่ง" (order): เสร็จ → ปิดเรื่อง / ยกเลิก → เปิดเรื่องใหม่ ──
+if ($event['step_key'] === 'order' && array_key_exists('ev_status', $body)) {
+    $newSt = $body['ev_status'];
+    if ($newSt === 'done') {
+        // ออกคำสั่งเสร็จ → ดำเนินการเสร็จสิ้น
+        $db->prepare("UPDATE cases SET status='closed' WHERE id=?")->execute([$event['case_id']]);
+        audit('case_closed', $event['case_id'], 'ออกคำสั่ง — ปิดเรื่อง');
+    } elseif (in_array($newSt, ['active','pending'], true)) {
+        // ยกเลิกคำสั่ง → เปิดเรื่องให้ดำเนินการต่อ (กลับสู่ขั้นรายงาน)
+        $db->prepare("UPDATE cases SET status='reporting' WHERE id=? AND status='closed'")->execute([$event['case_id']]);
+        audit('case_reopen', $event['case_id'], 'ยกเลิกคำสั่ง — เปิดเรื่องใหม่');
+    }
+}
+
 audit('event_update', (string)$id, implode(',', array_map(fn($s)=>explode(' ',$s)[0], $sets)));
 
 // คืน event ที่อัปเดตแล้ว พร้อม SLA info

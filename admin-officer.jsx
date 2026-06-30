@@ -807,9 +807,10 @@ function StepDoneModal({ step, onConfirm, onClose }) {
 }
 
 /* ---------------- CaseTimeline — เส้นเวลาการดำเนินการ ---------------- */
-function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep }) {
+function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
   // canEditStep(step_key) → bool ต่อขั้น; ถ้าไม่ส่งมา ใช้ canEdit รวม
   const canDo = (stepKey) => canEditStep ? canEditStep(stepKey) : !!canEdit;
+  const isDirAdmin = role === 'dir_admin' || role === 'admin';
   const [busy,      setBusy]      = React.useState(null);
   const [editing,   setEditing]   = React.useState(null);
   const [doneModal, setDoneModal] = React.useState(null);
@@ -1054,14 +1055,22 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep }) {
               )}
 
               {/* ปุ่ม + inline date (สิทธิ์ต่อขั้นตอน) */}
-              {canDo(s.step_key) && (
+              {canDo(s.step_key) && (() => {
+                // ขั้นก่อนหน้าต้องเสร็จก่อนจึงเริ่มได้ — ยกเว้น dir_admin ออกคำสั่ง (order) ข้ามได้
+                const prevDone = i === 0 || steps[i-1].ev_status === 'done';
+                const canStart = prevDone || (s.step_key === 'order' && isDirAdmin);
+                return (
                 <div className="vcenter" style={{gap:6,marginTop:6,flexWrap:'wrap'}}>
                   {!isDone && !isActive && (
-                    <button className="btn btn-sm"
-                      style={{fontSize:11,padding:'2px 10px',background:'var(--info)',color:'#fff',borderRadius:6}}
-                      disabled={!!busy} onClick={()=>markStatus(s,'active')}>
-                      {busy===s.step_key+':active' ? '…' : '▶ เริ่ม'}
-                    </button>
+                    canStart
+                      ? <button className="btn btn-sm"
+                          style={{fontSize:11,padding:'2px 10px',background:'var(--info)',color:'#fff',borderRadius:6}}
+                          disabled={!!busy} onClick={()=>markStatus(s,'active')}>
+                          {busy===s.step_key+':active' ? '…' : '▶ เริ่ม'}
+                        </button>
+                      : <span className="vcenter" style={{fontSize:11,color:'var(--ink-3)',gap:4}}>
+                          <Icon name="lock" style={{width:11,height:11}}/> รอขั้นตอนก่อนหน้า
+                        </span>
                   )}
                   {isActive && (
                     <>
@@ -1076,9 +1085,9 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep }) {
                   )}
                   {isDone && (
                     <button className="btn btn-sm btn-ghost"
-                      style={{fontSize:11,padding:'2px 8px'}}
+                      style={{fontSize:11,padding:'2px 8px',color:s.step_key==='order'?'var(--danger)':undefined}}
                       disabled={!!busy} onClick={()=>markStatus(s,'active')}>
-                      ↩ ย้อนกลับ
+                      {s.step_key==='order' ? '↩ ยกเลิกคำสั่ง' : '↩ ย้อนกลับ'}
                     </button>
                   )}
                   {/* บันทึกวันเริ่มย้อนหลัง */}
@@ -1088,7 +1097,8 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep }) {
                     </span>
                   )}
                 </div>
-              )}
+                );
+              })()}
 
               {/* note + attachment ที่บันทึกไว้ */}
               {(s.detail || s.attachment_name) && (
@@ -1241,6 +1251,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   // สิทธิ์กดปุ่ม เริ่ม/เสร็จแล้ว ต่อขั้นตอน SLA
   const canEditStep = (stepKey) => {
     if (role === 'admin') return true; // admin จัดการได้ทุกขั้น
+    // เรื่องปิดแล้ว (dir_admin ออกคำสั่งเสร็จสิ้น) → ล็อกการแก้ไข
+    // เฉพาะ dir_admin เท่านั้นที่ยกเลิกคำสั่ง (order) เพื่อเปิดให้แก้ไขใหม่ได้
+    if (c.status === 'closed') {
+      return role === 'dir_admin' && stepKey === 'order';
+    }
     switch (stepKey) {
       case 'receive':       // รับเรื่อง
       case 'propose_dir':   // เสนอ ผอ.สำนัก
@@ -1349,7 +1364,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {tab==="timeline" && <CaseTimeline
               steps={(c.steps||[]).map(s=>({...s, _case_id: c.id}))}
               onRefresh={()=>{ api.getCase(c.id).then(full=>setC(full)); }}
-              canEditStep={canEditStep}/>}
+              canEditStep={canEditStep} role={role}/>}
           </div>
         </div>
 
