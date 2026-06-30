@@ -75,6 +75,29 @@ function startSlaStep(PDO $db, string $caseId, string $stepKey): void {
     )->execute([$caseId, $step['label'], (int)$step['sort_order'], $stepKey]);
 }
 
+/** completeSlaStep — ปิดขั้น SLA (set ev_status='done', completed_at=NOW()); สร้าง event ถ้ายังไม่มี */
+function completeSlaStep(PDO $db, string $caseId, string $stepKey): void {
+    $upd = $db->prepare(
+        "UPDATE case_events SET ev_status='done',
+            started_at = COALESCE(started_at, NOW()), completed_at = COALESCE(completed_at, NOW())
+         WHERE case_id = ? AND step_key = ?"
+    );
+    $upd->execute([$caseId, $stepKey]);
+    if ($upd->rowCount() > 0) return;
+
+    $sp = $db->prepare("SELECT * FROM sla_steps WHERE step_key = ? AND active = 1");
+    $sp->execute([$stepKey]);
+    $step = $sp->fetch();
+    if (!$step) return;
+    $ex = $db->prepare("SELECT id FROM case_events WHERE case_id = ? AND step_key = ?");
+    $ex->execute([$caseId, $stepKey]);
+    if ($ex->fetch()) return;
+    $db->prepare(
+        "INSERT INTO case_events (case_id, title, ev_status, icon, sort_order, step_key, started_at, completed_at)
+         VALUES (?, ?, 'done', 'dot', ?, ?, NOW(), NOW())"
+    )->execute([$caseId, $step['label'], (int)$step['sort_order'], $stepKey]);
+}
+
 const ROLE_PRIORITY = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
 
 /**

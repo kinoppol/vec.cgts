@@ -733,6 +733,25 @@ if ($confirm === 'dept_name') {
 }
 
 /* ── [21] case_events DATETIME ─────────────────────────── */
+if ($confirm === 'propose_group_step') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [26]: ขั้นตอน SLA "เสนอ ผอ.กลุ่ม"</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $ins = $db->prepare("INSERT INTO sla_steps (step_key, label, days_allowed, sort_order, active, note)
+            SELECT 'propose_group', 'เสนอ ผอ.กลุ่ม', 1, 25, 1, 'เจ้าหน้าที่เสนอเรื่องต่อผู้อำนวยการกลุ่ม'
+            FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sla_steps WHERE step_key='propose_group')");
+        $ins->execute();
+        echo $ins->rowCount() ? "✓ เพิ่มขั้น propose_group (sort 25, 1 วัน)\n" : "– propose_group มีอยู่แล้ว ข้าม\n";
+        echo '<span class="ok">✓ เสร็จสิ้น</span>';
+    } catch (Throwable $e) {
+        echo '<span class="err">✗ '.$e->getMessage().'</span>';
+    }
+    echo '</pre>';
+    exit;
+}
+
 if ($confirm === 'group_receipt') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
     echo '<h2>Migration [25]: เลขรับภายในกลุ่ม (เกษียนถึงหัวหน้ากลุ่ม)</h2><pre>';
@@ -925,6 +944,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[26] ขั้น SLA เสนอ ผอ.กลุ่ม</b> — เพิ่มขั้นตอน propose_group (auto เมื่อมอบหมาย clerk / เกษียน)<br><code><a href="?confirm=propose_group_step">migrate.php?confirm=propose_group_step</a></code></li>';
     echo '<li><b>[25] เลขรับภายในกลุ่ม</b> — groups.recv_prefix + cases.group_recv_no + ตาราง group_receipts<br><code><a href="?confirm=group_receipt">migrate.php?confirm=group_receipt</a></code></li>';
     echo '<li><b>[24] รูปแบบการออกคำสั่ง</b> — เพิ่ม case_events.order_items + seed เทมเพลตคำสั่ง 7 รายการ<br><code><a href="?confirm=order_template">migrate.php?confirm=order_template</a></code></li>';
     echo '<li><b>[23] Lawyer ID</b> — เพิ่ม cases.lawyer_id (นิติกรผู้ดำเนินการที่เจ้าหน้าที่มอบหมาย)<br><code><a href="?confirm=lawyer_id">migrate.php?confirm=lawyer_id</a></code></li>';

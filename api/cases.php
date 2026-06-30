@@ -717,6 +717,11 @@ if ($method === 'PATCH') {
         }
     }
 
+    // มอบหมาย clerk → เริ่มขั้น "เสนอ ผอ.กลุ่ม" อัตโนมัติ
+    if (isset($body['assignee']) && ($body['assignee'] ?? null)) {
+        try { startSlaStep($db, $id, 'propose_group'); } catch (Throwable) {}
+    }
+
     // sync SLA calendar event เมื่อเปลี่ยน assignee หรือ status
     if (isset($body['assignee']) || isset($body['assignee_id']) || isset($body['status'])) {
         try { syncSlaCalEvent($db, $id, (int)$auth['id']); } catch (Throwable) {}
