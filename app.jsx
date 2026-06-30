@@ -144,7 +144,6 @@ function navFor(role, counts, user) {
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
     {v:"proposals", ic:"flag",     l:"เรื่องที่ได้รับมอบหมาย", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
@@ -569,7 +568,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   if (loading) {
     content = <LoadingSpinner/>;
   } else if (view === "case-detail") {
-    content = <CaseDetail cid={sel} cases={cases} officers={officers} back={()=>setView("cases")} updateCase={updateCase} role={role}
+    content = <CaseDetail cid={sel} cases={cases} officers={officers} back={()=>setView(role==="dir_legal" ? "proposals" : "cases")} updateCase={updateCase} role={role}
       currentUser={user} onCaseDeleted={id=>setCases(cs=>cs.filter(c=>c.id!==id))} onRefresh={refreshCases}/>;
   } else if (view === "exec") {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
