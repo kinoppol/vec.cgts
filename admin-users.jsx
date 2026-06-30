@@ -57,6 +57,20 @@ function UserModal({ user, officers, roleLabels, isAdmin, isDirLegal, onSave, on
   const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef(null);
 
+  /* autocomplete เชื่อมโยงบุคลากร */
+  const initOfficerName = (() => {
+    const o = (officers||[]).find(o => o.id === (user?.officer_id||''));
+    return o ? o.name : '';
+  })();
+  const [officerQuery, setOfficerQuery] = useState(initOfficerName);
+  const [officerOpen,  setOfficerOpen]  = useState(false);
+  const officerBoxRef = useRef(null);
+  useEffect(() => {
+    const onDoc = e => { if (officerBoxRef.current && !officerBoxRef.current.contains(e.target)) setOfficerOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   /* เมื่อเลือกบุคลากร ให้ auto-fill display_name จากชื่อบุคลากร */
@@ -64,8 +78,11 @@ function UserModal({ user, officers, roleLabels, isAdmin, isDirLegal, onSave, on
     set('officer_id', oid);
     if (oid) {
       const off = (officers||[]).find(o => o.id === oid);
-      if (off) set('display_name', off.name);
+      if (off) { set('display_name', off.name); setOfficerQuery(off.name); }
+    } else {
+      setOfficerQuery('');
     }
+    setOfficerOpen(false);
   };
 
   const pickAvatar = async e => {
@@ -173,10 +190,37 @@ function UserModal({ user, officers, roleLabels, isAdmin, isDirLegal, onSave, on
             </div>
             <div className="field">
               <label>เชื่อมโยงกับบุคลากร</label>
-              <select className="input" value={form.officer_id||''} onChange={e=>handleOfficerChange(e.target.value)}>
-                <option value="">— ไม่ระบุ —</option>
-                {(officers||[]).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
+              <div ref={officerBoxRef} style={{position:'relative'}}>
+                <div className="vcenter" style={{gap:6}}>
+                  <input className="input" style={{flex:1}}
+                    placeholder="พิมพ์ชื่อบุคลากรเพื่อค้นหา…"
+                    value={officerQuery}
+                    onChange={e=>{ setOfficerQuery(e.target.value); setOfficerOpen(true); if(form.officer_id) set('officer_id',''); }}
+                    onFocus={()=>setOfficerOpen(true)}/>
+                  {form.officer_id && <button type="button" className="icon-btn" title="ล้าง" onClick={()=>handleOfficerChange('')}><Icon name="x" style={{width:15,height:15}}/></button>}
+                </div>
+                {officerOpen && (() => {
+                  const q = officerQuery.trim().toLowerCase();
+                  const matches = (officers||[]).filter(o =>
+                    !q || o.name.toLowerCase().includes(q) || (o.group||'').toLowerCase().includes(q) || (o.id||'').toLowerCase().includes(q)
+                  ).slice(0, 40);
+                  return (
+                    <div className="card" style={{position:'absolute',top:'100%',left:0,right:0,marginTop:4,maxHeight:240,overflowY:'auto',zIndex:50,boxShadow:'0 8px 24px rgba(0,0,0,.18)'}}>
+                      {matches.length === 0
+                        ? <div className="faint sm" style={{padding:'10px 12px'}}>ไม่พบบุคลากร</div>
+                        : matches.map(o=>(
+                            <div key={o.id} onClick={()=>handleOfficerChange(o.id)}
+                              style={{padding:'8px 12px',cursor:'pointer',borderBottom:'1px solid var(--line)',background:form.officer_id===o.id?'var(--surface-2)':'transparent'}}
+                              onMouseEnter={e=>e.currentTarget.style.background='var(--surface-2)'}
+                              onMouseLeave={e=>e.currentTarget.style.background=form.officer_id===o.id?'var(--surface-2)':'transparent'}>
+                              <div style={{fontWeight:500,fontSize:13}}>{o.name}</div>
+                              {(o.group || o.role) && <div className="faint tiny">{[o.role,o.group].filter(Boolean).join(' · ')}</div>}
+                            </div>
+                          ))}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
 
