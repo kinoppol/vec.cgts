@@ -190,8 +190,23 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
   const [result, setResult] = useState(null); // null | {ok:true} | {ok:false, msg:string}
 
   useEffect(() => {
-    api.getLookups('group_name').then(setGroups).catch(() => {});
+    // ใช้กลุ่มจริงจากตาราง groups (มี name + dept_name สำหรับจับคู่สมาชิก)
+    api.getGroups()
+      .then(gs => setGroups((gs||[]).map(g => ({ name: g.name, dept_name: g.dept_name }))))
+      .catch(() => api.getLookups('group_name').then(setGroups).catch(() => {}));
   }, []);
+
+  // ชุดชื่อกลุ่มที่ใช้จับคู่กับ officers.group_name (ครอบคลุมทั้ง name และ dept_name)
+  const matchSet = (() => {
+    const set = new Set();
+    (groups||[]).forEach(g => {
+      if (selGroups.includes(g.name)) {
+        set.add(g.name);
+        if (g.dept_name) set.add(g.dept_name);
+      }
+    });
+    return set;
+  })();
 
   const toggleGroup = (name) =>
     setSelGroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]);
@@ -290,7 +305,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               if (selGroups.length === 0) {
                 return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อสมาชิก</div>;
               }
-              const pool = (officers||[]).filter(o => selGroups.includes(o.group));
+              const pool = (officers||[]).filter(o => matchSet.has(o.group));
               return pool.length > 0
                 ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
                     {pool.map(o =>
