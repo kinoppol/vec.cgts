@@ -363,9 +363,11 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
                     <td className="sm muted" style={{maxWidth:200,whiteSpace:'pre-wrap'}}>{p.propose_note || '—'}</td>
                     <td className="sm muted tnum">{thDate(p.created_at?.slice(0,10))}</td>
                     <td>
-                      <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
-                        <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
-                      </button>
+                      {p.case_lawyer
+                        ? <span className="badge badge-ok" style={{fontSize:11}}><span className="dot"></span>มอบหมายนิติกรแล้ว</span>
+                        : <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
+                            <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
+                          </button>}
                     </td>
                   </tr>
                 );

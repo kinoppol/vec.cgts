@@ -10,6 +10,9 @@ if ($method === 'GET') {
     if (!in_array($auth['role'], ['admin','dir_legal','dir_admin'], true)) err('Forbidden', 403);
 
     $caseId = trim($_GET['case_id'] ?? '');
+    // lawyer_id อาจยังไม่ได้ migrate
+    $caseCols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+    $lawyerSel = in_array('lawyer_id', $caseCols) ? 'c.lawyer_id AS case_lawyer' : 'NULL AS case_lawyer';
     $sql = "
         SELECT p.id, p.case_id, p.from_task_no, p.to_task_no,
                p.proposed_officer, p.proposed_groups, p.proposed_personnel, p.proposed_by,
@@ -17,7 +20,9 @@ if ($method === 'GET') {
                p.reviewed_by, p.review_note, p.created_at, p.reviewed_at,
                u.display_name AS proposed_by_name,
                o.name AS proposed_officer_name,
-               c.subject AS case_subject
+               c.subject AS case_subject,
+               c.assignee_id AS case_assignee,
+               $lawyerSel
         FROM case_task_proposals p
         LEFT JOIN users    u ON u.id = p.proposed_by
         LEFT JOIN officers o ON o.id = p.proposed_officer
