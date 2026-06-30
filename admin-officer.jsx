@@ -731,11 +731,10 @@ function StepDoneModal({ step, onConfirm, onClose }) {
   const [err,     setErr]     = React.useState('');
   const fileRef = React.useRef(null);
 
-  const valid = note.trim() !== '' || file !== null;
+  const valid = true;
 
   async function submit(e) {
     e.preventDefault();
-    if (!valid) { setErr('กรุณาพิมพ์บันทึก หรือแนบไฟล์ PDF อย่างน้อยหนึ่งอย่าง'); return; }
     setBusy(true); setErr('');
     try {
       await onConfirm({ note: note.trim(), file });
