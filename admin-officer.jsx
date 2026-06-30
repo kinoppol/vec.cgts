@@ -387,22 +387,42 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
 function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
   const proposedGroups = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
 
-  const [officerId,   setOfficerId]   = useState(proposal.proposed_officer || '');
+  const [staffId,     setStaffId]     = useState('');
   const [filterGroup, setFilterGroup] = useState(proposedGroups[0] || '');
   const [note, setNote]               = useState('');
   const [saving, setSaving]           = useState(false);
   const [err, setErr]                 = useState('');
 
-  // รายการกลุ่มทั้งหมดจาก officers
-  const allGroups = [...new Set(officers.map(o => o.group).filter(Boolean))].sort();
-  // กรองนิติกรตามกลุ่มที่เลือก (ถ้าไม่เลือกกลุ่ม = แสดงทั้งหมด)
-  const filteredOfficers = filterGroup ? officers.filter(o => o.group === filterGroup) : officers;
+  // fetch groups + users จาก API
+  const [sysGroups, setSysGroups] = useState([]);   // [{id,name}]
+  const [allUsers,  setAllUsers]  = useState([]);   // users ทุกคน (ใช้กรองเอง)
+  useEffect(() => {
+    api.getGroups().then(setSysGroups).catch(() => {});
+    apiFetch('/api/users.php').then(setAllUsers).catch(() => {});
+  }, []);
+
+  // เจ้าหน้าที่ = role officer/clerk หรือ group_role officer/clerk และ active
+  const STAFF_ROLES = ['officer', 'clerk'];
+  const staffUsers = allUsers.filter(u =>
+    u.active &&
+    (STAFF_ROLES.includes(u.role) || STAFF_ROLES.includes(u.group_role))
+  );
+
+  // กรองตามกลุ่มที่เลือก (group_name ของ user ตรงกับชื่อกลุ่มที่เลือก)
+  const filteredStaff = filterGroup
+    ? staffUsers.filter(u => u.group_name === filterGroup)
+    : staffUsers;
 
   const submit = async (action) => {
-    if (action === 'approve' && !officerId) { setErr('กรุณาเลือกนิติกรก่อนอนุมัติ'); return; }
+    if (action === 'approve' && !staffId) { setErr('กรุณาเลือกเจ้าหน้าที่ก่อนอนุมัติ'); return; }
     setSaving(true); setErr('');
     try {
-      await api.approveAssign(proposal.id, { action, final_officer: officerId, review_note: note });
+      const user = allUsers.find(u => String(u.id) === String(staffId));
+      if (action === 'approve' && !user?.officer_id) {
+        setErr('เจ้าหน้าที่ที่เลือกยังไม่ได้เชื่อมกับบุคลากร (officer) ในระบบ'); setSaving(false); return;
+      }
+      const finalOfficer = user?.officer_id || null;
+      await api.approveAssign(proposal.id, { action, final_officer: finalOfficer, review_note: note });
       onApproved(proposal.case_id);
     } catch(e) {
       setErr(e.message);
@@ -410,7 +430,7 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
     setSaving(false);
   };
 
-  const grps = (() => { try { return proposal.proposed_groups ? JSON.parse(proposal.proposed_groups) : []; } catch { return []; } })();
+  const grps = proposedGroups;
   const pers = (() => { try { return proposal.proposed_personnel ? JSON.parse(proposal.proposed_personnel) : []; } catch { return []; } })();
 
   return (
@@ -481,25 +501,30 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
 
           <hr style={{border:'none',borderTop:'1px solid var(--line)',margin:'2px 0'}}/>
 
-          {/* Form: กลุ่มงาน + นิติกร (2 คอลัมน์) */}
+          {/* Form: กลุ่มงาน + เจ้าหน้าที่ (2 คอลัมน์) */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
             <div className="field" style={{margin:0}}>
               <label style={{fontSize:13}}>กลุ่มงาน</label>
-              <select className="input" value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setOfficerId('');}}>
+              <select className="input" value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setStaffId('');}}>
                 <option value="">— ทุกกลุ่ม —</option>
-                {allGroups.map(g=>(
-                  <option key={g} value={g}>{g}{proposedGroups.includes(g) ? ' ✓' : ''}</option>
+                {sysGroups.map(g=>(
+                  <option key={g.id} value={g.name}>{g.name}{proposedGroups.includes(g.name) ? ' ✓' : ''}</option>
                 ))}
               </select>
             </div>
             <div className="field" style={{margin:0}}>
-              <label style={{fontSize:13}}>มอบหมายให้นิติกร <span className="req">*</span></label>
-              <select className="input" value={officerId} onChange={e=>setOfficerId(e.target.value)}>
-                <option value="">— เลือกนิติกร —</option>
-                {filteredOfficers.map(o=>(
-                  <option key={o.id} value={o.id}>{o.name}{o.job_title ? ` · ${o.job_title}` : ''}</option>
+              <label style={{fontSize:13}}>มอบหมายเจ้าหน้าที่ <span className="req">*</span></label>
+              <select className="input" value={staffId} onChange={e=>setStaffId(e.target.value)}>
+                <option value="">— เลือกเจ้าหน้าที่ —</option>
+                {filteredStaff.map(u=>(
+                  <option key={u.id} value={u.id}>
+                    {u.display_name}{u.job_title ? ` · ${u.job_title}` : ''}
+                  </option>
                 ))}
               </select>
+              {filterGroup && filteredStaff.length === 0 && (
+                <div className="faint tiny" style={{marginTop:4}}>ไม่พบเจ้าหน้าที่ในกลุ่มนี้</div>
+              )}
             </div>
           </div>
 
