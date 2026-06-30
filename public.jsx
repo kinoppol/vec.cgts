@@ -379,7 +379,7 @@ function ComplaintForm({ go }) {
         {steps.map((s,i)=>(
           <React.Fragment key={i}>
             <div className={"step "+(i===step?"active":i<step?"done":"")}>
-              <div className="num">{i<step ? <Icon name="check" style={{width:15,height:15}}/> : i+1}</div>
+              <div className="num">{i+1}</div>
               <div className="stt" style={{display:i===step?"block":"none"}}>{s}</div>
             </div>
             {i<steps.length-1 && <div className={"bar "+(i<step?"done":"")}></div>}
