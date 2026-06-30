@@ -146,6 +146,35 @@ function buildCase(array $row, PDO $db): array {
     // normalize field names ให้ตรงกับ list query
     $row['assignee'] = $row['assignee_id'] ?? null;
 
+    // กลุ่มที่ผู้บริหารมอบหมาย — ใช้ assigned_group ถ้ามี
+    // ถ้ายังว่าง (เรื่องเก่า / ยังไม่ได้ migrate) → ดึงจาก proposal ที่อนุมัติล่าสุด
+    $assignedGroup = $row['assigned_group'] ?? null;
+    if (!$assignedGroup) {
+        try {
+            $pcols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
+            $hasFinalGroup = in_array('final_group', $pcols);
+            $hasPropGroups = in_array('proposed_groups', $pcols);
+            $sel = ['1 AS _x'];
+            if ($hasFinalGroup) $sel[] = 'final_group';
+            if ($hasPropGroups) $sel[] = 'proposed_groups';
+            $pq = $db->prepare("SELECT " . implode(',', $sel) . "
+                FROM case_task_proposals
+                WHERE case_id=? AND from_task_no=0 AND status IN ('approved','changed')
+                ORDER BY reviewed_at DESC, id DESC LIMIT 1");
+            $pq->execute([$row['id']]);
+            $p = $pq->fetch();
+            if ($p) {
+                if (!empty($p['final_group'])) {
+                    $assignedGroup = $p['final_group'];
+                } elseif (!empty($p['proposed_groups'])) {
+                    $g = json_decode($p['proposed_groups'], true);
+                    if (is_array($g) && count($g)) $assignedGroup = $g[0];
+                }
+            }
+        } catch (Throwable $e) { /* graceful */ }
+    }
+    $row['assigned_group'] = $assignedGroup;
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];
