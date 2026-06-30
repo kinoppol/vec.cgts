@@ -737,11 +737,20 @@ function StepDoneModal({ step, onConfirm, onClose }) {
 
   const valid = true;
 
+  // เช็คลิสต์รูปแบบคำสั่ง (เฉพาะขั้น "ออกคำสั่ง")
+  const isOrder = step.step_key === 'order';
+  const [orderTemplates, setOrderTemplates] = React.useState([]);
+  const [orderSel, setOrderSel] = React.useState(() => Array.isArray(step.order_items) ? step.order_items : []);
+  React.useEffect(() => {
+    if (isOrder) api.getLookups('order_template').then(setOrderTemplates).catch(()=>{});
+  }, [isOrder]);
+  const toggleOrder = (name) => setOrderSel(sel => sel.includes(name) ? sel.filter(x=>x!==name) : [...sel, name]);
+
   async function submit(e) {
     e.preventDefault();
     setBusy(true); setErr('');
     try {
-      await onConfirm({ note: note.trim(), file });
+      await onConfirm({ note: note.trim(), file, orderItems: isOrder ? orderSel : undefined });
       onClose();
     } catch(ex) { setErr(ex.message); }
     setBusy(false);
@@ -757,6 +766,23 @@ function StepDoneModal({ step, onConfirm, onClose }) {
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
         <form onSubmit={submit} style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:14}}>
+          {isOrder && (
+            <div>
+              <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>
+                รูปแบบการออกคำสั่ง <span style={{color:'var(--ink-3)',fontWeight:400}}>(เลือกได้หลายข้อ)</span>
+              </label>
+              {orderTemplates.length === 0
+                ? <div className="faint sm" style={{padding:'6px 0'}}>ยังไม่มีรูปแบบคำสั่ง — เพิ่มได้ที่หน้า “รายการอ้างอิง”</div>
+                : <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:220,overflowY:'auto',border:'1px solid var(--line)',borderRadius:8,padding:'8px 10px'}}>
+                    {orderTemplates.map(t=>(
+                      <label key={t.id} className="vcenter" style={{gap:8,fontSize:13,cursor:'pointer',padding:'3px 0'}}>
+                        <input type="checkbox" checked={orderSel.includes(t.name)} onChange={()=>toggleOrder(t.name)}/>
+                        <span>{t.name}</span>
+                      </label>
+                    ))}
+                  </div>}
+            </div>
+          )}
           <div>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>
               บันทึกการดำเนินการ
@@ -851,7 +877,7 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
     setBusy(null);
   }
 
-  async function confirmDone(s, { note, file }) {
+  async function confirmDone(s, { note, file, orderItems }) {
     // 1. เตรียม event_id (สร้างถ้าไม่มี)
     let eid = s.event_id;
     if (!eid) {
@@ -869,10 +895,11 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
         _has_file: true,
       };
     }
-    // 3. mark done พร้อม detail + attachment info
+    // 3. mark done พร้อม detail + attachment info + รายการคำสั่ง
     await api.updateEvent(eid, {
       ev_status: 'done',
       detail: note || null,
+      ...(orderItems !== undefined ? { order_items: orderItems } : {}),
       ...attachFields,
     });
     await onRefresh();
@@ -1099,6 +1126,18 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
                 </div>
                 );
               })()}
+
+              {/* รายการคำสั่งที่เลือก (ขั้นออกคำสั่ง) */}
+              {Array.isArray(s.order_items) && s.order_items.length > 0 && (
+                <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:3}}>
+                  {s.order_items.map((it,idx)=>(
+                    <div key={idx} className="vcenter" style={{gap:6,fontSize:12,color:'var(--ink)'}}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span>{it}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* note + attachment ที่บันทึกไว้ */}
               {(s.detail || s.attachment_name) && (

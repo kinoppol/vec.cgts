@@ -61,13 +61,15 @@ function buildCase(array $row, PDO $db): array {
     $stepsMap = [];
     foreach ($allSteps as $s) $stepsMap[$s['step_key']] = $s;
 
-    // events ของสำนวนนี้
-    $ev = $db->prepare('
+    // events ของสำนวนนี้ (order_items อาจยังไม่ได้ migrate)
+    $evCols = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN);
+    $orderSel = in_array('order_items', $evCols) ? 'order_items' : 'NULL AS order_items';
+    $ev = $db->prepare("
         SELECT id, title AS t, actor AS who, moment AS m, detail AS d,
                ev_status AS st, icon AS ic, step_key, started_at, completed_at,
-               attachment_name, attachment_path, attachment_size
+               attachment_name, attachment_path, attachment_size, $orderSel
         FROM case_events WHERE case_id = ? ORDER BY sort_order
-    ');
+    ");
     $ev->execute([$row['id']]);
     $today = new DateTime(date('Y-m-d'));
 
@@ -113,6 +115,7 @@ function buildCase(array $row, PDO $db): array {
             'attachment_name' => $e ? $e['attachment_name'] : null,
             'attachment_path' => $e ? $e['attachment_path'] : null,
             'attachment_size' => $e ? $e['attachment_size'] : null,
+            'order_items'     => ($e && !empty($e['order_items'])) ? json_decode($e['order_items'], true) : null,
             // computed
             'days_used'    => $used,
             'days_remain'  => $remain,

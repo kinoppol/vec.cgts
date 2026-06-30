@@ -6,7 +6,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-$VALID_CATS = ['group_name', 'job_title', 'channel_type', 'channel_item'];
+$VALID_CATS = ['group_name', 'job_title', 'channel_type', 'channel_item', 'order_template'];
 
 function needAdmin($actor) {
     if ($actor['role'] !== 'admin' && empty($actor['can_manage_users']))

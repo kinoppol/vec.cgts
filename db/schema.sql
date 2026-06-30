@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS case_events (
   actor        VARCHAR(100) DEFAULT NULL,
   moment       VARCHAR(100) DEFAULT NULL,
   detail       TEXT         DEFAULT NULL,
+  order_items  TEXT         DEFAULT NULL,
   ev_status    ENUM('done','active','pending') NOT NULL DEFAULT 'pending',
   icon         VARCHAR(50)  DEFAULT 'dot',
   sort_order   SMALLINT     NOT NULL DEFAULT 0,

@@ -111,6 +111,13 @@ if (array_key_exists('ev_status', $body)) {
 if (array_key_exists('detail', $body)) {
     $sets[] = 'detail = ?'; $vals[] = trim($body['detail']) ?: null;
 }
+if (array_key_exists('order_items', $body)) {
+    // เก็บเป็น JSON array ของข้อความคำสั่งที่เลือก
+    $oi = $body['order_items'];
+    $json = (is_array($oi) && count($oi)) ? json_encode(array_values($oi), JSON_UNESCAPED_UNICODE) : null;
+    $hasOrderCol = in_array('order_items', $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN));
+    if ($hasOrderCol) { $sets[] = 'order_items = ?'; $vals[] = $json; }
+}
 if (array_key_exists('actor', $body)) {
     $sets[] = 'actor = ?'; $vals[] = trim($body['actor']) ?: null;
 }

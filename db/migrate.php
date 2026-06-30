@@ -733,6 +733,48 @@ if ($confirm === 'dept_name') {
 }
 
 /* ── [21] case_events DATETIME ─────────────────────────── */
+if ($confirm === 'order_template') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [24]: รูปแบบการออกคำสั่ง + order_items</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // คอลัมน์เก็บรายการคำสั่งที่เลือก (JSON)
+        $cols = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('order_items', $cols)) {
+            $db->exec("ALTER TABLE case_events ADD COLUMN order_items TEXT DEFAULT NULL AFTER detail");
+            echo "✓ ALTER case_events ADD order_items\n";
+        } else { echo "– case_events.order_items มีอยู่แล้ว ข้าม\n"; }
+
+        // seed เทมเพลตคำสั่ง 7 รายการ (ถ้ายังไม่มี)
+        $templates = [
+            'เห็นชอบแต่งตั้งคณะกรรมการสืบสวนหาข้อเท็จจริง',
+            'เห็นชอบแต่งตั้งคณะกรรมการสอบสวนวินัยอย่างร้ายแรง',
+            'เห็นชอบแต่งตั้งคณะกรรมการสอบสวนวินัยอย่างไม่ร้ายแรง',
+            'คืนเรื่อง เนื่องจากไม่อยู่ในความรับผิดชอบของสำนักนิติการ',
+            'เห็นชอบให้ชี้แจงข้อเท็จจริง',
+            'เห็นชอบให้สถาบันดำเนินการ',
+            'เห็นชอบให้ลงโทษ',
+        ];
+        $ins = $db->prepare("INSERT INTO lookup_items (category, name, sort_order, active)
+            SELECT 'order_template', ?, ?, 1 FROM DUAL
+            WHERE NOT EXISTS (SELECT 1 FROM lookup_items WHERE category='order_template' AND name=?)");
+        $n = 0;
+        foreach ($templates as $i => $t) {
+            $ins->execute([$t, ($i+1)*10, $t]);
+            if ($ins->rowCount()) $n++;
+        }
+        echo "✓ seed เทมเพลตคำสั่ง เพิ่มใหม่ {$n} รายการ\n";
+
+        echo '<span class="ok">✓ เสร็จสิ้น</span>';
+    } catch (Throwable $e) {
+        echo '<span class="err">✗ '.$e->getMessage().'</span>';
+    }
+    echo '</pre>';
+    exit;
+}
+
 if ($confirm === 'lawyer_id') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
     echo '<h2>Migration [23]: lawyer_id — นิติกรผู้ดำเนินการที่ clerk มอบหมาย</h2><pre>';
@@ -839,6 +881,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[24] รูปแบบการออกคำสั่ง</b> — เพิ่ม case_events.order_items + seed เทมเพลตคำสั่ง 7 รายการ<br><code><a href="?confirm=order_template">migrate.php?confirm=order_template</a></code></li>';
     echo '<li><b>[23] Lawyer ID</b> — เพิ่ม cases.lawyer_id (นิติกรผู้ดำเนินการที่เจ้าหน้าที่มอบหมาย)<br><code><a href="?confirm=lawyer_id">migrate.php?confirm=lawyer_id</a></code></li>';
     echo '<li><b>[22] Assigned Group</b> — เพิ่ม cases.assigned_group และ case_task_proposals.final_group เพื่อบันทึกกลุ่มที่ dir_admin มอบหมาย<br><code><a href="?confirm=assigned_group">migrate.php?confirm=assigned_group</a></code></li>';
     echo '<li><b>[21] Event DATETIME</b> — เปลี่ยน case_events.started_at / completed_at จาก DATE เป็น DATETIME (เพื่อแสดงชั่วโมง:นาทีใน timeline)<br><code><a href="?confirm=event_datetime">migrate.php?confirm=event_datetime</a></code></li>';
