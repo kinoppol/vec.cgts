@@ -401,17 +401,13 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
     apiFetch('/api/users.php').then(setAllUsers).catch(() => {});
   }, []);
 
-  // เจ้าหน้าที่ = role officer/clerk หรือ group_role officer/clerk และ active
+  // เจ้าหน้าที่ = role officer/clerk (บทบาทส่วนตัว) หรือ group_role officer/clerk (บทบาทจากกลุ่ม)
   const STAFF_ROLES = ['officer', 'clerk'];
   const staffUsers = allUsers.filter(u =>
     u.active &&
     (STAFF_ROLES.includes(u.role) || STAFF_ROLES.includes(u.group_role))
-  );
-
-  // กรองตามกลุ่มที่เลือก (group_name ของ user ตรงกับชื่อกลุ่มที่เลือก)
-  const filteredStaff = filterGroup
-    ? staffUsers.filter(u => u.group_name === filterGroup)
-    : staffUsers;
+  ).sort((a, b) => (a.group_name || '').localeCompare(b.group_name || '', 'th') || a.display_name.localeCompare(b.display_name, 'th'));
+  // แสดงทุกคนที่มีบทบาทธุรการ — ช่องกลุ่มงานเป็นเพียงการระบุกลุ่มที่มอบหมาย ไม่กรองรายชื่อ
 
   const submit = async (action) => {
     if (action === 'approve' && !staffId) { setErr('กรุณาเลือกเจ้าหน้าที่ก่อนอนุมัติ'); return; }
@@ -516,15 +512,19 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
               <label style={{fontSize:13}}>มอบหมายเจ้าหน้าที่ <span className="req">*</span></label>
               <select className="input" value={staffId} onChange={e=>setStaffId(e.target.value)}>
                 <option value="">— เลือกเจ้าหน้าที่ —</option>
-                {filteredStaff.map(u=>(
-                  <option key={u.id} value={u.id}>
-                    {u.display_name}{u.job_title ? ` · ${u.job_title}` : ''}
-                  </option>
-                ))}
+                {(() => {
+                  const groups = [...new Set(staffUsers.map(u => u.group_name || ''))].sort((a,b) => a.localeCompare(b,'th'));
+                  return groups.map(g => (
+                    <optgroup key={g||'__none'} label={g || '(ไม่ระบุกลุ่ม)'}>
+                      {staffUsers.filter(u => (u.group_name||'') === g).map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.display_name}{u.job_title ? ` · ${u.job_title}` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ));
+                })()}
               </select>
-              {filterGroup && filteredStaff.length === 0 && (
-                <div className="faint tiny" style={{marginTop:4}}>ไม่พบเจ้าหน้าที่ในกลุ่มนี้</div>
-              )}
             </div>
           </div>
 
