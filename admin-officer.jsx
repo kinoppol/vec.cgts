@@ -158,13 +158,13 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
 
 /* ---------------- Modal เกษียนเรื่อง (head_secretary) ---------------- */
 function ProposeModal({ case_, officers, onClose, onSaved }) {
-  const [groups, setGroups]           = useState([]);
-  const [selGroups, setSelGroups]     = useState([]);
-  const [selPersonnel, setSelPersonnel] = useState([]); // officer ids
+  const [groups, setGroups]             = useState([]);
+  const [selGroups, setSelGroups]       = useState([]);
+  const [selPersonnel, setSelPersonnel] = useState([]);
   const NOTE_PREFIX = 'เรียน ผู้อำนวยการสำนักนิติการ\n';
-  const [note, setNote]   = useState(NOTE_PREFIX);
+  const [note, setNote]     = useState(NOTE_PREFIX);
   const [saving, setSaving] = useState(false);
-  const [err, setErr]       = useState('');
+  const [result, setResult] = useState(null); // null | {ok:true} | {ok:false, msg:string}
 
   useEffect(() => {
     api.getLookups('group_name').then(setGroups).catch(() => {});
@@ -172,23 +172,22 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
 
   const toggleGroup = (name) =>
     setSelGroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]);
-
   const togglePersonnel = (id) =>
     setSelPersonnel(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
 
   const submit = async (e) => {
     e.preventDefault();
-    setSaving(true); setErr('');
+    setSaving(true); setResult(null);
     try {
-      await api.proposeAssign({
+      const res = await api.proposeAssign({
         case_id: case_.id,
         proposed_groups:    selGroups.length    ? selGroups    : null,
         proposed_personnel: selPersonnel.length ? selPersonnel : null,
         note: note.trim() || null,
       });
-      onSaved();
+      setResult({ ok: true, id: res?.id });
     } catch(e) {
-      setErr(e.message);
+      setResult({ ok: false, msg: e.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ' });
     }
     setSaving(false);
   };
@@ -205,12 +204,46 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
   );
 
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={onClose}>
+    <div style={{position:'fixed',inset:0,background:'rgba(20,10,12,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:24}} onClick={result?.ok ? onClose : onClose}>
       <div style={{background:'var(--surface)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.35)',width:'100%',maxWidth:520,maxHeight:'90vh',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'18px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <h3 style={{margin:0,fontSize:16}}>เกษียนเรื่อง</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>
         </div>
+
+        {/* ── ผลลัพธ์หลังกด submit ── */}
+        {result ? (
+          <div style={{padding:'32px 28px',display:'flex',flexDirection:'column',alignItems:'center',gap:18,textAlign:'center'}}>
+            {result.ok ? (
+              <>
+                <div style={{width:64,height:64,borderRadius:'50%',background:'var(--ok-bg)',display:'grid',placeItems:'center'}}>
+                  <Icon name="checkCircle" style={{width:32,height:32,color:'var(--ok)'}}/>
+                </div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>เกษียนเรื่องสำเร็จ</div>
+                  <div className="muted sm">บันทึกแล้ว#{result.id} — เรื่องถูกส่งให้ผู้อำนวยการพิจารณาแล้ว</div>
+                </div>
+                <button className="btn btn-primary" onClick={()=>{ onSaved(); }}>
+                  <Icon name="check" style={{width:15,height:15}}/> ปิด
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{width:64,height:64,borderRadius:'50%',background:'var(--danger-bg,#fef2f2)',display:'grid',placeItems:'center'}}>
+                  <Icon name="alert" style={{width:32,height:32,color:'var(--danger,#dc2626)'}}/>
+                </div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>บันทึกไม่สำเร็จ</div>
+                  <div className="notice notice-err" style={{textAlign:'left'}}><Icon name="alert"/><div style={{fontSize:13}}>{result.msg}</div></div>
+                </div>
+                <div style={{display:'flex',gap:10}}>
+                  <button className="btn btn-ghost" onClick={onClose}>ปิด</button>
+                  <button className="btn btn-primary" onClick={()=>setResult(null)}>ลองอีกครั้ง</button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
         <form onSubmit={submit} style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:16,overflowY:'auto',flex:1}}>
           <div className="notice notice-warn" style={{fontSize:13}}>
             <Icon name="flag"/><div><b>{case_.id}</b> — {case_.subject}</div>
@@ -256,7 +289,6 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               style={{fontFamily:'inherit',lineHeight:1.7}}/>
           </div>
 
-          {err && <div className="notice notice-err" style={{marginTop:4}}><Icon name="alert"/><div>{err}</div></div>}
           <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0}}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -264,6 +296,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
