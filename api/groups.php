@@ -213,31 +213,14 @@ if ($method === 'PATCH' && $id) {
     if (array_key_exists('leader_role', $body)) {
         $leaderRole = $body['leader_role'] ?: null;
         $db->prepare("UPDATE groups SET leader_role=? WHERE id=?")->execute([$leaderRole, $id]);
-        // ถ้ากลุ่มมีหัวหน้าอยู่แล้ว ให้อัปเดต role ของหัวหน้าทันที
-        if ($grp['leader_id'] && $leaderRole) {
-            $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$leaderRole, $grp['leader_id']]);
-        }
+        // ไม่เขียนทับ users.role — บทบาทหัวหน้ากลุ่มถูกนำไปรวมตอน login (resolveEffectiveRole)
+        // เพื่อไม่ให้บทบาทส่วนตัวเดิม (เช่น dir_admin) สูญหายเมื่อถูกตั้งเป็นหัวหน้ากลุ่ม
         audit('group_set_leader_role', $id, "leader_role=" . ($leaderRole ?? 'null'));
     }
 
     if (array_key_exists('leader_id', $body)) {
-        $leaderId      = $body['leader_id'] ? (int)$body['leader_id'] : null;
-        $prevLeaderId  = (int)$grp['leader_id'];
-
-        // ดึง leader_role ปัจจุบัน (อาจเพิ่งอัปเดต)
-        $lrRow = $db->prepare("SELECT leader_role FROM groups WHERE id=?");
-        $lrRow->execute([$id]);
-        $leaderRole = $lrRow->fetchColumn() ?: null;
-
-        // ถอดหัวหน้าคนเดิม → คืน role เป็น NULL
-        if ($prevLeaderId && $prevLeaderId !== $leaderId) {
-            $db->prepare("UPDATE users SET role=NULL WHERE id=?")->execute([$prevLeaderId]);
-        }
-        // แต่งตั้งหัวหน้าคนใหม่ → กำหนด leader_role ถ้ามี
-        if ($leaderId && $leaderRole) {
-            $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$leaderRole, $leaderId]);
-        }
-
+        $leaderId = $body['leader_id'] ? (int)$body['leader_id'] : null;
+        // อัปเดตเฉพาะ groups.leader_id — ไม่แตะ users.role (รวมบทบาทตอน login)
         $db->prepare("UPDATE groups SET leader_id=? WHERE id=?")->execute([$leaderId, $id]);
         audit('group_set_leader', $id, "leader_id=$leaderId");
     }
