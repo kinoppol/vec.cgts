@@ -401,8 +401,8 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
     apiFetch('/api/users.php').then(setAllUsers).catch(() => {});
   }, []);
 
-  // เจ้าหน้าที่ = role officer/clerk (บทบาทส่วนตัว) หรือ group_role officer/clerk (บทบาทจากกลุ่ม)
-  const STAFF_ROLES = ['officer', 'clerk'];
+  // เจ้าหน้าที่ = role clerk (บทบาทส่วนตัว) หรือ group_role clerk (บทบาทจากกลุ่ม)
+  const STAFF_ROLES = ['clerk'];
   const staffUsers = allUsers.filter(u =>
     u.active &&
     (STAFF_ROLES.includes(u.role) || STAFF_ROLES.includes(u.group_role))
