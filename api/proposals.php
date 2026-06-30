@@ -113,19 +113,38 @@ if ($method === 'PATCH') {
     if ($prop['status'] !== 'pending') err('ข้อเสนอนี้ถูกดำเนินการแล้ว');
 
     $finalOfficer = trim($b['final_officer'] ?? '') ?: $prop['proposed_officer'];
-    $reviewNote   = trim($b['review_note'] ?? '') ?: null;
+    $finalGroup   = trim($b['final_group']   ?? '') ?: null;
+    $reviewNote   = trim($b['review_note']   ?? '') ?: null;
     $newStatus    = ($action === 'change') ? 'changed' : 'approved';
 
+    // ตรวจว่ามีคอลัมน์ final_group แล้วหรือไม่
+    $propCols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
+    $hasFinalGroup = in_array('final_group', $propCols);
+
     // อัปเดต proposal
-    $db->prepare("
-        UPDATE case_task_proposals
-        SET status=?, final_officer=?, reviewed_by=?, review_note=?, reviewed_at=NOW()
-        WHERE id=?
-    ")->execute([$newStatus, $finalOfficer, (int)$auth['id'], $reviewNote, $propId]);
+    if ($hasFinalGroup) {
+        $db->prepare("
+            UPDATE case_task_proposals
+            SET status=?, final_officer=?, final_group=?, reviewed_by=?, review_note=?, reviewed_at=NOW()
+            WHERE id=?
+        ")->execute([$newStatus, $finalOfficer, $finalGroup, (int)$auth['id'], $reviewNote, $propId]);
+    } else {
+        $db->prepare("
+            UPDATE case_task_proposals
+            SET status=?, final_officer=?, reviewed_by=?, review_note=?, reviewed_at=NOW()
+            WHERE id=?
+        ")->execute([$newStatus, $finalOfficer, (int)$auth['id'], $reviewNote, $propId]);
+    }
 
     // มอบหมายสำนวนจริง
     if ($finalOfficer) {
-        $db->prepare("UPDATE cases SET assignee_id=?, status='assigned' WHERE id=?")->execute([$finalOfficer, $prop['case_id']]);
+        $caseCols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+        $hasAssignedGroup = in_array('assigned_group', $caseCols);
+        if ($hasAssignedGroup) {
+            $db->prepare("UPDATE cases SET assignee_id=?, assigned_group=?, status='assigned' WHERE id=?")->execute([$finalOfficer, $finalGroup, $prop['case_id']]);
+        } else {
+            $db->prepare("UPDATE cases SET assignee_id=?, status='assigned' WHERE id=?")->execute([$finalOfficer, $prop['case_id']]);
+        }
 
         // บันทึก event
         $thYear = date('Y') + 543;

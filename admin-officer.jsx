@@ -416,7 +416,7 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
       // ถ้าไม่ได้เลือก → ใช้ proposed_officer จาก proposal (เดิม)
       const user = allUsers.find(u => String(u.id) === String(staffId));
       const finalOfficer = user?.officer_id || proposal.proposed_officer || null;
-      await api.approveAssign(proposal.id, { action, final_officer: finalOfficer, review_note: note });
+      await api.approveAssign(proposal.id, { action, final_officer: finalOfficer, final_group: filterGroup || null, review_note: note });
       onApproved(proposal.case_id);
     } catch(e) {
       setErr(e.message);
@@ -1328,7 +1328,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {o ? <div className="vcenter" style={{gap:12}}>
                 <span className="avatar" style={{width:44,height:44}}>{o.init}</span>
                 <div>
-                  {o.group && <div style={{fontSize:11,fontWeight:600,color:'var(--maroon)',marginBottom:2,letterSpacing:.3}}>{o.group}</div>}
+                  {(c.assigned_group || o.group) && <div style={{fontSize:11,fontWeight:600,color:'var(--maroon)',marginBottom:2,letterSpacing:.3}}>{c.assigned_group || o.group}</div>}
                   <div style={{fontWeight:600}}>{o.name}</div>
                   <div className="muted sm">{o.role}</div>
                 </div>
