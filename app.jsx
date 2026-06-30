@@ -541,7 +541,9 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     newQ: role === 'head_secretary'
       ? cases.filter(c => !c.assignee && c.status === 'received').length
       : cases.filter(c=>["received","screening"].includes(c.status)).length,
-    pendingProposals: pendingProposals.length,
+    pendingProposals: role === 'dir_legal'
+      ? cases.filter(c => user?.officer_id && String(c.lawyer) === String(user.officer_id)).length
+      : pendingProposals.length,
   };
   const nav    = navFor(role, counts, user);
   const openCase = (id) => { setSel(id); setView("case-detail"); };
@@ -574,16 +576,23 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
   } else if (view === "proposals") {
     const canApproveProposals = role === "dir_admin" || role === "admin";
-    content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
-      openCase={openCase}
-      canApprove={canApproveProposals}
-      title={canApproveProposals ? "ข้อเสนอรอพิจารณา" : "เรื่องที่ได้รับมอบหมาย"}
-      sub={canApproveProposals ? "ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ" : "เรื่องที่หัวหน้าธุรการเสนอมายังกลุ่มของท่าน"}
-      onApproved={(caseId) => {
-        api.getAssignProposals().then(setPendingProposals).catch(()=>{});
-        refreshCases();
-        openCase(caseId);
-      }}/>;
+    if (role === "dir_legal") {
+      // นิติการ: เห็นเฉพาะเรื่องที่ clerk มอบหมายให้ตนเอง (lawyer_id = officer_id ของตน)
+      const myCases = (cases || []).filter(c => user?.officer_id && String(c.lawyer) === String(user.officer_id));
+      content = <CaseListPage cases={myCases} officers={officers} openCase={openCase}
+        title="เรื่องที่ได้รับมอบหมาย" sub="เรื่องที่เจ้าหน้าที่ผู้รับผิดชอบมอบหมายให้ท่านดำเนินการ"/>;
+    } else {
+      content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
+        openCase={openCase}
+        canApprove={canApproveProposals}
+        title={canApproveProposals ? "ข้อเสนอรอพิจารณา" : "เรื่องที่ได้รับมอบหมาย"}
+        sub={canApproveProposals ? "ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ" : "เรื่องที่หัวหน้าธุรการเสนอมายังกลุ่มของท่าน"}
+        onApproved={(caseId) => {
+          api.getAssignProposals().then(setPendingProposals).catch(()=>{});
+          refreshCases();
+          openCase(caseId);
+        }}/>;
+    }
   } else if (view === "dashboard") {
     content = (role === "officer" || role === "clerk")
       ? <OfficerDashboard cases={cases} officers={officers} openCase={openCase} setView={setView}/>
