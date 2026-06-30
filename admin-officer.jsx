@@ -1250,7 +1250,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
         <div className="vcenter" style={{gap:8}}>
           {canAssign && c.status!=="closed" &&
-            <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
+            <button className="btn btn-primary" onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้ดำเนินการ":"แต่งตั้งผู้ดำเนินการ"}</button>}
           {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
@@ -1334,7 +1334,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
             {canAssign && c.status!=="closed" &&
-              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้สอบสวน":"แต่งตั้งผู้สอบสวน"}</button>}
+              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setAssign(true)}><Icon name="gavel" style={{width:16,height:16}}/> {o?"เปลี่ยนผู้ดำเนินการ":"แต่งตั้งผู้ดำเนินการ"}</button>}
           </div>
 
           <div className="card card-pad">
