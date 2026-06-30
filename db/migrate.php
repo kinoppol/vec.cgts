@@ -740,9 +740,9 @@ if ($confirm === 'group_receipt') {
         $db = getDB();
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $gcols = $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN);
+        $gcols = $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('recv_prefix', $gcols)) {
-            $db->exec("ALTER TABLE groups ADD COLUMN recv_prefix VARCHAR(20) DEFAULT NULL AFTER dept_name");
+            $db->exec("ALTER TABLE `groups` ADD COLUMN recv_prefix VARCHAR(20) DEFAULT NULL AFTER dept_name");
             echo "✓ ALTER groups ADD recv_prefix\n";
         } else { echo "– groups.recv_prefix มีอยู่แล้ว ข้าม\n"; }
 

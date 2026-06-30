@@ -19,10 +19,10 @@ function groupForCase(PDO $db, string $caseId): array {
     $gname = trim($row['assigned_group'] ?? '');
     if ($gname === '') err('เรื่องนี้ยังไม่ได้ระบุกลุ่มที่ได้รับมอบหมาย');
 
-    $hasPfx = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN), true);
+    $hasPfx = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN), true);
     $sel = $hasPfx ? 'g.recv_prefix' : "NULL AS recv_prefix";
     $g = $db->prepare("SELECT g.id, g.name, g.leader_id, $sel, u.display_name AS leader_name
-                       FROM groups g LEFT JOIN users u ON u.id = g.leader_id WHERE g.name = ? LIMIT 1");
+                       FROM `groups` g LEFT JOIN users u ON u.id = g.leader_id WHERE g.name = ? LIMIT 1");
     $g->execute([$gname]);
     $grp = $g->fetch();
     if (!$grp) err('ไม่พบกลุ่ม "' . $gname . '" ในระบบ');

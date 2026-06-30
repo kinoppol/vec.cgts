@@ -18,7 +18,7 @@ function fetchGroupRoles($db, $groupId): array {
 }
 
 // recv_prefix อาจยังไม่ได้ migrate
-$HAS_RECV_PREFIX = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM groups")->fetchAll(PDO::FETCH_COLUMN), true);
+$HAS_RECV_PREFIX = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN), true);
 $RECV_SEL = $HAS_RECV_PREFIX ? 'g.recv_prefix' : 'NULL AS recv_prefix';
 
 /* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
