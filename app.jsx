@@ -594,7 +594,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : role === "clerk" ? "งานที่ได้รับมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
     const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : role === "clerk" ? "งานที่หัวหน้าธุรการมอบหมายให้" : undefined;
     content = <CaseListPage cases={cases} officers={officers} openCase={openCase}
-      title={caseListTitle} sub={caseListSub}/>;
+      title={caseListTitle} sub={caseListSub}
+      defaultStatus={role === "head_secretary" ? "received" : "all"}/>;
   } else if (view === "import") {
     content = <ImportDocument back={()=>{ setView("dashboard"); refreshCases(); }}/>;
   } else if (view === "vault") {

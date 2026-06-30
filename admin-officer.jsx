@@ -497,12 +497,12 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
 }
 
 /* ---------------- รายการเรื่องทั้งหมด ---------------- */
-function CaseListPage({ cases, officers, openCase, title="จัดการเรื่องร้องเรียน–ร้องทุกข์", sub="เรื่องทั้งหมดในระบบ พร้อมสถานะและการติดตาม SLA", lockTrack }) {
+function CaseListPage({ cases, officers, openCase, title="จัดการเรื่องร้องเรียน–ร้องทุกข์", sub="เรื่องทั้งหมดในระบบ พร้อมสถานะและการติดตาม SLA", lockTrack, defaultStatus="all" }) {
   const [q, setQ]           = useState("");
-  const [matchMode, setMatchMode] = useState("any"); // "any" = บางคำ, "all" = ทุกคำ
-  const [scope, setScope]   = useState("all");       // "all" | "subject" | "track" | "officer" | "number"
+  const [matchMode, setMatchMode] = useState("any");
+  const [scope, setScope]   = useState("all");
   const [track, setTrack]   = useState(lockTrack||"all");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState(defaultStatus);
 
   const keywords = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
