@@ -352,7 +352,7 @@ function ComplaintForm({ go }) {
     setSubmitting(true); setSubmitErr("");
     try {
       const res = await api.createCase({ ...data, tmp_files: data.files });
-      setTicket(res.id); setStep(4);
+      setTicket(res.track_token || res.id); setStep(4);
     } catch(e) {
       setSubmitErr(e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
@@ -695,7 +695,7 @@ function TrackStatus({ go, preset }) {
       <div className="card card-pad">
         <div className="grid" style={{gridTemplateColumns:"1.2fr 1fr auto",gap:12,alignItems:"flex-end"}}>
           <div className="field"><label>รหัสติดตาม (Ticket)</label>
-            <input className="input" placeholder="เช่น CMP-2568-0142" value={code} onChange={e=>setCode(e.target.value)} /></div>
+            <input className="input" placeholder="เช่น A3F8C20D91" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} /></div>
           <div className="field"><label>อีเมลที่ใช้ยื่นเรื่อง</label>
             <input className="input" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} /></div>
           <button className="btn btn-primary" onClick={()=>doSearch()} disabled={loading} style={{height:43}}><Icon name="search" style={{width:16,height:16}}/> ค้นหา</button>

@@ -188,11 +188,28 @@ function nextCaseId(PDO $db): string {
     return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
 }
 
+function generateTrackToken(PDO $db): string {
+    do {
+        $tok = strtoupper(bin2hex(random_bytes(5))); // 10 hex chars
+        $ex  = $db->prepare("SELECT id FROM cases WHERE track_token=?");
+        $ex->execute([$tok]);
+    } while ($ex->fetchColumn());
+    return $tok;
+}
+
 /* ====== GET /api/cases.php?id=xxx — รายละเอียดสำนวน (สาธารณะ: เฉพาะสถานะ) ====== */
 if ($method === 'GET' && $id !== '') {
     $db   = getDB();
-    $stmt = $db->prepare('SELECT c.*, o.name AS assignee_name FROM cases c LEFT JOIN officers o ON o.id = c.assignee_id WHERE c.id = ?');
-    $stmt->execute([$id]);
+    // รองรับทั้ง case_id และ track_token (public)
+    $isStaffCheck = !empty($_SESSION['user_id']);
+    if (!$isStaffCheck && strlen($id) === 10 && ctype_xdigit($id)) {
+        // ค้นหาด้วย track_token
+        $stmt = $db->prepare('SELECT c.*, o.name AS assignee_name FROM cases c LEFT JOIN officers o ON o.id = c.assignee_id WHERE c.track_token = ?');
+        $stmt->execute([strtoupper($id)]);
+    } else {
+        $stmt = $db->prepare('SELECT c.*, o.name AS assignee_name FROM cases c LEFT JOIN officers o ON o.id = c.assignee_id WHERE c.id = ?');
+        $stmt->execute([$id]);
+    }
     $row  = $stmt->fetch();
     if (!$row) err('ไม่พบสำนวน', 404);
 
@@ -397,17 +414,18 @@ if ($method === 'POST') {
 
     $thYear = date('Y') + 543;
     $newId  = nextCaseId($db);
+    $trackToken = generateTrackToken($db);
     $channel = $isStaff ? ($body['channel'] ?? 'หนังสือราชการ') : ('เว็บไซต์ (' . (($body['identity'] ?? '') === 'anon' ? 'ไม่ประสงค์ออกนาม' : 'ยืนยันตัวตน') . ')');
     $anon    = (($body['identity'] ?? '') === 'anon') ? 1 : 0;
     $cls     = $body['cls'] ?? 'public';
     $today   = date('Y-m-d');
 
     $db->prepare(
-        'INSERT INTO cases (id, subject, track, cat, channel, cls, status, priority, anon,
+        'INSERT INTO cases (id, track_token, subject, track, cat, channel, cls, status, priority, anon,
                             complainant, contact, agency, detail, created_by, received_date)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     )->execute([
-        $newId, $subject, $track, $cat, $channel, $cls,
+        $newId, $trackToken, $subject, $track, $cat, $channel, $cls,
         'received',
         $body['priority'] ?? 'ปกติ',
         $anon,
@@ -457,7 +475,7 @@ if ($method === 'POST') {
     startSlaStep($db, $newId, 'receive');
 
     audit('create_case', $newId);
-    json_out(['id' => $newId], 201);
+    json_out(['id' => $newId, 'track_token' => $trackToken], 201);
 }
 
 /* ====== PATCH /api/cases.php — อัปเดตสำนวน (staff only) ====== */

@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS role_labels (
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cases (
   id            VARCHAR(20)  NOT NULL,
+  track_token   CHAR(10)     DEFAULT NULL UNIQUE,
   reg_number    VARCHAR(50)  DEFAULT '—',
   subject       TEXT         NOT NULL,
   track         ENUM('discipline','legal','general') NOT NULL,

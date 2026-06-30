@@ -555,6 +555,44 @@ if ($confirm === 'cls_enum') {
     exit;
 }
 
+/* ── [20] track_token — รหัสสุ่มสำหรับติดตามเรื่อง (public) ─── */
+if ($confirm === 'track_token') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [20]: Track Token</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        // เพิ่มคอลัมน์ track_token
+        $cols = $db->query("SHOW COLUMNS FROM cases LIKE 'track_token'")->fetchColumn();
+        if (!$cols) {
+            $db->exec("ALTER TABLE cases ADD COLUMN track_token CHAR(10) NULL DEFAULT NULL UNIQUE AFTER id");
+            echo "✓ เพิ่มคอลัมน์ track_token\n";
+        } else {
+            echo "– track_token มีอยู่แล้ว\n";
+        }
+        // backfill เรื่องเก่าที่ยังไม่มี token
+        $ids = $db->query("SELECT id FROM cases WHERE track_token IS NULL")->fetchAll(PDO::FETCH_COLUMN);
+        $upd = $db->prepare("UPDATE cases SET track_token=? WHERE id=?");
+        $count = 0;
+        foreach ($ids as $cid) {
+            // สร้าง token ไม่ซ้ำ
+            do {
+                $tok = strtoupper(bin2hex(random_bytes(5))); // 10 hex chars
+                $ex  = $db->prepare("SELECT id FROM cases WHERE track_token=?");
+                $ex->execute([$tok]);
+            } while ($ex->fetchColumn());
+            $upd->execute([$tok, $cid]);
+            $count++;
+        }
+        echo "✓ backfill {$count} เรื่อง\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [18] backfill SLA started_at สำหรับเรื่องเก่า ─────────── */
 if ($confirm === 'backfill_sla') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -713,6 +751,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[17] กลุ่มงาน (สายงาน)</b> — เพิ่ม groups.dept_name แทนการกำหนดรายบุคคลใน officers<br><code><a href="?confirm=dept_name">migrate.php?confirm=dept_name</a></code></li>';
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
+    echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
     echo '<li><b>[6] กลุ่มงานที่เสนอ</b> — เพิ่มคอลัมน์ proposed_groups ใน case_task_proposals<br><code><a href="?confirm=proposal_groups">migrate.php?confirm=proposal_groups</a></code></li>';
     echo '<li><b>[7] บุคลากรที่เกี่ยวข้อง</b> — เพิ่มคอลัมน์ proposed_personnel ใน case_task_proposals<br><code><a href="?confirm=proposal_personnel">migrate.php?confirm=proposal_personnel</a></code></li>';
     echo '</ul>';
