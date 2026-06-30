@@ -570,6 +570,9 @@ if ($confirm === 'track_token') {
         } else {
             echo "– track_token มีอยู่แล้ว\n";
         }
+        // ทำให้ track nullable (สำหรับ public form ที่ไม่ต้องระบุ)
+        $db->exec("ALTER TABLE cases MODIFY COLUMN track ENUM('discipline','legal','general') DEFAULT NULL");
+        echo "✓ track เป็น nullable\n";
         // backfill เรื่องเก่าที่ยังไม่มี token
         $ids = $db->query("SELECT id FROM cases WHERE track_token IS NULL")->fetchAll(PDO::FETCH_COLUMN);
         $upd = $db->prepare("UPDATE cases SET track_token=? WHERE id=?");

@@ -412,9 +412,13 @@ if ($method === 'POST') {
     $subject = trim($body['subject'] ?? '');
     $track   = $body['track'] ?? '';
     $cat     = $body['cat'] ?? '';
-    if (!$subject || !in_array($track, ['discipline','legal','general'], true)) {
-        err('ข้อมูลไม่ครบถ้วน');
-    }
+    $validTracks = ['discipline','legal','general'];
+    // public form ไม่ต้องระบุ track (หัวหน้าธุรการระบุเอง); staff ยังต้องระบุ
+    if (!$subject) err('ข้อมูลไม่ครบถ้วน');
+    if ($isStaff && !in_array($track, $validTracks, true)) err('ข้อมูลไม่ครบถ้วน');
+    if (!$isStaff && $track !== '' && !in_array($track, $validTracks, true)) $track = '';
+    $track = $track !== '' ? $track : null;
+    $cat   = $cat   !== '' ? $cat   : null;
 
     $thYear = date('Y') + 543;
     $newId  = nextCaseId($db);

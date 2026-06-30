@@ -339,7 +339,7 @@ function ComplaintForm({ go }) {
   const steps = ["วิธียื่น & ข้อมูลผู้ร้อง","รายละเอียดเรื่อง","ยินยอม PDPA","ทบทวนและยืนยัน"];
 
   const canNext = () => {
-    if(step===0) return !!(data.identity && data.type && data.track && data.cat &&
+    if(step===0) return !!(data.identity && data.type &&
       data.email.trim() && (data.identity==="anon" || data.name.trim()));
     if(step===1) return !!(data.subject.trim() && data.detail.trim().length>=10);
     if(step===2) return !!data.pdpa;
@@ -484,28 +484,6 @@ function Step1({ data, set }) {
         </div>
       </div>
 
-      <div>
-        <h3 style={{fontSize:16,marginBottom:6}}>3. สายงานและหมวดหมู่</h3>
-        <p className="muted sm" style={{marginBottom:12}}>ช่วยให้ระบบส่งต่อไปยังกลุ่มงานที่เกี่ยวข้อง (เจ้าหน้าที่จะตรวจทานอีกครั้ง)</p>
-        <div className="grid" style={{gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <div className="field">
-            <label>สายงาน <span className="req">*</span></label>
-            <select className="select" value={data.track} onChange={e=>{set("track",e.target.value);set("cat","");}}>
-              <option value="">— เลือกสายงาน —</option>
-              <option value="discipline">ด้านวินัย (กลุ่มงานวินัย)</option>
-              <option value="legal">ด้านกฎหมาย (กลุ่มงานกฎหมายและระเบียบ)</option>
-              <option value="general">บริหารงานทั่วไป (กลุ่มงานบริหารทั่วไป)</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>หมวดหมู่ <span className="req">*</span></label>
-            <select className="select" value={data.cat} onChange={e=>set("cat",e.target.value)} disabled={!data.track}>
-              <option value="">— เลือกหมวดหมู่ —</option>
-              {data.track && TRACKS[data.track].cats.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -608,7 +586,6 @@ function Step4({ data }) {
       <dl className="kv">
         <dt>วิธีการยื่น</dt><dd>{data.identity==="named"?"ระบุตัวตน":"ไม่ประสงค์ออกนาม"}</dd>
         <dt>ประเภทเรื่อง</dt><dd>{typeLabel}</dd>
-        <dt>สายงาน</dt><dd>{data.track?TRACKS[data.track].label+" · "+data.cat:"—"}</dd>
         <dt>หัวข้อเรื่อง</dt><dd>{data.subject||"—"}</dd>
         <dt>หน่วยงานเกี่ยวข้อง</dt><dd>{data.agency||"—"}</dd>
         <dt>รายละเอียด</dt><dd style={{fontWeight:400,color:"var(--ink-2)"}}>{data.detail||"—"}</dd>

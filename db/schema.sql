@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS cases (
   track_token   CHAR(10)     DEFAULT NULL UNIQUE,
   reg_number    VARCHAR(50)  DEFAULT '—',
   subject       TEXT         NOT NULL,
-  track         ENUM('discipline','legal','general') NOT NULL,
+  track         ENUM('discipline','legal','general') DEFAULT NULL,
   cat           VARCHAR(100) DEFAULT NULL,
   channel       VARCHAR(100) DEFAULT NULL,
   cls           ENUM('public','secret','topsecret','classified') NOT NULL DEFAULT 'public',
