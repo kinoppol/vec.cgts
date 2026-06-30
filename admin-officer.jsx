@@ -1394,40 +1394,48 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 }
 
 function AssignModal({ c, officers, close, onAssign }) {
-  const trackGroup = TRACKS[c.track]?.group || c.track;
-  // กรองตาม group (officers.group_name); ถ้าไม่มีใครในกลุ่มนั้น fallback แสดงทั้งหมด
-  const inGroup = (officers||[]).filter(o => o.group === trackGroup);
-  const pool    = inGroup.length ? inGroup : (officers||[]);
-  const fallback = inGroup.length === 0;
-  const [sel, setSel] = useState(c.assignee || (pool[0]&&pool[0].id) || "");
+  const [allUsers, setAllUsers] = useState([]);
+  useEffect(() => {
+    apiFetch('/api/users.php').then(us => {
+      setAllUsers(us.filter(u => u.active && (u.role === 'clerk' || u.group_role === 'clerk')));
+    }).catch(() => {});
+  }, []);
+
+  const [sel, setSel] = useState('');
+
   return (
     <div className="overlay" onClick={close}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="gavel" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>แต่งตั้งผู้สอบสวน / นิติกรเจ้าของเรื่อง</h3></div>
+          <div className="vcenter"><Icon name="gavel" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เลือกผู้ดำเนินการ</h3></div>
           <button className="icon-btn" onClick={close}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>เรื่องนี้อยู่ในสาย <b>{TRACKS[c.track]?.label||c.track}</b>
-            {fallback ? " — แสดงบุคลากรทั้งหมด" : ` — แสดงเฉพาะนิติกรใน ${trackGroup}`}
-          </div></div>
-          <div className="choices">
-            {pool.map(o=>(
-              <div key={o.id} className={"choice "+(sel===o.id?"active":"")} onClick={()=>setSel(o.id)}>
-                <span className="radio"></span>
-                <span className="avatar">{o.init}</span>
-                <div style={{flex:1}}>
-                  <div className="between"><div className="ct">{o.name}</div><span className="badge">{o.load} เรื่องในมือ</span></div>
-                  <div className="cd">{o.duty || o.role}</div>
-                  {o.duty && <div className="cd" style={{fontSize:11,opacity:.7}}>{o.role}</div>}
-                </div>
+          {allUsers.length === 0
+            ? <div className="faint sm" style={{padding:'16px 0',textAlign:'center'}}>ไม่พบผู้ใช้ที่มีบทบาทธุรการ</div>
+            : <div className="choices">
+                {allUsers.map(u=>(
+                  <div key={u.id} className={"choice "+(sel===String(u.id)?"active":"")} onClick={()=>setSel(String(u.id))}>
+                    <span className="radio"></span>
+                    <span className="avatar">{u.init || u.display_name[0]}</span>
+                    <div style={{flex:1}}>
+                      <div className="between">
+                        <div className="ct">{u.display_name}</div>
+                        {u.group_name && <span className="badge" style={{fontSize:11}}>{u.group_name}</span>}
+                      </div>
+                      <div className="cd">{u.job_title || '—'}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+          }
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close}>ยกเลิก</button>
-          <button className="btn btn-primary" disabled={!sel} onClick={()=>onAssign(sel)}><Icon name="check" style={{width:16,height:16}}/> ยืนยันการแต่งตั้ง</button>
+          <button className="btn btn-primary" disabled={!sel} onClick={()=>{
+            const user = allUsers.find(u => String(u.id) === sel);
+            onAssign(user?.officer_id || sel);
+          }}><Icon name="check" style={{width:16,height:16}}/> ยืนยันการแต่งตั้ง</button>
         </div>
       </div>
     </div>
