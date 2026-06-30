@@ -807,7 +807,9 @@ function StepDoneModal({ step, onConfirm, onClose }) {
 }
 
 /* ---------------- CaseTimeline — เส้นเวลาการดำเนินการ ---------------- */
-function CaseTimeline({ steps = [], onRefresh, canEdit }) {
+function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep }) {
+  // canEditStep(step_key) → bool ต่อขั้น; ถ้าไม่ส่งมา ใช้ canEdit รวม
+  const canDo = (stepKey) => canEditStep ? canEditStep(stepKey) : !!canEdit;
   const [busy,      setBusy]      = React.useState(null);
   const [editing,   setEditing]   = React.useState(null);
   const [doneModal, setDoneModal] = React.useState(null);
@@ -1051,8 +1053,8 @@ function CaseTimeline({ steps = [], onRefresh, canEdit }) {
                 </div>
               )}
 
-              {/* ปุ่ม + inline date (canEdit) */}
-              {canEdit && (
+              {/* ปุ่ม + inline date (สิทธิ์ต่อขั้นตอน) */}
+              {canDo(s.step_key) && (
                 <div className="vcenter" style={{gap:6,marginTop:6,flexWrap:'wrap'}}>
                   {!isDone && !isActive && (
                     <button className="btn btn-sm"
@@ -1232,7 +1234,29 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const canAssign = role==="officer" || role==="dir_legal" || role==="dir_admin" || role==="admin";
   const isHeadSec = role==="head_secretary";
   // ผู้ดูเป็นนิติกรผู้ดำเนินการของเรื่องนี้หรือไม่ → ไม่มีอำนาจมอบหมายนิติกรคนอื่น
-  const viewerIsLawyer = currentUser?.officer_id && String(currentUser.officer_id) === String(c.lawyer);
+  const myOid          = currentUser?.officer_id ? String(currentUser.officer_id) : null;
+  const viewerIsLawyer = myOid && myOid === String(c.lawyer);
+  const viewerIsClerk  = myOid && myOid === String(c.assignee);
+
+  // สิทธิ์กดปุ่ม เริ่ม/เสร็จแล้ว ต่อขั้นตอน SLA
+  const canEditStep = (stepKey) => {
+    if (role === 'admin') return true; // admin จัดการได้ทุกขั้น
+    switch (stepKey) {
+      case 'receive':       // รับเรื่อง
+      case 'propose_dir':   // เสนอ ผอ.สำนัก
+        return role === 'head_secretary';
+      case 'assign':        // มอบหมายนิติกร
+        return role === 'dir_admin' || viewerIsClerk;
+      case 'investigate':   // ตรวจสอบข้อเท็จจริง
+        return viewerIsLawyer;
+      case 'propose_boss':  // เสนอผู้บังคับบัญชา
+        return viewerIsClerk;
+      case 'order':         // ออกคำสั่ง
+        return role === 'dir_admin';
+      default:
+        return false;
+    }
+  };
 
   return (
     <div className="fade-in">
@@ -1325,7 +1349,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {tab==="timeline" && <CaseTimeline
               steps={(c.steps||[]).map(s=>({...s, _case_id: c.id}))}
               onRefresh={()=>{ api.getCase(c.id).then(full=>setC(full)); }}
-              canEdit={canAssign}/>}
+              canEditStep={canEditStep}/>}
           </div>
         </div>
 
