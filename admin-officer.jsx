@@ -326,21 +326,21 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
 }
 
 /* ---------------- หน้าข้อเสนอรอพิจารณา (dir_legal) ---------------- */
-function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
+function AssignProposalsPage({ proposals, officers, openCase, onApproved, canApprove=true, title="ข้อเสนอรอพิจารณา", sub="ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ" }) {
   const [modal, setModal] = useState(null); // proposal object
 
   if (proposals.length === 0) {
     return (
       <div className="fade-in">
-        <PageHead title="ข้อเสนอรอพิจารณา" sub="ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ"/>
-        <div className="card card-pad" style={{textAlign:'center',color:'var(--ink-3)'}}>ไม่มีข้อเสนอที่รอพิจารณา</div>
+        <PageHead title={title} sub={sub}/>
+        <div className="card card-pad" style={{textAlign:'center',color:'var(--ink-3)'}}>{canApprove ? "ไม่มีข้อเสนอที่รอพิจารณา" : "ยังไม่มีเรื่องที่ได้รับมอบหมาย"}</div>
       </div>
     );
   }
 
   return (
     <div className="fade-in">
-      <PageHead title="ข้อเสนอรอพิจารณา" sub="ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ">
+      <PageHead title={title} sub={sub}>
         <span className="badge badge-warn">{proposals.length} รายการ</span>
       </PageHead>
       <div className="card">
@@ -365,9 +365,13 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved }) {
                     <td>
                       {p.case_lawyer
                         ? <span className="badge badge-ok" style={{fontSize:11}}><span className="dot"></span>มอบหมายนิติกรแล้ว</span>
-                        : <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
-                            <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
-                          </button>}
+                        : canApprove
+                          ? <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
+                              <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
+                            </button>
+                          : <button className="btn btn-outline btn-sm" onClick={e=>{e.stopPropagation();openCase && openCase(p.case_id);}}>
+                              <Icon name="eye" style={{width:14,height:14}}/> ดูรายละเอียด
+                            </button>}
                     </td>
                   </tr>
                 );

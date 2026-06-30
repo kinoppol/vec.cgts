@@ -145,7 +145,7 @@ function navFor(role, counts, user) {
     {v:"dashboard", ic:"gavel",    l:"ภาพรวมกลุ่ม"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
-    {v:"proposals", ic:"flag",     l:"ข้อเสนอรอพิจารณา", count:counts.pendingProposals},
+    {v:"proposals", ic:"flag",     l:"เรื่องที่ได้รับมอบหมาย", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานกลุ่ม"},
     {v:"sla",       ic:"settings", l:"ตั้งค่า SLA"},
@@ -574,8 +574,12 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "exec") {
     content = <ExecDashboard currentUser={user} onOpenCase={openCase}/>;
   } else if (view === "proposals") {
+    const canApproveProposals = role === "dir_admin" || role === "admin";
     content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
       openCase={openCase}
+      canApprove={canApproveProposals}
+      title={canApproveProposals ? "ข้อเสนอรอพิจารณา" : "เรื่องที่ได้รับมอบหมาย"}
+      sub={canApproveProposals ? "ข้อเสนอมอบหมายสำนวนจากหัวหน้าธุรการ" : "เรื่องที่หัวหน้าธุรการเสนอมายังกลุ่มของท่าน"}
       onApproved={(caseId) => {
         api.getAssignProposals().then(setPendingProposals).catch(()=>{});
         refreshCases();
