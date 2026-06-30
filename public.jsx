@@ -624,6 +624,8 @@ function SubmitSuccess({ ticket, data, go }) {
 }
 
 /* ---------------- ติดตามสถานะ ---------------- */
+const COOLDOWN_SEC = 60;
+
 function TrackStatus({ go, preset }) {
   const [code, setCode] = useState(preset?.ticket || "");
   const [email, setEmail] = useState("");
@@ -631,6 +633,21 @@ function TrackStatus({ go, preset }) {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(null); // Date
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  // countdown timer
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const tick = () => {
+      const s = Math.ceil((cooldownUntil - Date.now()) / 1000);
+      if (s <= 0) { setCooldownUntil(null); setSecondsLeft(0); }
+      else setSecondsLeft(s);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [cooldownUntil]);
 
   useEffect(() => {
     if (preset?.ticket) doSearch(preset.ticket);
@@ -648,6 +665,7 @@ function TrackStatus({ go, preset }) {
   };
 
   const doSearch = async (overrideCode) => {
+    if (cooldownUntil && Date.now() < cooldownUntil) return;
     const q = (overrideCode || code).trim();
     if (!q) return;
     setLoading(true); setNotFound(false); setSearched(false);
@@ -656,6 +674,8 @@ function TrackStatus({ go, preset }) {
       setResult(data); setSearched(true);
     } catch {
       setNotFound(true); setSearched(true); setResult(null);
+      setCooldownUntil(Date.now() + COOLDOWN_SEC * 1000);
+      setSecondsLeft(COOLDOWN_SEC);
     } finally {
       setLoading(false);
     }
@@ -675,7 +695,7 @@ function TrackStatus({ go, preset }) {
             <input className="input" placeholder="เช่น A3F8C20D91" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} /></div>
           <div className="field"><label>อีเมลที่ใช้ยื่นเรื่อง</label>
             <input className="input" placeholder="you@email.com" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-          <button className="btn btn-primary" onClick={()=>doSearch()} disabled={loading} style={{height:43}}><Icon name="search" style={{width:16,height:16}}/> ค้นหา</button>
+          <button className="btn btn-primary" onClick={()=>doSearch()} disabled={loading || !!cooldownUntil} style={{height:43}}><Icon name="search" style={{width:16,height:16}}/> ค้นหา</button>
         </div>
       </div>
 
@@ -762,8 +782,35 @@ function TrackStatus({ go, preset }) {
           <div className="notice notice-info" style={{marginTop:18}}><Icon name="info"/><div>เรื่องของท่านอยู่ระหว่างการดำเนินการของกลุ่มนิติการ หากต้องการข้อมูลเพิ่มเติม เจ้าหน้าที่จะติดต่อกลับผ่านช่องทางที่ท่านให้ไว้</div></div>
           <div className="muted tiny" style={{marginTop:14}}>อัปเดตล่าสุด: {thDate(result.received)} · ช่องทางยื่น: {result.channel}</div>
         </div>}
-      {searched && notFound &&
-        <div className="notice notice-warn" style={{marginTop:20}}><Icon name="alert"/><div>ไม่พบเรื่องที่ตรงกับรหัสที่ระบุ โปรดตรวจสอบอีกครั้ง</div></div>}
+      {searched && notFound && (
+        <div className="fade-in" style={{marginTop:20,borderRadius:14,overflow:'hidden',border:'1.5px solid var(--warn,#f59e0b)',background:'color-mix(in srgb,var(--warn,#f59e0b) 8%,var(--surface))'}}>
+          <div style={{padding:'18px 22px',display:'flex',gap:14,alignItems:'flex-start'}}>
+            <div style={{width:40,height:40,borderRadius:'50%',background:'color-mix(in srgb,var(--warn,#f59e0b) 18%,transparent)',display:'grid',placeItems:'center',flexShrink:0}}>
+              <Icon name="alert" style={{width:20,height:20,color:'var(--warn,#d97706)'}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15,marginBottom:4,color:'var(--ink)'}}>ไม่พบเรื่องที่ตรงกับรหัสที่ระบุ</div>
+              <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.7}}>
+                โปรดตรวจสอบรหัสติดตามและอีเมลให้ถูกต้อง<br/>
+                <b>เพื่อความปลอดภัย</b> ระบบจะอนุญาตให้ค้นหาอีกครั้งใน&nbsp;
+                <span style={{fontWeight:700,fontVariantNumeric:'tabular-nums',color:'var(--warn,#d97706)',fontSize:15}}>
+                  {secondsLeft > 0 ? `${secondsLeft} วินาที` : 'ไม่กี่วินาที'}
+                </span>
+              </div>
+              {secondsLeft > 0 && (
+                <div style={{marginTop:10,height:5,borderRadius:3,background:'var(--border)',overflow:'hidden'}}>
+                  <div style={{
+                    height:'100%',borderRadius:3,
+                    background:'var(--warn,#f59e0b)',
+                    width:`${(secondsLeft / COOLDOWN_SEC) * 100}%`,
+                    transition:'width 0.5s linear',
+                  }}/>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
