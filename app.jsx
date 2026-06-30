@@ -540,7 +540,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
 
   const counts = {
     newQ: role === 'head_secretary'
-      ? cases.length
+      ? cases.filter(c => !c.assignee && c.status === 'received').length
       : cases.filter(c=>["received","screening"].includes(c.status)).length,
     pendingProposals: pendingProposals.length,
   };
