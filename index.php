@@ -37,24 +37,50 @@ if (!empty($_SESSION['user_id'])) {
         $stmt->execute([$_SESSION['user_id']]);
         $initialUser = $stmt->fetch() ?: null;
         if ($initialUser) {
-            // resolve role จาก group ถ้า users.role เป็น NULL
-            if (!$initialUser['role'] && $initialUser['group_name']) {
-                $rStmt = $db->prepare(
-                    "SELECT gr.role FROM group_roles gr JOIN groups g ON g.id=gr.group_id WHERE g.name=? ORDER BY gr.role LIMIT 1"
-                );
-                $rStmt->execute([$initialUser['group_name']]);
-                $initialUser['role'] = $rStmt->fetchColumn() ?: 'officer';
-            } elseif (!$initialUser['role']) {
-                $initialUser['role'] = 'officer';
+            // ── รวบรวมบทบาทจากทุกแหล่ง แล้วเลือกบทบาทที่มีสิทธิ์สูงสุด ──
+            //   (1) บทบาทส่วนตัว  (2) บทบาทของกลุ่มที่สังกัด (ทุกกลุ่ม)  (3) บทบาทหัวหน้ากลุ่มที่ได้รับแต่งตั้ง
+            $ROLE_ORDER = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
+            $candidates = [];
+            if ($initialUser['role']) $candidates[] = $initialUser['role'];
+
+            // (2) บทบาทของทุกกลุ่มที่ผู้ใช้สังกัด
+            if (!empty($initialUser['group_name'])) {
+                try {
+                    $gr = $db->prepare("SELECT gr.role FROM group_roles gr JOIN groups g ON g.id = gr.group_id WHERE g.name = ?");
+                    $gr->execute([$initialUser['group_name']]);
+                    foreach ($gr->fetchAll(PDO::FETCH_COLUMN) as $r) { if ($r) $candidates[] = $r; }
+                } catch (Throwable) {}
             }
+
+            // (3) บทบาทหัวหน้ากลุ่ม (ถ้าได้รับแต่งตั้งเป็นหัวหน้ากลุ่มใด ๆ)
+            $leaderGroup = null;
+            try {
+                $lg = $db->prepare('SELECT id, name, leader_role FROM groups WHERE leader_id = ? LIMIT 1');
+                $lg->execute([$_SESSION['user_id']]);
+                $leaderGroup = $lg->fetch() ?: null;
+            } catch (Throwable) {
+                // กรณียังไม่มีคอลัมน์ leader_role
+                try {
+                    $lg = $db->prepare('SELECT id, name FROM groups WHERE leader_id = ? LIMIT 1');
+                    $lg->execute([$_SESSION['user_id']]);
+                    $leaderGroup = $lg->fetch() ?: null;
+                } catch (Throwable) { $leaderGroup = null; }
+            }
+            if ($leaderGroup && !empty($leaderGroup['leader_role'])) $candidates[] = $leaderGroup['leader_role'];
+
+            // เลือกบทบาทที่มีสิทธิ์สูงสุด
+            $best = null; $bestRank = -1;
+            foreach ($candidates as $c) {
+                $rank = array_search($c, $ROLE_ORDER, true);
+                if ($rank !== false && $rank > $bestRank) { $bestRank = $rank; $best = $c; }
+            }
+            $initialUser['role'] = $best ?: 'officer';
+            // sync บทบาทที่ resolve แล้วเข้า session เพื่อให้ API ใช้ตรงกัน (ไม่ต้อง login ใหม่)
+            $_SESSION['role'] = $initialUser['role'];
+
             $initialUser['can_manage_users']  = (bool)($initialUser['can_manage_users'] ?? false);
             $initialUser['is_impersonating']  = !empty($_SESSION['impersonator_id']);
-            // ตรวจว่าเป็นหัวหน้ากลุ่มหรือเปล่า
-            try {
-                $lg = $db->prepare('SELECT id, name FROM groups WHERE leader_id = ? LIMIT 1');
-                $lg->execute([$_SESSION['user_id']]);
-                $initialUser['leader_of_group'] = $lg->fetch() ?: null;
-            } catch (Throwable) { $initialUser['leader_of_group'] = null; }
+            $initialUser['leader_of_group']   = $leaderGroup ? ['id' => $leaderGroup['id'], 'name' => $leaderGroup['name']] : null;
             if ($initialUser['is_impersonating']) {
                 $initialUser['impersonator_id']   = (int)$_SESSION['impersonator_id'];
                 $initialUser['impersonator_name'] = $_SESSION['impersonator_name'] ?? '';

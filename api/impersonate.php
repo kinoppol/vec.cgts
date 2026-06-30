@@ -19,19 +19,22 @@ if ($method === 'POST') {
     if (!$target_id) err('ต้องระบุ user_id');
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT id, username, display_name, role, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, display_name, role, group_name, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
     $stmt->execute([$target_id]);
     $target = $stmt->fetch();
     if (!$target)                      err('ไม่พบผู้ใช้', 404);
-    if ($target['role'] === 'admin')   err('ไม่สามารถสวมสิทธิ์ admin ด้วยกัน', 403);
     if ($target['id'] === $actor['id']) err('ไม่สามารถสวมสิทธิ์ตัวเองได้', 400);
+
+    // บทบาทที่แท้จริงของ target (รวมบทบาทกลุ่ม/หัวหน้ากลุ่ม)
+    $targetRole = resolveEffectiveRole($db, (int)$target['id'], $target['role'], $target['group_name']);
+    if ($targetRole === 'admin')   err('ไม่สามารถสวมสิทธิ์ admin ด้วยกัน', 403);
 
     // บันทึก admin เดิมไว้
     $_SESSION['impersonator_id']   = (int)$actor['id'];
     $_SESSION['impersonator_name'] = $actor['display_name'];
     // เปลี่ยน session เป็น target
     $_SESSION['user_id']           = $target['id'];
-    $_SESSION['role']              = $target['role'];
+    $_SESSION['role']              = $targetRole;
     $_SESSION['can_manage_users']  = (bool)$target['can_manage_users'];
 
     audit('impersonate_start', (string)$target['id'], "admin={$actor['id']} → user={$target['id']}");
@@ -40,7 +43,7 @@ if ($method === 'POST') {
         'id'               => $target['id'],
         'username'         => $target['username'],
         'display_name'     => $target['display_name'],
-        'role'             => $target['role'],
+        'role'             => $targetRole,
         'init'             => $target['init'],
         'avatar_path'      => $target['avatar_path'],
         'can_manage_users' => (bool)$target['can_manage_users'],

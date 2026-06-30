@@ -3,28 +3,18 @@ require_once __DIR__ . '/_common.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-/* resolve role จาก group_roles ถ้า users.role เป็น NULL */
-function resolveRoleFromGroup(PDO $db, ?string $groupName): string {
-    if (!$groupName) return 'officer';
-    $s = $db->prepare(
-        "SELECT gr.role FROM group_roles gr
-         JOIN groups g ON g.id = gr.group_id
-         WHERE g.name = ? ORDER BY gr.role LIMIT 1"
-    );
-    $s->execute([$groupName]);
-    return $s->fetchColumn() ?: 'officer';
-}
-
 // GET /api/auth.php — ดึงข้อมูลผู้ใช้ปัจจุบัน
 if ($method === 'GET') {
     if (empty($_SESSION['user_id'])) {
         json_out(null);
     }
     $db = getDB();
-    $stmt = $db->prepare('SELECT id, username, display_name, role, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
+    $stmt = $db->prepare('SELECT id, username, display_name, role, group_name, init, can_manage_users, avatar_path FROM users WHERE id = ? AND active = 1');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     if (!$user) { json_out(null); }
+    $user['role'] = resolveEffectiveRole($db, (int)$user['id'], $user['role'], $user['group_name']);
+    $_SESSION['role'] = $user['role'];
     $user['can_manage_users']  = (bool)($user['can_manage_users'] ?? false);
     $user['is_impersonating']  = !empty($_SESSION['impersonator_id']);
     if ($user['is_impersonating']) {
@@ -53,7 +43,7 @@ if ($method === 'POST') {
         err('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 401);
     }
 
-    $effectiveRole = $user['role'] ?? resolveRoleFromGroup($db, $user['group_name']);
+    $effectiveRole = resolveEffectiveRole($db, (int)$user['id'], $user['role'], $user['group_name']);
 
     session_regenerate_id(true);
     $_SESSION['user_id']          = $user['id'];
