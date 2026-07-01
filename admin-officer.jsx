@@ -386,7 +386,7 @@ function AssignProposalsPage({ proposals, officers, openCase, onApproved, canApp
                         ? <span className="badge badge-ok" style={{fontSize:11}}><span className="dot"></span>มอบหมายนิติกรแล้ว</span>
                         : canApprove
                           ? <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();setModal(p);}}>
-                              <Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ/แก้ไข
+                              <Icon name="gavel" style={{width:14,height:14}}/> มอบหมายสั่งการ
                             </button>
                           : <button className="btn btn-outline btn-sm" onClick={e=>{e.stopPropagation();openCase && openCase(p.case_id);}}>
                               <Icon name="eye" style={{width:14,height:14}}/> ดูรายละเอียด
@@ -1545,7 +1545,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 
             {/* ผอ.สำนัก อนุมัติ/แก้ไข ข้อเสนอมอบหมาย (แทนการเกษียน) */}
             {(role==="dir_admin" || role==="admin") && caseProposal && c.status!=="closed" &&
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setApproveOpen(true)}><Icon name="gavel" style={{width:16,height:16}}/> อนุมัติ/แก้ไข</button>}
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setApproveOpen(true)}><Icon name="gavel" style={{width:16,height:16}}/> มอบหมายสั่งการ</button>}
 
             {/* เจ้าหน้าที่ผู้รับผิดชอบ (clerk) เกษียนเรื่องถึงผู้อำนวยการกลุ่ม (เฉพาะครั้งแรก — ยังไม่มีเลขรับภายในกลุ่ม) */}
             {o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
