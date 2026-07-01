@@ -61,7 +61,7 @@ try {
         }
         if (!empty($p['reviewed_at']) && !empty($p['review_note'])) {
             $memos[] = [
-                'when' => $p['reviewed_at'], 'kind' => 'ผอ.สำนักพิจารณา',
+                'when' => $p['reviewed_at'], 'kind' => 'ข้อสั่งการ ผอ.สำนัก',
                 'actor_name' => $p['r_name'], 'actor_title' => $p['r_title'], 'actor_role' => $p['r_role'],
                 'text' => $p['review_note'], 'extra' => null,
             ];
@@ -105,7 +105,7 @@ try {
             if (!empty($l['lawyer_sent_at'])) $extra = ($extra ? $extra . ' · ' : '') . 'ส่งเรื่องแล้ว';
             $memos[] = [
                 'when'        => $l['lawyer_note_at'] ?: $case['created_at'],
-                'kind'        => 'ข้อสั่งการถึงนิติกร',
+                'kind'        => 'ข้อสั่งการ ผอ.กลุ่ม',
                 'actor_name'  => $l['u_name'] ?: 'ผอ.กลุ่ม',
                 'actor_title' => $l['u_title'], 'actor_role' => $l['u_role'],
                 'text'        => $l['lawyer_note'],

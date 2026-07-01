@@ -878,7 +878,7 @@ function CaseMemosTab({ caseId }) {
     return `${date} ${hh}:${mm} น.`;
   }
   const kindColor = (k) => k==='รับเรื่องเข้าระบบ' ? 'var(--info)'
-    : k==='ผอ.สำนักพิจารณา' ? 'var(--ok)' : 'var(--maroon)';
+    : (k==='ข้อสั่งการ ผอ.สำนัก' || k==='ข้อสั่งการ ผอ.กลุ่ม') ? 'var(--ok)' : 'var(--maroon)';
 
   if (err) return <div className="notice notice-danger"><Icon name="alert"/><div>{err}</div></div>;
   if (!memos) return <LoadingSpinner/>;
