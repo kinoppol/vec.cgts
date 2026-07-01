@@ -568,11 +568,8 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
         {/* ── Footer ── */}
         <div style={{padding:'14px 24px',borderTop:'1px solid var(--line)',display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0,background:'var(--surface)'}}>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
-          <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving || !noteOk}>
-            <Icon name="edit" style={{width:14,height:14}}/> เปลี่ยนและมอบหมาย
-          </button>
           <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving || !noteOk}>
-            {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ</>}
+            {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> สั่งการ</>}
           </button>
         </div>
       </div>
