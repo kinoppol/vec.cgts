@@ -1361,8 +1361,18 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [showPropose, setShowPropose] = useState(false);
   const [markingAssign, setMarkingAssign] = useState(false);
   const [showAssignDone, setShowAssignDone] = useState(false);
+  const [confirmAssignDone, setConfirmAssignDone] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
   const [loading, setLoading] = useState(!c || !(c.events));
+
+  // ดึงข้อเสนอรอพิจารณาของเรื่องนี้ (สำหรับ ผอ.สำนัก อนุมัติ/แก้ไข)
+  useEffect(() => {
+    if (role === 'dir_admin' || role === 'admin') {
+      api.getAssignProposals(cid).then(rows => setCaseProposal((rows && rows[0]) || null)).catch(() => setCaseProposal(null));
+    }
+  }, [cid, role]);
 
   useEffect(() => {
     if (!c || !c.events) {
@@ -1430,7 +1440,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           {canAssign && c.assignee && c.status!=="closed" && (() => {
             const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
             if (assignStep?.ev_status==='done') return null;
-            return (<button key="mark-assign" className="btn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setShowAssignDone(true)}>
+            return (<button key="mark-assign" className="btn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setConfirmAssignDone(true)}>
               <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายผู้ดำเนินการ
             </button>);
           })()}
@@ -1536,8 +1546,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
             </div>}
 
-            {/* เจ้าหน้าที่ผู้รับผิดชอบเกษียนเรื่องถึงผู้อำนวยการกลุ่ม (เฉพาะครั้งแรก — ยังไม่มีเลขรับภายในกลุ่ม) */}
-            {o && c.status!=="closed" && !viewerIsLawyer && !c.group_recv_no &&
+            {/* ผอ.สำนัก อนุมัติ/แก้ไข ข้อเสนอมอบหมาย (แทนการเกษียน) */}
+            {(role==="dir_admin" || role==="admin") && caseProposal && c.status!=="closed" &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setApproveOpen(true)}><Icon name="gavel" style={{width:16,height:16}}/> อนุมัติ/แก้ไข</button>}
+
+            {/* เจ้าหน้าที่ผู้รับผิดชอบ (clerk) เกษียนเรื่องถึงผู้อำนวยการกลุ่ม (เฉพาะครั้งแรก — ยังไม่มีเลขรับภายในกลุ่ม) */}
+            {o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
 
             {/* ผอ.กลุ่ม มอบหมายนิติกรในกลุ่มให้เป็นผู้สอบสวน (หลังรับเรื่องจากธุรการ) */}
@@ -1592,6 +1606,23 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         };
         return <StepDoneModal step={fakeStep} onConfirm={handleConfirm} onClose={()=>setShowAssignDone(false)}/>;
       })()}
+      {confirmAssignDone && <ConfirmAssignDoneModal c={c} officer={o} close={()=>setConfirmAssignDone(false)} onConfirm={async (note)=>{
+        const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
+        let eid = assignStep?.event_id;
+        if (!eid) {
+          const created = await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'active' });
+          eid = created.id;
+        }
+        await api.updateEvent(eid, { ev_status:'done', detail: note ? note.trim() : null });
+        const fresh = await api.getCase(c.id); setC(fresh);
+        setConfirmAssignDone(false);
+        if (onRefresh) onRefresh();
+      }}/>}
+      {approveOpen && caseProposal && <ApproveProposalModal proposal={caseProposal} officers={officers}
+        onClose={()=>setApproveOpen(false)}
+        onApproved={async ()=>{ setApproveOpen(false); const fresh = await api.getCase(c.id); setC(fresh);
+          api.getAssignProposals(cid).then(rows => setCaseProposal((rows && rows[0]) || null)).catch(()=>{});
+          if (onRefresh) onRefresh(); }}/>}
       {showPropose && <ProposeModal case_={c} officers={officers}
         onClose={()=>setShowPropose(false)}
         onSaved={async ()=>{ setShowPropose(false); if (onRefresh) await onRefresh(); const fresh = await api.getCase(c.id); setC(fresh); back(); }}/>}
@@ -1685,6 +1716,49 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
           <button className="btn btn-primary" disabled={!canSubmit} onClick={submit}><Icon name="check" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'ยืนยันมอบหมาย'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal ยืนยันมอบหมายผู้ดำเนินการ (ผอ.สำนัก ส่งเรื่องให้ clerk — ล็อก) ---------------- */
+function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    setSaving(true);
+    try { await onConfirm(note); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันมอบหมายผู้ดำเนินการ</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>
+            เมื่อส่งเรื่องให้เจ้าหน้าที่แล้ว จะ<b>ไม่สามารถเปลี่ยนแปลงผู้ดำเนินการได้อีก</b> โปรดตรวจสอบให้แน่ใจก่อนยืนยัน
+          </div></div>
+          {officer && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
+            <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ผู้ดำเนินการ</div>
+            <div className="vcenter" style={{gap:12}}>
+              <span className="avatar" style={{width:38,height:38}}>{officer.init}</span>
+              <div><div style={{fontWeight:600}}>{officer.name}</div>{officer.role && <div className="muted sm">{officer.role}</div>}</div>
+            </div>
+          </div>}
+          <div style={{marginTop:14}}>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>หมายเหตุ (ไม่บังคับ)</label>
+            <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="บันทึกเพิ่มเติมประกอบการมอบหมาย…"
+              style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.6,fontSize:13}}/>
+          </div>
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
         </div>
       </div>
     </div>
