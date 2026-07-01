@@ -1743,12 +1743,18 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
           <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>
             เมื่อส่งเรื่องให้เจ้าหน้าที่แล้ว จะ<b>ไม่สามารถเปลี่ยนแปลงผู้ดำเนินการได้อีก</b> โปรดตรวจสอบให้แน่ใจก่อนยืนยัน
           </div></div>
-          {officer && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
-            <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ผู้ดำเนินการ</div>
-            <div className="vcenter" style={{gap:12}}>
-              <span className="avatar" style={{width:38,height:38}}>{officer.init}</span>
-              <div><div style={{fontWeight:600}}>{officer.name}</div>{officer.role && <div className="muted sm">{officer.role}</div>}</div>
-            </div>
+          {(officer || c.assigned_group) && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
+            {c.assigned_group && <div style={{marginBottom: officer?12:0, paddingBottom: officer?12:0, borderBottom: officer?'1px solid var(--line)':'none'}}>
+              <div className="faint tiny" style={{marginBottom:4,textTransform:'uppercase',letterSpacing:'.04em'}}>กลุ่มงานที่ได้รับมอบหมาย</div>
+              <div style={{fontWeight:700,color:'var(--maroon)'}}>{c.assigned_group}</div>
+            </div>}
+            {officer && <>
+              <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ผู้ดำเนินการ</div>
+              <div className="vcenter" style={{gap:12}}>
+                <span className="avatar" style={{width:38,height:38}}>{officer.init}</span>
+                <div><div style={{fontWeight:600}}>{officer.name}</div>{officer.role && <div className="muted sm">{officer.role}</div>}</div>
+              </div>
+            </>}
           </div>}
           <div style={{marginTop:14}}>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อสั่งการ <span style={{color:'var(--danger)'}}>*</span></label>
