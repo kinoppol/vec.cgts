@@ -200,6 +200,7 @@ const api = {
   getAssignProposals: (caseId)  => apiFetch('/api/proposals.php' + (caseId ? '?case_id=' + encodeURIComponent(caseId) : '')),
   proposeAssign:      (data)    => apiFetch('/api/proposals.php', { method:'POST', body: JSON.stringify(data) }),
   approveAssign:      (id, data)=> apiFetch('/api/proposals.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
+  updateProposalNote: (caseId, note)=> apiFetch('/api/proposals.php', { method:'PATCH', body: JSON.stringify({ action:'update_note', case_id: caseId, review_note: note }) }),
   // กลุ่ม
   getGroups:         ()         => apiFetch('/api/groups.php'),
   getGroupMembers:   (id)       => apiFetch('/api/groups.php?id=' + id),

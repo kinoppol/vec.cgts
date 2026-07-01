@@ -1611,6 +1611,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           eid = created.id;
         }
         await api.updateEvent(eid, { ev_status:'done', detail: note ? note.trim() : null });
+        // sync ข้อสั่งการกลับไปที่ข้อเสนอ (review_note) เพื่อให้รายการเกษียนตรงกัน
+        if (note && note.trim()) { try { await api.updateProposalNote(c.id, note.trim()); } catch(e){} }
         const fresh = await api.getCase(c.id); setC(fresh);
         setConfirmAssignDone(false);
         if (onRefresh) onRefresh();
@@ -1721,9 +1723,11 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
 
 /* ---------------- Modal ยืนยันมอบหมายผู้ดำเนินการ (ผอ.สำนัก ส่งเรื่องให้ clerk — ล็อก) ---------------- */
 function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(c.review_note || '');
   const [saving, setSaving] = useState(false);
+  const noteOk = note.trim().length >= 3;
   const submit = async () => {
+    if (!noteOk || saving) return;
     setSaving(true);
     try { await onConfirm(note); }
     finally { setSaving(false); }
@@ -1747,15 +1751,16 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
             </div>
           </div>}
           <div style={{marginTop:14}}>
-            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>หมายเหตุ (ไม่บังคับ)</label>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อสั่งการ <span style={{color:'var(--danger)'}}>*</span></label>
             <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
-              placeholder="บันทึกเพิ่มเติมประกอบการมอบหมาย…"
+              placeholder="ระบุข้อสั่งการถึงผู้ดำเนินการ (อย่างน้อย 3 ตัวอักษร)"
               style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.6,fontSize:13}}/>
+            {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
           </div>
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !noteOk}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
         </div>
       </div>
     </div>

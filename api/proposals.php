@@ -105,11 +105,25 @@ if ($method === 'POST') {
 if ($method === 'PATCH') {
     if (!in_array($auth['role'], ['admin','dir_legal','dir_admin'], true)) err('Forbidden', 403);
 
+    $b      = json_decode(file_get_contents('php://input'), true) ?? [];
+    $action = $b['action'] ?? 'approve'; // 'approve' | 'change' | 'update_note'
+
+    // อัปเดตข้อสั่งการ (review_note) ของข้อเสนอล่าสุดของสำนวน (หลังอนุมัติแล้ว)
+    if ($action === 'update_note') {
+        $caseId = trim($b['case_id'] ?? '');
+        $note   = trim($b['review_note'] ?? '');
+        if ($caseId === '') err('ต้องระบุ case_id');
+        if (mb_strlen($note) < 3) err('กรุณาระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร', 422);
+        $latest = $db->prepare("SELECT id FROM case_task_proposals WHERE case_id=? AND from_task_no=0 ORDER BY reviewed_at DESC, id DESC LIMIT 1");
+        $latest->execute([$caseId]);
+        $pid = $latest->fetchColumn();
+        if ($pid) $db->prepare("UPDATE case_task_proposals SET review_note=? WHERE id=?")->execute([$note, $pid]);
+        audit('update_review_note', $caseId, $note);
+        json_out(['ok' => true]);
+    }
+
     $propId = (int)($_GET['id'] ?? 0);
     if (!$propId) err('ต้องระบุ id');
-
-    $b      = json_decode(file_get_contents('php://input'), true) ?? [];
-    $action = $b['action'] ?? 'approve'; // 'approve' | 'change'
 
     $prop = $db->prepare('SELECT * FROM case_task_proposals WHERE id=?');
     $prop->execute([$propId]);

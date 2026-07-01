@@ -194,6 +194,15 @@ function buildCase(array $row, PDO $db): array {
     }
     $row['assigned_group'] = $assignedGroup;
 
+    // ข้อสั่งการล่าสุดจากการอนุมัติข้อเสนอ (review_note) — ใช้ pre-fill ตอนยืนยันมอบหมาย
+    try {
+        $rn = $db->prepare("SELECT review_note FROM case_task_proposals
+            WHERE case_id=? AND from_task_no=0 AND review_note IS NOT NULL AND review_note<>''
+            ORDER BY reviewed_at DESC, id DESC LIMIT 1");
+        $rn->execute([$row['id']]);
+        $row['review_note'] = $rn->fetchColumn() ?: null;
+    } catch (Throwable $e) { $row['review_note'] = null; }
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];
