@@ -164,7 +164,7 @@ function navFor(role, counts, user) {
     {v:"exec",      ic:"pie",      l:"Dashboard ผู้บริหาร"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"หนังสือเข้าทั้งหมด"},
-    {v:"proposals", ic:"flag",     l:"เกษียนรอพิจารณา", count:counts.pendingProposals},
+    {v:"proposals", ic:"flag",     l:"เรื่องรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
   ];
