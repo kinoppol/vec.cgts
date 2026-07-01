@@ -434,7 +434,10 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
   ).sort((a, b) => (a.group_name || '').localeCompare(b.group_name || '', 'th') || a.display_name.localeCompare(b.display_name, 'th'));
   // แสดงทุกคนที่มีบทบาทธุรการ — ช่องกลุ่มงานเป็นเพียงการระบุกลุ่มที่มอบหมาย ไม่กรองรายชื่อ
 
+  const noteOk = note.trim().length >= 3;
+
   const submit = async (action) => {
+    if (!noteOk) { setErr('กรุณาระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร'); return; }
     setSaving(true); setErr('');
     try {
       // ถ้าเลือก staff ไว้ → ใช้ officer_id ของคนนั้น
@@ -552,10 +555,11 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
           </div>
 
           <div className="field" style={{margin:0}}>
-            <label style={{fontSize:13}}>หมายเหตุ (ไม่บังคับ)</label>
+            <label style={{fontSize:13}}>ข้อสั่งการ <span className="req">*</span></label>
             <textarea className="input" rows={3} value={note} onChange={e=>setNote(e.target.value)}
-              placeholder="เช่น คำสั่งหรือเงื่อนไขพิเศษจากผู้อำนวยการ…"
+              placeholder="ระบุข้อสั่งการจากผู้อำนวยการ (อย่างน้อย 3 ตัวอักษร)"
               style={{resize:'vertical'}}/>
+            {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
           </div>
 
           {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
@@ -564,10 +568,10 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
         {/* ── Footer ── */}
         <div style={{padding:'14px 24px',borderTop:'1px solid var(--line)',display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0,background:'var(--surface)'}}>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
-          <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving}>
+          <button type="button" className="btn btn-outline" onClick={()=>submit('change')} disabled={saving || !noteOk}>
             <Icon name="edit" style={{width:14,height:14}}/> เปลี่ยนและมอบหมาย
           </button>
-          <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving}>
+          <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving || !noteOk}>
             {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> อนุมัติ</>}
           </button>
         </div>

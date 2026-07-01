@@ -119,7 +119,8 @@ if ($method === 'PATCH') {
 
     $finalOfficer = trim($b['final_officer'] ?? '') ?: $prop['proposed_officer'];
     $finalGroup   = trim($b['final_group']   ?? '') ?: null;
-    $reviewNote   = trim($b['review_note']   ?? '') ?: null;
+    $reviewNote   = trim($b['review_note']   ?? '');
+    if (mb_strlen($reviewNote) < 3) err('กรุณาระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร', 422);
     $newStatus    = ($action === 'change') ? 'changed' : 'approved';
 
     // ตรวจว่ามีคอลัมน์ final_group แล้วหรือไม่
