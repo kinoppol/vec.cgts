@@ -451,9 +451,9 @@ function NotificationBell({ onOpenCase }) {
         <Icon name="bell" style={{width:20,height:20,color:unread>0?'var(--danger)':'var(--ink-2)'}}/>
         {unread > 0 && (
           <span style={{position:'absolute',top:2,right:2,
-            background:'var(--danger)',color:'#fff',borderRadius:'50%',
-            fontSize:10,fontWeight:700,minWidth:16,height:16,
-            display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px',
+            background:'var(--danger)',color:'#fff',borderRadius:999,
+            fontSize:10,fontWeight:700,minWidth:16,height:16,boxSizing:'border-box',
+            display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 4px',
             lineHeight:1,border:'2px solid var(--surface)'}}>
             {unread > 99 ? '99+' : unread}
           </span>
