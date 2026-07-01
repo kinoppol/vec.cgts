@@ -622,6 +622,23 @@ if ($method === 'PATCH') {
     // lawyer_id รองรับเฉพาะถ้ามีคอลัมน์ (graceful ก่อน migrate)
     $caseCols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
     if (in_array('lawyer_id', $caseCols)) $allowed[] = 'lawyer_id';
+    $hasLawyerNote = in_array('lawyer_note', $caseCols);
+    $hasLawyerSent = in_array('lawyer_sent_at', $caseCols);
+
+    // สถานะการส่งเรื่องปัจจุบัน (ใช้ล็อกการเปลี่ยนนิติกร)
+    $alreadySent = false;
+    if ($hasLawyerSent) {
+        $sc = $db->prepare('SELECT lawyer_sent_at, lawyer_id FROM cases WHERE id = ?');
+        $sc->execute([$id]);
+        $scRow = $sc->fetch();
+        $alreadySent = !empty($scRow['lawyer_sent_at']);
+    }
+
+    // ถ้าเรื่องถูกส่งให้นิติกรแล้ว ห้ามเปลี่ยนนิติกรผู้ดำเนินการอีก
+    if ($alreadySent && array_key_exists('lawyer_id', $body)) {
+        err('เรื่องนี้ถูกส่งให้นิติกรแล้ว ไม่สามารถเปลี่ยนนิติกรผู้ดำเนินการได้', 409);
+    }
+
     $set = [];
     $params = [];
     foreach ($allowed as $col) {
@@ -631,6 +648,21 @@ if ($method === 'PATCH') {
             elseif ($col === 'lawyer_id') $params[] = $body['lawyer_id'] ?: null;
             else                          $params[] = $body[$col];
         }
+    }
+    // มอบหมาย/เปลี่ยนนิติกร → บันทึกข้อสั่งการ + ผู้สั่ง + เวลา (ยังไม่ส่ง)
+    if (array_key_exists('lawyer_id', $body) && $hasLawyerNote) {
+        $set[]    = 'lawyer_note = ?';
+        $params[] = trim($body['lawyer_note'] ?? '') ?: null;
+        $set[]    = 'lawyer_note_by = ?';
+        $params[] = (int)$auth['id'];
+        $set[]    = 'lawyer_note_at = NOW()';
+    }
+    // ส่งเรื่องไปให้นิติกร → ตั้งเวลา sent (ล็อก)
+    $doSend = !empty($body['lawyer_send']) && $hasLawyerSent;
+    if ($doSend) {
+        if (empty($scRow['lawyer_id'])) err('ยังไม่ได้มอบหมายนิติกรผู้ดำเนินการ', 422);
+        if ($alreadySent)               err('เรื่องนี้ถูกส่งให้นิติกรแล้ว', 409);
+        $set[] = 'lawyer_sent_at = NOW()';
     }
     // handle assignee alias
     if (isset($body['assignee'])) {
@@ -682,18 +714,18 @@ if ($method === 'PATCH') {
         }
     }
 
-    // มอบหมายนิติกรผู้ดำเนินการ (clerk ส่งต่อให้นิติกรในกลุ่ม)
-    if (array_key_exists('lawyer_id', $body) && in_array('lawyer_id', $caseCols)) {
-        $newLawyer = $body['lawyer_id'] ?: null;
-        $lnote     = trim($body['lawyer_note'] ?? '');
+    // ส่งเรื่องไปให้นิติกรผู้ดำเนินการ → บันทึก timeline event + แจ้งเตือน (ครั้งเดียว ตอนกด "ส่งเรื่อง")
+    if ($doSend) {
+        $lq = $db->prepare('SELECT c.lawyer_id, c.lawyer_note, o.name AS lname
+                            FROM cases c LEFT JOIN officers o ON o.id = c.lawyer_id WHERE c.id = ?');
+        $lq->execute([$id]);
+        $lrow      = $lq->fetch();
+        $newLawyer = $lrow['lawyer_id'] ?? null;
+        $lname     = $lrow['lname'] ?: $newLawyer;
+        $lnote     = trim($lrow['lawyer_note'] ?? '');
         if ($newLawyer) {
-            $lname = $db->prepare('SELECT name FROM officers WHERE id = ?');
-            $lname->execute([$newLawyer]);
-            $lname = $lname->fetchColumn() ?: $newLawyer;
-
-            // ผู้สั่งการ: ถ้าเป็น ผอ.กลุ่ม ให้ระบุตามบทบาท
             $actorLabel = (($auth['role'] ?? '') === 'dir_legal') ? 'ผอ.กลุ่ม' : 'เจ้าหน้าที่ผู้รับผิดชอบ';
-            $detail = 'ส่งเรื่องต่อให้ ' . $lname . ' ดำเนินการ'
+            $detail = 'ส่งเรื่องให้ ' . $lname . ' ดำเนินการ'
                     . ($lnote !== '' ? ' — ข้อสั่งการ: ' . $lnote : '');
 
             $maxOrd = $db->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM case_events WHERE case_id = ?');
@@ -703,7 +735,7 @@ if ($method === 'PATCH') {
             $db->prepare(
                 'INSERT INTO case_events (case_id, title, actor, moment, detail, ev_status, icon, sort_order)
                  VALUES (?,?,?,?,?,?,?,?)'
-            )->execute([$id, 'มอบหมายนิติกรผู้ดำเนินการ', $actorLabel,
+            )->execute([$id, 'ส่งเรื่องให้นิติกรผู้ดำเนินการ', $actorLabel,
                 date('j') . ' ' . ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][(int)date('n')] . ' ' . $thYear,
                 $detail, 'done', 'gavel', $ord]);
 
@@ -715,7 +747,7 @@ if ($method === 'PATCH') {
                 $cStmt = $db->prepare('SELECT subject FROM cases WHERE id = ?');
                 $cStmt->execute([$id]);
                 $subj = mb_substr($cStmt->fetchColumn() ?: $id, 0, 60);
-                $nbody = "สำนวน {$id} ถูกส่งต่อให้คุณดำเนินการ"
+                $nbody = "สำนวน {$id} ถูกส่งให้คุณดำเนินการ"
                        . ($lnote !== '' ? "\nข้อสั่งการ: {$lnote}" : '');
                 $db->prepare("INSERT INTO notifications (user_id, case_id, notif_type, title, body) VALUES (?,?,?,?,?)")
                    ->execute([(int)$lawyerUser['id'], $id, 'assigned',

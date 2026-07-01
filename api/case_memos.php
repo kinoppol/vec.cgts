@@ -86,6 +86,35 @@ try {
     }
 } catch (Throwable) {}
 
+/* 4) ข้อสั่งการถึงนิติกรผู้ดำเนินการ (ผอ.กลุ่ม) */
+try {
+    $ccols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('lawyer_note', $ccols)) {
+        $lq = $db->prepare("
+            SELECT c.lawyer_note, c.lawyer_note_at, c.lawyer_sent_at,
+                   u.display_name AS u_name, u.job_title AS u_title, u.role AS u_role,
+                   o.name AS lawyer_name
+            FROM cases c
+            LEFT JOIN users    u ON u.id = c.lawyer_note_by
+            LEFT JOIN officers o ON o.id = c.lawyer_id
+            WHERE c.id = ?");
+        $lq->execute([$caseId]);
+        $l = $lq->fetch();
+        if ($l && !empty($l['lawyer_note'])) {
+            $extra = $l['lawyer_name'] ? ('มอบหมาย: ' . $l['lawyer_name']) : null;
+            if (!empty($l['lawyer_sent_at'])) $extra = ($extra ? $extra . ' · ' : '') . 'ส่งเรื่องแล้ว';
+            $memos[] = [
+                'when'        => $l['lawyer_note_at'] ?: $case['created_at'],
+                'kind'        => 'ข้อสั่งการถึงนิติกร',
+                'actor_name'  => $l['u_name'] ?: 'ผอ.กลุ่ม',
+                'actor_title' => $l['u_title'], 'actor_role' => $l['u_role'],
+                'text'        => $l['lawyer_note'],
+                'extra'       => $extra,
+            ];
+        }
+    }
+} catch (Throwable) {}
+
 /* เรียงตามเวลา (เก่า→ใหม่) */
 usort($memos, fn($a, $b) => strcmp($a['when'] ?? '', $b['when'] ?? ''));
 

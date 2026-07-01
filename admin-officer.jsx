@@ -1351,6 +1351,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [tab, setTab] = useState("memos");
   const [assign, setAssign] = useState(false);
   const [assignLawyer, setAssignLawyer] = useState(false);
+  const [sendLawyer, setSendLawyer] = useState(false);
   const [forwardGroup, setForwardGroup] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showPropose, setShowPropose] = useState(false);
@@ -1536,8 +1537,16 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
 
             {/* ผอ.กลุ่ม มอบหมายนิติกรในกลุ่มให้เป็นผู้สอบสวน (หลังรับเรื่องจากธุรการ) */}
-            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && (c.group_recv_no || c.assigned_group) &&
+            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && (c.group_recv_no || c.assigned_group) && !c.lawyer_sent_at &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name ? "เปลี่ยนนิติกรผู้ดำเนินการ" : "มอบหมายนิติกร"}</button>}
+
+            {/* ส่งเรื่องไปให้นิติกร (ล็อกการเปลี่ยนนิติกรหลังกดยืนยัน) */}
+            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
+              <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendLawyer(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งเรื่องไปให้นิติกร</button>}
+
+            {/* แสดงสถานะเมื่อส่งเรื่องแล้ว */}
+            {c.lawyer_sent_at &&
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้นิติกรผู้ดำเนินการแล้ว — ล็อกการเปลี่ยนนิติกร</div></div>}
           </div>
 
           <div className="card card-pad">
@@ -1592,6 +1601,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         api.getCase(c.id).then(full => setC(full));
         setAssignLawyer(false);
       }}/>}
+      {sendLawyer && <SendToLawyerModal c={c} close={()=>setSendLawyer(false)} onConfirm={async ()=>{
+        await updateCase(c.id, {lawyer_send:true});
+        const fresh = await api.getCase(c.id); setC(fresh);
+        setSendLawyer(false);
+        if (onRefresh) onRefresh();
+      }}/>}
       {forwardGroup && <ForwardToGroupModal c={c} close={()=>setForwardGroup(false)} onDone={async ()=>{
         setForwardGroup(false);
         const fresh = await api.getCase(c.id); setC(fresh);
@@ -1614,7 +1629,7 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
   const pool     = inGroup.length ? inGroup : (officers||[]);
   const fallback = inGroup.length === 0;
   const [sel, setSel] = useState(c.lawyer || '');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(c.lawyer_note || '');
   const [saving, setSaving] = useState(false);
   const noteOk = note.trim().length >= 3;
   const canSubmit = !!sel && noteOk && !saving;
@@ -1666,6 +1681,46 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
           <button className="btn btn-primary" disabled={!canSubmit} onClick={submit}><Icon name="check" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'ยืนยันมอบหมาย'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal ยืนยันการส่งเรื่องให้นิติกร (ล็อกการเปลี่ยน) ---------------- */
+function SendToLawyerModal({ c, close, onConfirm }) {
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    setSaving(true);
+    try { await onConfirm(); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันส่งเรื่องให้นิติกร</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>
+            เมื่อส่งเรื่องแล้ว จะ<b>ไม่สามารถเปลี่ยนนิติกรผู้ดำเนินการได้อีก</b> โปรดตรวจสอบให้แน่ใจก่อนยืนยัน
+          </div></div>
+          {c.lawyer_name && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
+            <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>นิติกรผู้ดำเนินการ</div>
+            <div className="vcenter" style={{gap:12}}>
+              <span className="avatar" style={{width:38,height:38}}>{c.lawyer_init}</span>
+              <div><div style={{fontWeight:600}}>{c.lawyer_name}</div>{c.lawyer_role && <div className="muted sm">{c.lawyer_role}</div>}</div>
+            </div>
+            {c.lawyer_note && <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--line)'}}>
+              <div className="faint tiny" style={{marginBottom:4}}>ข้อสั่งการ</div>
+              <div style={{fontSize:13,whiteSpace:'pre-wrap',lineHeight:1.6}}>{c.lawyer_note}</div>
+            </div>}
+          </div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันส่งเรื่อง'}</button>
         </div>
       </div>
     </div>
