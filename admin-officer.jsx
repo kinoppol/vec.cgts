@@ -861,13 +861,13 @@ function StepDoneModal({ step, onConfirm, onClose }) {
 }
 
 /* ---------------- CaseMemosTab — รวมข้อความเกษียนทุกขั้นตอน ---------------- */
-function CaseMemosTab({ caseId }) {
+function CaseMemosTab({ caseId, refresh }) {
   const [memos, setMemos] = React.useState(null);
   const [err, setErr] = React.useState('');
 
   React.useEffect(() => {
     api.getCaseMemos(caseId).then(setMemos).catch(e => setErr(e.message));
-  }, [caseId]);
+  }, [caseId, refresh]);
 
   function fmtDateTime(iso) {
     if (!iso) return '';
@@ -1362,6 +1362,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
+  const [memosVersion, setMemosVersion] = useState(0); // bump เพื่อให้แท็บการเกษียน refetch
+  const bumpMemos = () => setMemosVersion(v => v + 1);
   const [loading, setLoading] = useState(!c || !(c.events));
 
   // ดึงข้อเสนอรอพิจารณาของเรื่องนี้ (สำหรับ ผอ.สำนัก อนุมัติ/แก้ไข)
@@ -1460,7 +1462,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <button key={v} className={"tab "+(tab===v?"active":"")} onClick={()=>setTab(v)}>{l}</button>)}
           </div>
           <div className="card-pad" style={{padding:24}}>
-            {tab==="memos" && <CaseMemosTab caseId={c.id}/>}
+            {tab==="memos" && <CaseMemosTab caseId={c.id} refresh={memosVersion}/>}
             {tab==="tasks" && <CaseTasksTab caseId={c.id} caseAssignee={c.assignee} officers={officers} currentUser={currentUser} role={role}/>}
             {tab==="info" && <>
               <h3 style={{fontSize:15,marginBottom:10}}>เนื้อหาเรื่อง</h3>
@@ -1598,7 +1600,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           }
           await api.updateEvent(eid, { ev_status:'done', detail:note||null, ...attachFields });
           const fresh = await api.getCase(c.id);
-          setC(fresh);
+          setC(fresh); bumpMemos();
           setShowAssignDone(false);
         };
         return <StepDoneModal step={fakeStep} onConfirm={handleConfirm} onClose={()=>setShowAssignDone(false)}/>;
@@ -1613,13 +1615,13 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         await api.updateEvent(eid, { ev_status:'done', detail: note ? note.trim() : null });
         // sync ข้อสั่งการกลับไปที่ข้อเสนอ (review_note) เพื่อให้รายการเกษียนตรงกัน
         if (note && note.trim()) { try { await api.updateProposalNote(c.id, note.trim()); } catch(e){} }
-        const fresh = await api.getCase(c.id); setC(fresh);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         setConfirmAssignDone(false);
         if (onRefresh) onRefresh();
       }}/>}
       {approveOpen && caseProposal && <ApproveProposalModal proposal={caseProposal} officers={officers}
         onClose={()=>setApproveOpen(false)}
-        onApproved={async ()=>{ setApproveOpen(false); const fresh = await api.getCase(c.id); setC(fresh);
+        onApproved={async ()=>{ setApproveOpen(false); const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
           api.getAssignProposals(cid).then(rows => setCaseProposal((rows && rows[0]) || null)).catch(()=>{});
           if (onRefresh) onRefresh(); }}/>}
       {showPropose && <ProposeModal case_={c} officers={officers}
@@ -1632,18 +1634,18 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       }}/>}
       {assignLawyer && <AssignLawyerModal c={c} officers={officers} close={()=>setAssignLawyer(false)} onAssign={async (oid, note)=>{
         await updateCase(c.id, {lawyer_id:oid, lawyer_note:note});
-        api.getCase(c.id).then(full => setC(full));
+        api.getCase(c.id).then(full => { setC(full); bumpMemos(); });
         setAssignLawyer(false);
       }}/>}
       {sendLawyer && <SendToLawyerModal c={c} close={()=>setSendLawyer(false)} onConfirm={async ()=>{
         await updateCase(c.id, {lawyer_send:true});
-        const fresh = await api.getCase(c.id); setC(fresh);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         setSendLawyer(false);
         if (onRefresh) onRefresh();
       }}/>}
       {forwardGroup && <ForwardToGroupModal c={c} close={()=>setForwardGroup(false)} onDone={async ()=>{
         setForwardGroup(false);
-        const fresh = await api.getCase(c.id); setC(fresh);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
       {showDelete && <DeleteCaseModal c={c} onClose={()=>setShowDelete(false)} onDeleted={(id)=>{
