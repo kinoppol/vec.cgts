@@ -1531,9 +1531,13 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </div>
             </div>}
 
-            {/* เจ้าหน้าที่ผู้รับผิดชอบเกษียนเรื่องถึงผู้อำนวยการกลุ่ม */}
-            {o && c.status!=="closed" && !viewerIsLawyer &&
-              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> {c.group_recv_no?"เกษียนเรื่องอีกครั้ง":"เกษียนเรื่อง"}</button>}
+            {/* เจ้าหน้าที่ผู้รับผิดชอบเกษียนเรื่องถึงผู้อำนวยการกลุ่ม (เฉพาะครั้งแรก — ยังไม่มีเลขรับภายในกลุ่ม) */}
+            {o && c.status!=="closed" && !viewerIsLawyer && !c.group_recv_no &&
+              <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
+
+            {/* ผอ.กลุ่ม มอบหมายนิติกรในกลุ่มให้เป็นผู้สอบสวน (หลังรับเรื่องจากธุรการ) */}
+            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && (c.group_recv_no || c.assigned_group) &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name ? "เปลี่ยนนิติกรผู้ดำเนินการ" : "มอบหมายนิติกร"}</button>}
           </div>
 
           <div className="card card-pad">
@@ -1583,8 +1587,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         api.getCase(c.id).then(full => setC(full));
         setAssign(false);
       }}/>}
-      {assignLawyer && <AssignLawyerModal c={c} officers={officers} close={()=>setAssignLawyer(false)} onAssign={async (oid)=>{
-        await updateCase(c.id, {lawyer_id:oid});
+      {assignLawyer && <AssignLawyerModal c={c} officers={officers} close={()=>setAssignLawyer(false)} onAssign={async (oid, note)=>{
+        await updateCase(c.id, {lawyer_id:oid, lawyer_note:note});
         api.getCase(c.id).then(full => setC(full));
         setAssignLawyer(false);
       }}/>}
@@ -1610,6 +1614,17 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
   const pool     = inGroup.length ? inGroup : (officers||[]);
   const fallback = inGroup.length === 0;
   const [sel, setSel] = useState(c.lawyer || '');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const noteOk = note.trim().length >= 3;
+  const canSubmit = !!sel && noteOk && !saving;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    try { await onAssign(sel, note.trim()); }
+    finally { setSaving(false); }
+  };
 
   return (
     <div className="overlay" onClick={close}>
@@ -1638,10 +1653,19 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
                   </div>
                 ))}
               </div>}
+
+          {/* ข้อสั่งการจาก ผอ.กลุ่ม (บังคับอย่างน้อย 3 ตัวอักษร) */}
+          <div style={{marginTop:16}}>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อสั่งการ <span style={{color:'var(--danger)'}}>*</span></label>
+            <textarea className="input" rows={4} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="ระบุข้อสั่งการถึงนิติกรผู้ดำเนินการ (อย่างน้อย 3 ตัวอักษร)"
+              style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+            {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
+          </div>
         </div>
         <div className="modal-f">
-          <button className="btn btn-outline" onClick={close}>ยกเลิก</button>
-          <button className="btn btn-primary" disabled={!sel} onClick={()=>onAssign(sel)}><Icon name="check" style={{width:16,height:16}}/> ยืนยันมอบหมาย</button>
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" disabled={!canSubmit} onClick={submit}><Icon name="check" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'ยืนยันมอบหมาย'}</button>
         </div>
       </div>
     </div>

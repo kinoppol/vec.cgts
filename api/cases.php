@@ -685,10 +685,16 @@ if ($method === 'PATCH') {
     // มอบหมายนิติกรผู้ดำเนินการ (clerk ส่งต่อให้นิติกรในกลุ่ม)
     if (array_key_exists('lawyer_id', $body) && in_array('lawyer_id', $caseCols)) {
         $newLawyer = $body['lawyer_id'] ?: null;
+        $lnote     = trim($body['lawyer_note'] ?? '');
         if ($newLawyer) {
             $lname = $db->prepare('SELECT name FROM officers WHERE id = ?');
             $lname->execute([$newLawyer]);
             $lname = $lname->fetchColumn() ?: $newLawyer;
+
+            // ผู้สั่งการ: ถ้าเป็น ผอ.กลุ่ม ให้ระบุตามบทบาท
+            $actorLabel = (($auth['role'] ?? '') === 'dir_legal') ? 'ผอ.กลุ่ม' : 'เจ้าหน้าที่ผู้รับผิดชอบ';
+            $detail = 'ส่งเรื่องต่อให้ ' . $lname . ' ดำเนินการ'
+                    . ($lnote !== '' ? ' — ข้อสั่งการ: ' . $lnote : '');
 
             $maxOrd = $db->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM case_events WHERE case_id = ?');
             $maxOrd->execute([$id]);
@@ -697,9 +703,9 @@ if ($method === 'PATCH') {
             $db->prepare(
                 'INSERT INTO case_events (case_id, title, actor, moment, detail, ev_status, icon, sort_order)
                  VALUES (?,?,?,?,?,?,?,?)'
-            )->execute([$id, 'มอบหมายนิติกรผู้ดำเนินการ', 'เจ้าหน้าที่ผู้รับผิดชอบ',
+            )->execute([$id, 'มอบหมายนิติกรผู้ดำเนินการ', $actorLabel,
                 date('j') . ' ' . ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][(int)date('n')] . ' ' . $thYear,
-                'ส่งเรื่องต่อให้ ' . $lname . ' ดำเนินการ', 'done', 'gavel', $ord]);
+                $detail, 'done', 'gavel', $ord]);
 
             // แจ้งเตือนนิติกรที่ได้รับมอบหมาย
             $uStmt = $db->prepare('SELECT id FROM users WHERE officer_id = ? AND active = 1 LIMIT 1');
@@ -709,10 +715,12 @@ if ($method === 'PATCH') {
                 $cStmt = $db->prepare('SELECT subject FROM cases WHERE id = ?');
                 $cStmt->execute([$id]);
                 $subj = mb_substr($cStmt->fetchColumn() ?: $id, 0, 60);
+                $nbody = "สำนวน {$id} ถูกส่งต่อให้คุณดำเนินการ"
+                       . ($lnote !== '' ? "\nข้อสั่งการ: {$lnote}" : '');
                 $db->prepare("INSERT INTO notifications (user_id, case_id, notif_type, title, body) VALUES (?,?,?,?,?)")
                    ->execute([(int)$lawyerUser['id'], $id, 'assigned',
                        "⚖️ ได้รับมอบหมายเป็นนิติกรผู้ดำเนินการ: {$subj}",
-                       "สำนวน {$id} ถูกส่งต่อให้คุณดำเนินการ"]);
+                       $nbody]);
             }
         }
     }
