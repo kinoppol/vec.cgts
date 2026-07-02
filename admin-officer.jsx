@@ -1405,6 +1405,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const stepStatus = (k) => (c.steps||[]).find(s=>s.step_key===k)?.ev_status || 'pending';
   const investigateDone   = stepStatus('investigate') === 'done';
   const proposeBossStarted = stepStatus('propose_boss') !== 'pending';
+  // ความคืบหน้าตามไทม์ไลน์ SLA (สัดส่วนขั้นที่เสร็จแล้ว)
+  const _totalSteps = (c.steps||[]).length;
+  const _doneSteps  = (c.steps||[]).filter(s=>s.ev_status==='done').length;
+  const slaProgress = c.status==='closed' ? 100 : (_totalSteps ? Math.round(_doneSteps/_totalSteps*100) : (c.progress||0));
 
   // สิทธิ์กดปุ่ม เริ่ม/เสร็จแล้ว ต่อขั้นตอน SLA
   const canEditStep = (stepKey) => {
@@ -1610,8 +1614,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 
           <div className="card card-pad">
             <h3 style={{fontSize:15,marginBottom:12}}>ความคืบหน้า</h3>
-            <div className="between" style={{marginBottom:8}}><span className="muted sm">{STATUS[c.status].label}</span><span style={{fontWeight:700,fontSize:18}} className="tnum">{c.progress}%</span></div>
-            <div className="progress"><i style={{width:c.progress+"%"}}></i></div>
+            <div className="between" style={{marginBottom:8}}><span className="muted sm">{STATUS[c.status].label}</span><span style={{fontWeight:700,fontSize:18}} className="tnum">{slaProgress}%</span></div>
+            <div className="progress"><i style={{width:slaProgress+"%"}}></i></div>
+            <div className="faint tiny" style={{marginTop:6}}>ดำเนินการแล้ว {_doneSteps} จาก {_totalSteps} ขั้นตอน</div>
             <div className="muted tiny" style={{marginTop:10}}>ครบกำหนด {thDate(c.due)}</div>
           </div>
 
