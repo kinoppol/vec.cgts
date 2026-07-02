@@ -1485,10 +1485,6 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายผู้ดำเนินการ
             </button>);
           })()}
-          {isHeadSec && !c.assignee && c.status!=="closed" &&
-            <button className="btn btn-primary" onClick={()=>setShowPropose(true)}>
-              <Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง
-            </button>}
           {role==="admin" &&
             <button className="btn btn-outline" style={{color:'var(--danger)',borderColor:'var(--danger)'}}
               onClick={()=>setShowDelete(true)}>
@@ -1568,6 +1564,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
                 </div>
               </div>
               : <div className="notice notice-warn"><Icon name="alert"/><div>ยังไม่ได้แต่งตั้งผู้สอบสวน</div></div>}
+
+            {/* หัวหน้าธุรการ: เกษียนเรื่องเสนอ ผอ.สำนัก */}
+            {isHeadSec && !c.assignee && c.status!=="closed" &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setShowPropose(true)}>
+                <Icon name="edit" style={{width:16,height:16}}/> เกษียนเรื่อง
+              </button>}
 
             {/* เลขรับภายในกลุ่ม (หลังเกษียนถึงผู้อำนวยการกลุ่ม) */}
             {c.group_recv_no && <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--line)'}}>
