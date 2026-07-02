@@ -84,6 +84,33 @@ function buildCase(array $row, PDO $db): array {
         }
     }
 
+    // auto-close: ขั้นที่ค้าง active/pending แต่มีขั้นถัดไป (sort_order สูงกว่า) เริ่มไปแล้ว
+    // → ถือว่าเสร็จโดยปริยาย (ข้อมูลเก่าก่อนระบบอัตโนมัติ) ปิดให้และบันทึกลง DB
+    $maxStartedOrder = 0;
+    $startedAtByOrder = []; // sort_order => started_at ของขั้นที่เริ่มแล้ว
+    foreach ($evByStep as $k => $e) {
+        if (!empty($e['started_at'])) {
+            $ord = (int)$stepsMap[$k]['sort_order'];
+            $startedAtByOrder[$ord] = $e['started_at'];
+            if ($ord > $maxStartedOrder) $maxStartedOrder = $ord;
+        }
+    }
+    if ($maxStartedOrder > 0) {
+        ksort($startedAtByOrder);
+        foreach ($evByStep as $k => $e) {
+            $ord = (int)$stepsMap[$k]['sort_order'];
+            if ($ord < $maxStartedOrder && $e['st'] !== 'done' && !empty($e['started_at'])) {
+                // ใช้เวลาเริ่มของขั้นถัดไปที่ใกล้ที่สุดเป็นเวลาเสร็จ
+                $doneAt = null;
+                foreach ($startedAtByOrder as $o => $t) { if ($o > $ord) { $doneAt = $t; break; } }
+                $db->prepare("UPDATE case_events SET ev_status='done', completed_at = COALESCE(completed_at, ?) WHERE id = ?")
+                   ->execute([$doneAt ?: $e['started_at'], (int)$e['id']]);
+                $evByStep[$k]['st'] = 'done';
+                $evByStep[$k]['completed_at'] = $e['completed_at'] ?: ($doneAt ?: $e['started_at']);
+            }
+        }
+    }
+
     // สร้าง steps array (backbone + merge event)
     $steps = [];
     foreach ($allSteps as $s) {
