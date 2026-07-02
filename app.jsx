@@ -135,6 +135,7 @@ function navFor(role, counts, user) {
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"เรื่องรอเกษียน", count:counts.newQ},
+    {v:"completed", ic:"checkCircle", l:"เรื่องดำเนินการเสร็จแล้ว", count:counts.completedQ},
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
@@ -564,6 +565,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       : role === 'officer'
       ? cases.filter(c => !['investigating','reporting','closed','rejected'].includes(c.status)).length
       : cases.filter(c=>["received","screening"].includes(c.status)).length,
+    completedQ: cases.filter(c => c.status === 'closed' && !c.has_archive).length,
     pendingProposals: role === 'dir_legal'
       ? cases.filter(c => {
           const myGroups = (user?.leader_groups || []).map(g => g.name);
@@ -585,7 +587,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
 
   const sectionTitle = {
     exec:"Dashboard ผู้บริหาร",
-    dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง",
+    dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง", completed:"เรื่องดำเนินการเสร็จแล้ว",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้", proposals:"ข้อเสนอรอพิจารณา",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
@@ -636,9 +638,13 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "cases") {
     const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : role === "clerk" ? "งานที่ได้รับมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
     const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : role === "clerk" ? "งานที่หัวหน้าธุรการมอบหมายให้" : undefined;
-    content = <CaseListPage cases={cases} officers={officers} openCase={openCase}
+    const caseListRows  = role === "head_secretary" ? cases.filter(c => c.status !== "closed") : cases;
+    content = <CaseListPage cases={caseListRows} officers={officers} openCase={openCase}
       title={caseListTitle} sub={caseListSub}
       defaultStatus={role === "head_secretary" ? "received" : "all"}/>;
+  } else if (view === "completed") {
+    content = <CaseListPage cases={cases.filter(c => c.status === "closed")} officers={officers} openCase={openCase}
+      title="เรื่องดำเนินการเสร็จแล้ว" sub="เรื่องที่ ผอ.สำนัก ออกคำสั่งขั้นสุดท้ายแล้ว — เลือกเพื่อเก็บเรื่องหรือดำเนินการเป็นเรื่องใหม่"/>;
   } else if (view === "import") {
     content = <ImportDocument back={()=>{ setView("dashboard"); refreshCases(); }}/>;
   } else if (view === "vault") {

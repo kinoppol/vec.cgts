@@ -377,8 +377,8 @@ if ($method === 'GET') {
 
     // กรองตาม role
     if ($auth['role'] === 'head_secretary') {
-        // หัวหน้าธุรการ: เห็นเฉพาะสำนวนที่ยังไม่ได้มอบหมาย
-        $where[] = 'c.assignee_id IS NULL';
+        // หัวหน้าธุรการ: เห็นสำนวนที่ยังไม่ได้มอบหมาย + เรื่องที่ดำเนินการเสร็จแล้ว (รอเก็บเรื่อง/เรื่องใหม่)
+        $where[] = "(c.assignee_id IS NULL OR c.status = 'closed')";
     } elseif (in_array($auth['role'], ['officer', 'secretary', 'clerk'], true)) {
         // เจ้าหน้าที่/ธุรการทั่วไป: เห็นสำนวนที่มอบหมายให้ตัวเอง (ในฐานะ clerk ผู้รับผิดชอบ)
         // หรือในฐานะนิติกรผู้ดำเนินการ — แต่เห็นได้เฉพาะเมื่อ clerk กด "เสร็จแล้ว" ในขั้น "มอบหมายนิติกร" (step_key=assign)
@@ -507,6 +507,7 @@ if ($method === 'GET') {
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
                    c.agency, c.assignee_id AS assignee, $lawyerCol, $groupCol, $recvCol,
                    $rptNoteCol, $rptSentCol,
+                   EXISTS(SELECT 1 FROM case_events ae WHERE ae.case_id = c.id AND ae.title = 'เก็บเรื่องเสร็จสิ้น') AS has_archive,
                    c.progress, c.received_date AS received, c.due_date AS due,
                    COALESCE(ss.days, 30) AS sla_days
             FROM cases c
@@ -520,7 +521,8 @@ if ($method === 'GET') {
 
     $today = new DateTime(date('Y-m-d'));
     foreach ($rows as &$r) {
-        $r['anon']     = (bool)$r['anon'];
+        $r['anon']        = (bool)$r['anon'];
+        $r['has_archive'] = (bool)$r['has_archive'];
         $r['progress'] = (int)$r['progress'];
         // คำนวณ SLA แบบ dynamic จาก due_date + sla_days
         $r['sla'] = calcSla($r['due'], (int)$r['sla_days'], $today, $r['status']);
