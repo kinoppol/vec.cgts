@@ -119,7 +119,7 @@ try {
 try {
     $eq = $db->prepare("SELECT title, actor, detail, started_at
         FROM case_events
-        WHERE case_id = ? AND title IN ('เกษียนกลับ ผอ.กลุ่ม','รายงานผลการดำเนินการ','เกษียนรายงานถึง ผอ.สำนัก')
+        WHERE case_id = ? AND title IN ('เกษียนกลับ ผอ.กลุ่ม','รายงานผลการดำเนินการ','ผอ.กลุ่มส่งรายงานให้ธุรการ','ธุรการเกษียนรายงานถึง ผอ.สำนัก')
           AND detail IS NOT NULL AND detail <> ''
         ORDER BY id");
     $eq->execute([$caseId]);

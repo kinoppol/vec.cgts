@@ -1369,6 +1369,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [sendReportOpen, setSendReportOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
+  const [clerkForwardOpen, setClerkForwardOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
@@ -1399,6 +1400,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const myOid          = currentUser?.officer_id ? String(currentUser.officer_id) : null;
   const viewerIsLawyer = myOid && myOid === String(c.lawyer);
   const viewerIsClerk  = myOid && myOid === String(c.assignee);
+  // สถานะขั้น SLA (ใช้คุมปุ่มสายรายงาน)
+  const stepStatus = (k) => (c.steps||[]).find(s=>s.step_key===k)?.ev_status || 'pending';
+  const investigateDone   = stepStatus('investigate') === 'done';
+  const proposeBossStarted = stepStatus('propose_boss') !== 'pending';
 
   // สิทธิ์กดปุ่ม เริ่ม/เสร็จแล้ว ต่อขั้นตอน SLA
   const canEditStep = (stepKey) => {
@@ -1585,9 +1590,13 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {viewerIsLawyer && c.report_sent_at &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานผลให้ ผอ.กลุ่มแล้ว</div></div>}
 
-            {/* ผอ.กลุ่ม: เกษียนรายงานผลถึง ผอ.สำนัก ผ่านธุรการ (เมื่อนิติกรรายงานผลแล้ว) */}
-            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.has_report &&
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setForwardUpOpen(true)}><Icon name="send" style={{width:16,height:16}}/> เกษียนรายงานถึง ผอ.สำนัก</button>}
+            {/* ผอ.กลุ่ม: ส่งรายงานผลกลับให้ธุรการ (เมื่อนิติกรส่งรายงานแล้ว, ยังไม่เสร็จขั้นตรวจข้อเท็จจริง) */}
+            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.has_report && !investigateDone &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setForwardUpOpen(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งรายงานให้ธุรการ</button>}
+
+            {/* ธุรการ: เกษียนรายงานผลต่อ ผอ.สำนัก (หลัง ผอ.กลุ่มส่งกลับ, เริ่มขั้นเสนอผู้บังคับบัญชา) */}
+            {viewerIsClerk && c.status!=="closed" && investigateDone && !proposeBossStarted &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setClerkForwardOpen(true)}><Icon name="send" style={{width:16,height:16}}/> เกษียนรายงานถึง ผอ.สำนัก</button>}
           </div>
 
           <div className="card card-pad">
@@ -1692,6 +1701,15 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
+      {clerkForwardOpen && <ForwardUpModal c={c} close={()=>setClerkForwardOpen(false)}
+        action="clerk_forward" title="เกษียนรายงานถึง ผอ.สำนัก"
+        info="เกษียนรายงานผลจากกลุ่มต่อ ผอ.สำนัก (เริ่มขั้นเสนอผู้บังคับบัญชา)"
+        prefill={'เรียน ผู้อำนวยการสำนักนิติการ\n'}
+        onDone={async ()=>{
+          setClerkForwardOpen(false);
+          const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+          if (onRefresh) onRefresh();
+        }}/>}
       {showDelete && <DeleteCaseModal c={c} onClose={()=>setShowDelete(false)} onDeleted={(id)=>{
         setShowDelete(false);
         if (onCaseDeleted) onCaseDeleted(id);
@@ -1967,27 +1985,27 @@ function ReturnToDirModal({ c, close, onDone }) {
   );
 }
 
-/* ---------------- Modal ผอ.กลุ่ม เกษียนรายงานผลถึง ผอ.สำนัก ผ่านธุรการ ---------------- */
-function ForwardUpModal({ c, close, onDone }) {
-  const [note, setNote] = useState('เรียน ผู้อำนวยการสำนักนิติการ (ผ่านเจ้าหน้าที่ธุรการ)\n');
+/* ---------------- Modal เกษียนรายงานผลตามสายบังคับบัญชา ---------------- */
+function ForwardUpModal({ c, close, onDone, action='forward_up', title='ส่งรายงานให้ธุรการ', info='ส่งรายงานผลจากนิติกรกลับให้เจ้าหน้าที่ธุรการเจ้าของเรื่อง เพื่อเกษียนต่อ ผอ.สำนัก', prefill='เรียน เจ้าหน้าที่ธุรการเจ้าของเรื่อง\n' }) {
+  const [note, setNote] = useState(prefill);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
   const submit = async () => {
     if (!noteOk || saving) return;
     setSaving(true); setErr('');
-    try { await api.caseReport({ action:'forward_up', case_id: c.id, note: note.trim() }); await onDone(); }
+    try { await api.caseReport({ action, case_id: c.id, note: note.trim() }); await onDone(); }
     catch(e) { setErr(e.message); setSaving(false); }
   };
   return (
     <div className="overlay" onClick={close}>
       <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เกษียนรายงานถึง ผอ.สำนัก</h3></div>
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>{title}</h3></div>
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>ส่งรายงานผลจากนิติกรกลับถึง ผอ.สำนัก ผ่านเจ้าหน้าที่ธุรการเจ้าของเรื่อง</div></div>
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>{info}</div></div>
           <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อความ <span style={{color:'var(--danger)'}}>*</span></label>
           <textarea className="input" rows={6} value={note} onChange={e=>setNote(e.target.value)}
             style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
