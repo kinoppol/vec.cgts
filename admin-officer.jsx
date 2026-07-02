@@ -198,12 +198,11 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
     apiFetch('/api/users.php').then(setUsers).catch(() => {});
   }, []);
 
-  // officer_id ของผู้ใช้ที่มีบทบาทธุรการ (clerk) — จากบทบาทตนเองหรือบทบาทของกลุ่ม
-  const clerkOfficerIds = React.useMemo(() => new Set(
-    (users||[])
-      .filter(u => u.active && (u.role === 'clerk' || u.group_role === 'clerk') && u.officer_id)
-      .map(u => String(u.officer_id))
-  ), [users]);
+  // เจ้าหน้าที่ธุรการ (clerk) ทั้งหมดในระบบ — จากบทบาทตนเองหรือบทบาทของกลุ่ม (ไม่ผูกกับกลุ่มที่เสนอ)
+  const clerkUsers = React.useMemo(() => (users||[])
+    .filter(u => u.active && (u.role === 'clerk' || u.group_role === 'clerk'))
+    .sort((a,b) => (a.group_name||'').localeCompare(b.group_name||'','th') || (a.display_name||'').localeCompare(b.display_name||'','th'))
+  , [users]);
 
   // ชุดชื่อกลุ่มที่ใช้จับคู่กับ officers.group_name (ครอบคลุมทั้ง name และ dept_name)
   const matchSet = (() => {
@@ -309,26 +308,20 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               }
             </div>
 
-            {/* เจ้าหน้าที่ธุรการที่เกี่ยวข้อง (เฉพาะบทบาท clerk) */}
+            {/* เจ้าหน้าที่ธุรการที่เกี่ยวข้อง — clerk ทุกคนในระบบ (อิสระจากกลุ่มที่เสนอ) */}
             <div className="field" style={{margin:0}}>
               <label>เจ้าหน้าที่ธุรการที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
-              {(() => {
-                if (selGroups.length === 0) {
-                  return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อเจ้าหน้าที่ธุรการ</div>;
-                }
-                const pool = (officers||[]).filter(o => matchSet.has(o.group) && clerkOfficerIds.has(String(o.id)));
-                return pool.length > 0
-                  ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4,maxHeight:240,overflowY:'auto',paddingRight:2}}>
-                      {pool.map(o =>
-                        <React.Fragment key={o.id}>{checkboxRow(
-                          selPersonnel.includes(o.id),
-                          ()=>togglePersonnel(o.id),
-                          <span>{o.name}{o.role && <span className="faint" style={{fontSize:12}}> · {o.role}</span>}</span>
-                        )}</React.Fragment>
-                      )}
-                    </div>
-                  : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบเจ้าหน้าที่ธุรการ (clerk) ในกลุ่มที่เลือก</div>;
-              })()}
+              {clerkUsers.length > 0
+                ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4,maxHeight:240,overflowY:'auto',paddingRight:2}}>
+                    {clerkUsers.map(u =>
+                      <React.Fragment key={u.id}>{checkboxRow(
+                        selPersonnel.includes(u.display_name),
+                        ()=>togglePersonnel(u.display_name),
+                        <span>{u.display_name}{u.group_name && <span className="faint" style={{fontSize:12}}> · {u.group_name}</span>}</span>
+                      )}</React.Fragment>
+                    )}
+                  </div>
+                : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบเจ้าหน้าที่ธุรการ (clerk) ในระบบ</div>}
             </div>
           </div>
 
