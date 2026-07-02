@@ -555,7 +555,7 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
                   const isProposed = pers.includes(u.display_name) || pers.includes(String(u.officer_id));
                   return (
                     <option key={u.id} value={u.id}>
-                      {u.display_name}{isProposed ? '  ✓ (หัวหน้าธุรการเสนอ)' : ''}
+                      {u.display_name}{isProposed ? '  ✓' : ''}
                     </option>
                   );
                 })}
