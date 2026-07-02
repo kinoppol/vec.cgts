@@ -66,6 +66,33 @@ if ($confirm === 'all') {
     exit;
 }
 
+/* ── [30] group_members — สมาชิกหลายกลุ่ม (junction) ────────────────── */
+if ($confirm === 'group_members') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [30]: สมาชิกหลายกลุ่ม (group_members)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $db->exec("CREATE TABLE IF NOT EXISTS group_members (
+            group_id INT NOT NULL,
+            user_id  INT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (group_id, user_id),
+            KEY idx_gm_user (user_id),
+            CONSTRAINT fk_gm_group FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
+            CONSTRAINT fk_gm_user  FOREIGN KEY (user_id)  REFERENCES users(id)   ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        echo "✓ CREATE TABLE group_members\n";
+        $n = $db->exec("INSERT IGNORE INTO group_members (group_id, user_id)
+            SELECT g.id, u.id FROM users u JOIN `groups` g ON g.name = u.group_name
+            WHERE u.group_name IS NOT NULL AND u.group_name <> ''");
+        echo "✓ backfill จาก users.group_name: $n แถว\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) { echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n"; }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [29] origin_case — เรื่องสืบเนื่อง (อ้างเลขเรื่องเดิม) ──────────── */
 if ($confirm === 'origin_case') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -1076,6 +1103,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[30] สมาชิกหลายกลุ่ม</b> — ตาราง group_members (ผู้ใช้อยู่ได้หลายกลุ่ม)<br><code><a href="?confirm=group_members">migrate.php?confirm=group_members</a></code></li>';
     echo '<li><b>[29] เรื่องสืบเนื่อง</b> — cases.origin_case_id (อ้างเลขเรื่องเดิมที่ดำเนินการเสร็จ)<br><code><a href="?confirm=origin_case">migrate.php?confirm=origin_case</a></code></li>';
     echo '<li><b>[28] รายงานผลนิติกร (ร่าง)</b> — cases.report_note + report_sent_at (แก้ได้จนกว่าจะส่งให้ ผอ.กลุ่ม)<br><code><a href="?confirm=report_draft">migrate.php?confirm=report_draft</a></code></li>';
     echo '<li><b>[27] ข้อสั่งการ + ส่งเรื่องให้นิติกร</b> — cases.lawyer_note/by/at + lawyer_sent_at (ล็อกการเปลี่ยนนิติกร)<br><code><a href="?confirm=lawyer_dispatch">migrate.php?confirm=lawyer_dispatch</a></code></li>';

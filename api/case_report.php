@@ -13,16 +13,17 @@ $db     = getDB();
 
 /* ── GET ?action=clerks — รายชื่อเจ้าหน้าที่ธุรการ (clerk) ทั้งระบบ ── */
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'clerks') {
+    $hasGM = (bool)$db->query("SHOW TABLES LIKE 'group_members'")->fetchColumn();
+    // เป็น clerk ถ้าบทบาทตนเอง=clerk หรือ *กลุ่มใดกลุ่มหนึ่ง* ที่สังกัดมีบทบาท clerk
+    $groupClerk = $hasGM
+        ? "EXISTS(SELECT 1 FROM group_members gm JOIN group_roles gr ON gr.group_id = gm.group_id WHERE gm.user_id = u.id AND gr.role='clerk')"
+        : "EXISTS(SELECT 1 FROM group_roles gr JOIN `groups` g ON g.id = gr.group_id WHERE g.name = u.group_name AND gr.role='clerk')";
     $rows = $db->query(
         "SELECT u.id, u.display_name, u.group_name, u.officer_id, u.role,
-                (SELECT gr.role FROM group_roles gr
-                 JOIN `groups` g ON g.id = gr.group_id
-                 WHERE g.name = u.group_name ORDER BY gr.role LIMIT 1) AS group_role
-         FROM users u
-         WHERE u.active = 1
-         ORDER BY u.group_name, u.display_name"
+                ($groupClerk) AS is_group_clerk
+         FROM users u WHERE u.active = 1 ORDER BY u.group_name, u.display_name"
     )->fetchAll();
-    $clerks = array_values(array_filter($rows, fn($u) => $u['role'] === 'clerk' || $u['group_role'] === 'clerk'));
+    $clerks = array_values(array_filter($rows, fn($u) => $u['role'] === 'clerk' || (int)$u['is_group_clerk'] === 1));
     json_out($clerks);
 }
 

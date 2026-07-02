@@ -20,6 +20,8 @@ function fetchGroupRoles($db, $groupId): array {
 // recv_prefix อาจยังไม่ได้ migrate
 $HAS_RECV_PREFIX = in_array('recv_prefix', $db->query("SHOW COLUMNS FROM `groups`")->fetchAll(PDO::FETCH_COLUMN), true);
 $RECV_SEL = $HAS_RECV_PREFIX ? 'g.recv_prefix' : 'NULL AS recv_prefix';
+// group_members (สมาชิกหลายกลุ่ม) อาจยังไม่ได้ migrate → fallback ไป users.group_name
+$HAS_GM = (bool)$db->query("SHOW TABLES LIKE 'group_members'")->fetchColumn();
 
 /* ── GET ?id= — สมาชิก + บทบาทของกลุ่ม ───────────────────── */
 if ($method === 'GET' && $id) {
@@ -32,11 +34,20 @@ if ($method === 'GET' && $id) {
     $group = $stmt->fetch();
     if (!$group) err('ไม่พบกลุ่ม', 404);
 
-    $mstmt = $db->prepare(
-        "SELECT id, username, display_name, role, init, group_name, job_title
-         FROM users WHERE group_name = ? AND active = 1 ORDER BY display_name"
-    );
-    $mstmt->execute([$group['name']]);
+    if ($HAS_GM) {
+        $mstmt = $db->prepare(
+            "SELECT u.id, u.username, u.display_name, u.role, u.init, u.group_name, u.job_title
+             FROM users u JOIN group_members gm ON gm.user_id = u.id
+             WHERE gm.group_id = ? AND u.active = 1 ORDER BY u.display_name"
+        );
+        $mstmt->execute([$id]);
+    } else {
+        $mstmt = $db->prepare(
+            "SELECT id, username, display_name, role, init, group_name, job_title
+             FROM users WHERE group_name = ? AND active = 1 ORDER BY display_name"
+        );
+        $mstmt->execute([$group['name']]);
+    }
     $group['members'] = $mstmt->fetchAll();
     $group['roles']   = fetchGroupRoles($db, $id);
     json_out($group);
@@ -47,7 +58,9 @@ if ($method === 'GET') {
     $rows = $db->query(
         "SELECT g.id, g.name, g.leader_id, g.leader_role, g.dept_name, $RECV_SEL,
                 u.display_name AS leader_name, u.init AS leader_init,
-                (SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1) AS member_count
+                " . ($HAS_GM
+                    ? "(SELECT COUNT(*) FROM group_members gm JOIN users m ON m.id = gm.user_id WHERE gm.group_id = g.id AND m.active = 1)"
+                    : "(SELECT COUNT(*) FROM users m WHERE m.group_name = g.name AND m.active = 1)") . " AS member_count
          FROM `groups` g LEFT JOIN users u ON u.id = g.leader_id ORDER BY g.name"
     )->fetchAll();
     foreach ($rows as &$row) {
@@ -90,11 +103,19 @@ if ($method === 'POST' && $action === 'add_member' && $id) {
     $grp = $grp->fetch();
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
-    $update = "UPDATE users SET group_name=?";
-    $params = [$grp['name']];
-    if ($role) { $update .= ", role=?"; $params[] = $role; }
-    $params[] = $userId;
-    $db->prepare("$update WHERE id=?")->execute($params);
+    if ($HAS_GM) {
+        // เพิ่มเป็นสมาชิกกลุ่ม (ไม่ลบออกจากกลุ่มเดิม)
+        $db->prepare("INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)")->execute([$id, $userId]);
+        // ตั้งกลุ่มหลัก (group_name) เฉพาะเมื่อยังว่าง
+        $db->prepare("UPDATE users SET group_name=? WHERE id=? AND (group_name IS NULL OR group_name='')")->execute([$grp['name'], $userId]);
+        if ($role) $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$role, $userId]);
+    } else {
+        $update = "UPDATE users SET group_name=?";
+        $params = [$grp['name']];
+        if ($role) { $update .= ", role=?"; $params[] = $role; }
+        $params[] = $userId;
+        $db->prepare("$update WHERE id=?")->execute($params);
+    }
 
     // sync officers.group_name ตาม dept_name ของกลุ่ม
     $deptRow = $db->prepare("SELECT dept_name FROM `groups` WHERE id=?");
@@ -125,8 +146,13 @@ if ($method === 'PATCH' && $action === 'set_member_role' && $id) {
     if (!$userId) err('user_id จำเป็น', 400);
 
     // ตรวจว่าผู้ใช้อยู่ในกลุ่มนี้จริง
-    $check = $db->prepare("SELECT id FROM users WHERE id=? AND group_name=?");
-    $check->execute([$userId, $grp['name']]);
+    if ($HAS_GM) {
+        $check = $db->prepare("SELECT 1 FROM group_members WHERE group_id=? AND user_id=?");
+        $check->execute([$id, $userId]);
+    } else {
+        $check = $db->prepare("SELECT id FROM users WHERE id=? AND group_name=?");
+        $check->execute([$userId, $grp['name']]);
+    }
     if (!$check->fetch()) err('ผู้ใช้ไม่ได้อยู่ในกลุ่มนี้', 400);
 
     $db->prepare("UPDATE users SET role=? WHERE id=?")->execute([$role, $userId]);
@@ -145,7 +171,16 @@ if ($method === 'DELETE' && $action === 'remove_member' && $id) {
     $grp = $grp->fetch();
     if (!$grp) err('ไม่พบกลุ่ม', 404);
 
-    $db->prepare("UPDATE users SET group_name=NULL WHERE id=? AND group_name=?")->execute([$userId, $grp['name']]);
+    if ($HAS_GM) {
+        $db->prepare("DELETE FROM group_members WHERE group_id=? AND user_id=?")->execute([$id, $userId]);
+        // ถ้ากลุ่มหลักคือกลุ่มนี้ → ย้ายไปกลุ่มอื่นที่ยังเป็นสมาชิก (หรือ NULL)
+        $newPrimary = $db->prepare("SELECT g.name FROM group_members gm JOIN `groups` g ON g.id=gm.group_id WHERE gm.user_id=? LIMIT 1");
+        $newPrimary->execute([$userId]);
+        $np = $newPrimary->fetchColumn() ?: null;
+        $db->prepare("UPDATE users SET group_name=? WHERE id=? AND group_name=?")->execute([$np, $userId, $grp['name']]);
+    } else {
+        $db->prepare("UPDATE users SET group_name=NULL WHERE id=? AND group_name=?")->execute([$userId, $grp['name']]);
+    }
     if ((int)$grp['leader_id'] === $userId)
         $db->prepare("UPDATE `groups` SET leader_id=NULL WHERE id=?")->execute([$id]);
 
