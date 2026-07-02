@@ -174,6 +174,8 @@ const api = {
   uploadCaseFile:   (caseId, file, cls='public') => { const fd = new FormData(); fd.append('case_id', caseId); fd.append('cls', cls); fd.append('file', file); return apiFetch('/api/upload.php', { method:'POST', body: fd }); },
   caseReport:       (data)       => apiFetch('/api/case_report.php', { method:'POST', body: JSON.stringify(data) }),
   getSendRecipients: ()          => apiFetch('/api/case_report.php?action=recipients'),
+  getTestDataInfo:  ()           => apiFetch('/api/admin_testdata.php?action=seq_info'),
+  testDataAction:   (data)       => apiFetch('/api/admin_testdata.php', { method:'POST', body: JSON.stringify(data) }),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),
   saveRoleLabel:     (data)     => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
   getLookups:        (cat)      => apiFetch('/api/lookup.php?cat=' + encodeURIComponent(cat)),

@@ -32,7 +32,15 @@ function groupForCase(PDO $db, string $caseId): array {
 function nextGroupSeq(PDO $db, int $groupId, int $year): int {
     $s = $db->prepare("SELECT COALESCE(MAX(seq),0)+1 FROM group_receipts WHERE group_id = ? AND year = ?");
     $s->execute([$groupId, $year]);
-    return (int)$s->fetchColumn();
+    $seq = (int)$s->fetchColumn();
+    // override จากหน้าจัดการข้อมูลทดสอบ (ตั้งเลขถัดไปเอง) — ใช้เมื่อมากกว่าเลขปกติ
+    try {
+        $ov = $db->prepare("SELECT `value` FROM app_settings WHERE `key` = ?");
+        $ov->execute(["group_recv_next_seq_{$groupId}_{$year}"]);
+        $val = $ov->fetchColumn();
+        if ($val !== false && $val !== null && (int)$val >= $seq) $seq = (int)$val;
+    } catch (Throwable) {}
+    return $seq;
 }
 
 function fmtRecvNo(?string $prefix, int $year, int $seq): string {

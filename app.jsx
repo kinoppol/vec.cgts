@@ -112,6 +112,7 @@ function navFor(role, counts, user) {
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
     {v:"system",       ic:"settings",   l:"ตั้งค่าระบบ"},
+    {v:"testdata",     ic:"alert",      l:"จัดการข้อมูลทดสอบ"},
   ];
   if (role === "officer") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
@@ -592,7 +593,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้", proposals:"ข้อเสนอรอพิจารณา",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
-    "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง",
+    "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง", testdata:"จัดการข้อมูลทดสอบ",
     calendar:"ปฏิทินการดำเนินงาน",
   }[view] || "";
 
@@ -669,6 +670,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <SlaSettingsPage currentUser={user}/>;
   } else if (view === "system" && role === "admin") {
     content = <SystemSettingsPage/>;
+  } else if (view === "testdata" && role === "admin") {
+    content = <TestDataPage onChanged={refreshCases}/>;
   } else if (view === "groups" && role === "admin") {
     content = <GroupsPage currentUser={user}/>;
   } else if (view === "my-group" && user?.leader_of_group) {

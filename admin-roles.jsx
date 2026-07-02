@@ -197,4 +197,128 @@ function SystemSettingsPage() {
   );
 }
 
-Object.assign(window, { RoleLabelsPage, SystemSettingsPage });
+/* ---------------- TestDataPage — จัดการข้อมูลทดสอบระบบ (admin) ---------------- */
+function TestDataPage({ onChanged }) {
+  const [info, setInfo]   = React.useState(null);
+  const [err, setErr]     = React.useState('');
+  const [msg, setMsg]     = React.useState('');
+
+  const [ids, setIds]         = React.useState('');
+  const [delPw, setDelPw]     = React.useState('');
+  const [delBusy, setDelBusy] = React.useState(false);
+  const [confirmDel, setConfirmDel] = React.useState(false);
+
+  const [mainNext, setMainNext] = React.useState('');
+  const [mainPw, setMainPw]     = React.useState('');
+  const [mainBusy, setMainBusy] = React.useState(false);
+
+  const [grpNext, setGrpNext] = React.useState({});
+  const [grpPw, setGrpPw]     = React.useState('');
+  const [grpBusy, setGrpBusy] = React.useState(0);
+
+  const load = () => api.getTestDataInfo().then(setInfo).catch(e => setErr(e.message));
+  React.useEffect(() => { load(); }, []);
+
+  const flash = (m) => { setMsg(m); setErr(''); setTimeout(()=>setMsg(''), 4000); };
+  const idList = ids.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean);
+
+  const doDelete = async () => {
+    setDelBusy(true); setErr('');
+    try {
+      const r = await api.testDataAction({ action:'bulk_delete', ids: idList, password: delPw });
+      flash(`ลบสำเร็จ ${r.deleted.length} เรื่อง` + (r.not_found.length ? ` · ไม่พบ ${r.not_found.length} เรื่อง (${r.not_found.join(', ')})` : ''));
+      setIds(''); setDelPw(''); setConfirmDel(false);
+      if (onChanged) onChanged(); load();
+    } catch(e) { setErr(e.message); }
+    setDelBusy(false);
+  };
+
+  const saveMainSeq = async () => {
+    setMainBusy(true); setErr('');
+    try {
+      const r = await api.testDataAction({ action:'reset_main_seq', next_seq: parseInt(mainNext,10), password: mainPw });
+      flash(`ตั้งเลขทะเบียนหลักถัดไป: ${r.next_id}`);
+      setMainNext(''); setMainPw(''); load();
+    } catch(e) { setErr(e.message); }
+    setMainBusy(false);
+  };
+
+  const saveGroupSeq = async (gid) => {
+    setGrpBusy(gid); setErr('');
+    try {
+      await api.testDataAction({ action:'reset_group_seq', group_id: gid, next_seq: parseInt(grpNext[gid],10), password: grpPw });
+      flash('บันทึกเลขรับกลุ่มแล้ว');
+      setGrpNext(s=>({ ...s, [gid]:'' })); load();
+    } catch(e) { setErr(e.message); }
+    setGrpBusy(0);
+  };
+
+  if (!info) return <div className="fade-in"><PageHead title="จัดการข้อมูลทดสอบ" sub="สำหรับผู้ดูแลระบบเท่านั้น"/>{err ? <div className="notice notice-danger"><Icon name="alert"/><div>{err}</div></div> : <LoadingSpinner/>}</div>;
+
+  return (
+    <div className="fade-in">
+      <PageHead title="จัดการข้อมูลทดสอบ" sub="ลบเรื่องทดสอบ + รีเซ็ตเลขทะเบียน — สำหรับผู้ดูแลระบบเท่านั้น"/>
+
+      {msg && <div className="notice notice-ok" style={{marginBottom:14}}><Icon name="checkCircle"/><div>{msg}</div></div>}
+      {err && <div className="notice notice-danger" style={{marginBottom:14}}><Icon name="alert"/><div>{err}</div></div>}
+
+      <div className="card card-pad" style={{marginBottom:18,borderLeft:'3px solid var(--danger)'}}>
+        <h3 style={{fontSize:15,marginBottom:6,color:'var(--danger)'}}><Icon name="alert" style={{width:16,height:16}}/> ลบเรื่องทดสอบ (หลายเรื่องพร้อมกัน)</h3>
+        <div className="notice notice-danger" style={{marginBottom:12}}><Icon name="alert"/><div>การดำเนินการนี้<b>มีความเสี่ยงสูงและไม่สามารถย้อนกลับได้</b> — จะลบสำนวน ไฟล์ ไทม์ไลน์ การเกษียน การแจ้งเตือน และเลขรับกลุ่มที่เกี่ยวข้องทั้งหมด</div></div>
+        <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>รหัสสำนวน (คั่นด้วยเว้นวรรค/บรรทัดใหม่/จุลภาค)</label>
+        <textarea className="input" rows={3} value={ids} onChange={e=>setIds(e.target.value)}
+          placeholder="เช่น CMP-2569-0039 CMP-2569-0040" style={{width:'100%',resize:'vertical',fontFamily:'monospace'}}/>
+        {idList.length > 0 && <div className="faint tiny" style={{marginTop:6}}>เลือก {idList.length} เรื่อง</div>}
+        {!confirmDel
+          ? <button className="btn btn-outline" style={{marginTop:12,color:'var(--danger)',borderColor:'var(--danger)'}} disabled={idList.length===0} onClick={()=>setConfirmDel(true)}>
+              <Icon name="x" style={{width:15,height:15}}/> ดำเนินการลบ {idList.length||''} เรื่อง
+            </button>
+          : <div style={{marginTop:12,padding:'12px 14px',background:'var(--danger-bg,#fef2f2)',borderRadius:8}}>
+              <div style={{fontWeight:600,marginBottom:8,color:'var(--danger)'}}>ยืนยันการลบ {idList.length} เรื่อง — กรอกรหัสผ่าน admin</div>
+              <input className="input" type="password" value={delPw} onChange={e=>setDelPw(e.target.value)} placeholder="รหัสผ่าน admin" style={{maxWidth:280}}/>
+              <div className="vcenter" style={{gap:8,marginTop:10}}>
+                <button className="btn btn-ghost" onClick={()=>{setConfirmDel(false);setDelPw('');}} disabled={delBusy}>ยกเลิก</button>
+                <button className="btn btn-primary" style={{background:'var(--danger)'}} disabled={delBusy || !delPw} onClick={doDelete}>{delBusy?'กำลังลบ…':'ยืนยันลบถาวร'}</button>
+              </div>
+            </div>}
+      </div>
+
+      <div className="card card-pad" style={{marginBottom:18}}>
+        <h3 style={{fontSize:15,marginBottom:10}}>เลขทะเบียนหนังสือหลัก (ระบบ)</h3>
+        <div className="faint sm" style={{marginBottom:10}}>รูปแบบ {info.main.prefix}XXXX · เลขล่าสุดในระบบ: <b className="tnum">{String(info.main.max_seq).padStart(4,'0')}</b>{info.main.next_override ? ` · ตั้งเลขถัดไปไว้: ${String(info.main.next_override).padStart(4,'0')}` : ''}</div>
+        <div className="vcenter" style={{gap:8,flexWrap:'wrap'}}>
+          <input className="input" type="number" min="1" value={mainNext} onChange={e=>setMainNext(e.target.value)} placeholder="เลขถัดไป" style={{width:120}}/>
+          <input className="input" type="password" value={mainPw} onChange={e=>setMainPw(e.target.value)} placeholder="รหัสผ่าน admin" style={{width:200}}/>
+          <button className="btn btn-primary" disabled={mainBusy || !mainNext || !mainPw} onClick={saveMainSeq}>{mainBusy?'กำลังบันทึก…':'บันทึก'}</button>
+        </div>
+        <div className="faint tiny" style={{marginTop:6}}>ต้องมากกว่าเลขล่าสุดที่มีอยู่ ({String(info.main.max_seq).padStart(4,'0')}) เพื่อป้องกันเลขซ้ำ</div>
+      </div>
+
+      <div className="card card-pad">
+        <h3 style={{fontSize:15,marginBottom:10}}>เลขรับหนังสือของกลุ่ม (ปี {info.year})</h3>
+        {info.groups.length === 0
+          ? <div className="faint sm">ยังไม่มีกลุ่ม</div>
+          : <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {info.groups.map(g => (
+                <div key={g.id} className="between" style={{gap:12,flexWrap:'wrap',padding:'10px 0',borderBottom:'1px solid var(--line)'}}>
+                  <div style={{minWidth:200}}>
+                    <div style={{fontWeight:600}}>{g.name}</div>
+                    <div className="faint tiny">{g.recv_prefix || '(ยังไม่ตั้ง prefix)'} · เลขล่าสุด {String(g.max_seq).padStart(5,'0')}{g.next_override ? ` · ตั้งถัดไป ${String(g.next_override).padStart(5,'0')}` : ''}</div>
+                  </div>
+                  <div className="vcenter" style={{gap:8}}>
+                    <input className="input" type="number" min="1" value={grpNext[g.id]||''} onChange={e=>setGrpNext(s=>({...s,[g.id]:e.target.value}))} placeholder="เลขถัดไป" style={{width:110}}/>
+                    <button className="btn btn-outline btn-sm" disabled={grpBusy===g.id || !grpNext[g.id] || !grpPw} onClick={()=>saveGroupSeq(g.id)}>{grpBusy===g.id?'…':'บันทึก'}</button>
+                  </div>
+                </div>
+              ))}
+              <div className="vcenter" style={{gap:8,marginTop:6}}>
+                <Icon name="lock" style={{width:15,height:15,color:'var(--ink-3)'}}/>
+                <input className="input" type="password" value={grpPw} onChange={e=>setGrpPw(e.target.value)} placeholder="รหัสผ่าน admin (ใช้กับการบันทึกเลขกลุ่ม)" style={{maxWidth:320}}/>
+              </div>
+            </div>}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { RoleLabelsPage, SystemSettingsPage, TestDataPage });
