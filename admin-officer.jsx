@@ -1857,6 +1857,24 @@ function ReportResultModal({ c, close, onDone }) {
           </div>
           <div>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ไฟล์แนบรายงาน</label>
+            {(c.files||[]).length > 0 && <div style={{marginBottom:10}}>
+              <div className="faint tiny" style={{marginBottom:6}}>ไฟล์ที่แนบไว้แล้ว (ในคลังสำนวน)</div>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {(c.files||[]).map((f,i)=>{
+                  const base = window.__APP_BASE__ || '';
+                  const url  = f.sn ? base + '/api/file.php?case=' + encodeURIComponent(f.sn) : null;
+                  return (
+                    <div key={i} className="vcenter" style={{gap:6,background:'var(--surface-2)',borderRadius:6,padding:'6px 10px',fontSize:13}}>
+                      <Icon name="file" style={{width:15,height:15}}/>
+                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.n}</span>
+                      <span className="faint tiny">{f.s}</span>
+                      {url && <a href={url} download={f.n} className="icon-btn" style={{width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center'}} title="ดาวน์โหลด"><Icon name="download" style={{width:13,height:13}}/></a>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>}
+            <label className="faint tiny" style={{display:'block',marginBottom:4}}>แนบไฟล์เพิ่ม</label>
             <input type="file" multiple onChange={e=>{ addFiles(e.target.files); e.target.value=''; }}
               accept=".pdf,.jpg,.jpeg,.png,.zip,.docx,.xlsx"/>
             {files.length > 0 && <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
