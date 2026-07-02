@@ -195,12 +195,12 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
     api.getGroups()
       .then(gs => setGroups((gs||[]).map(g => ({ name: g.name, dept_name: g.dept_name }))))
       .catch(() => api.getLookups('group_name').then(setGroups).catch(() => {}));
-    apiFetch('/api/users.php').then(setUsers).catch(() => {});
+    api.getClerks().then(setUsers).catch(() => {});
   }, []);
 
-  // เจ้าหน้าที่ธุรการ (clerk) ทั้งหมดในระบบ — จากบทบาทตนเองหรือบทบาทของกลุ่ม (ไม่ผูกกับกลุ่มที่เสนอ)
+  // เจ้าหน้าที่ธุรการ (clerk) ทั้งหมดในระบบ — endpoint กรอง clerk ให้แล้ว (role หรือ group_role)
   const clerkUsers = React.useMemo(() => (users||[])
-    .filter(u => u.active && (u.role === 'clerk' || u.group_role === 'clerk'))
+    .slice()
     .sort((a,b) => (a.group_name||'').localeCompare(b.group_name||'','th') || (a.display_name||'').localeCompare(b.display_name||'','th'))
   , [users]);
 

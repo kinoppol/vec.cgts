@@ -11,6 +11,21 @@ require_once __DIR__ . '/_common.php';
 $auth   = require_auth();
 $db     = getDB();
 
+/* ── GET ?action=clerks — รายชื่อเจ้าหน้าที่ธุรการ (clerk) ทั้งระบบ ── */
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'clerks') {
+    $rows = $db->query(
+        "SELECT u.id, u.display_name, u.group_name, u.officer_id, u.role,
+                (SELECT gr.role FROM group_roles gr
+                 JOIN `groups` g ON g.id = gr.group_id
+                 WHERE g.name = u.group_name ORDER BY gr.role LIMIT 1) AS group_role
+         FROM users u
+         WHERE u.active = 1
+         ORDER BY u.group_name, u.display_name"
+    )->fetchAll();
+    $clerks = array_values(array_filter($rows, fn($u) => $u['role'] === 'clerk' || $u['group_role'] === 'clerk'));
+    json_out($clerks);
+}
+
 /* ── GET ?action=recipients — รายชื่อปลายทางหนังสือส่ง (ผู้บริหารระดับสูง + หน่วยงานภายนอก) ── */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (($_GET['action'] ?? '') !== 'recipients') err('Method not allowed', 405);
