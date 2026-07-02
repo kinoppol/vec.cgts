@@ -434,6 +434,17 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
     u.active &&
     (STAFF_ROLES.includes(u.role) || STAFF_ROLES.includes(u.group_role))
   ).sort((a, b) => (a.group_name || '').localeCompare(b.group_name || '', 'th') || a.display_name.localeCompare(b.display_name, 'th'));
+
+  // ตั้งค่าเริ่มต้น = เจ้าหน้าที่ที่หัวหน้าธุรการเสนอ (จาก proposed_personnel/proposed_officer)
+  useEffect(() => {
+    if (staffId || !staffUsers.length) return;
+    const proposed = (() => { try { return proposal.proposed_personnel ? JSON.parse(proposal.proposed_personnel) : []; } catch { return []; } })();
+    const match = staffUsers.find(u =>
+      proposed.includes(u.display_name) || proposed.includes(String(u.officer_id)) ||
+      (proposal.proposed_officer && String(u.officer_id) === String(proposal.proposed_officer))
+    );
+    if (match) setStaffId(String(match.id));
+  }, [allUsers]);
   // แสดงทุกคนที่มีบทบาทธุรการ — ช่องกลุ่มงานเป็นเพียงการระบุกลุ่มที่มอบหมาย ไม่กรองรายชื่อ
 
   const noteOk = note.trim().length >= 3;
