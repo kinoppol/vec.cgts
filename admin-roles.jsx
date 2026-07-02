@@ -198,12 +198,13 @@ function SystemSettingsPage() {
 }
 
 /* ---------------- TestDataPage — จัดการข้อมูลทดสอบระบบ (admin) ---------------- */
-function TestDataPage({ onChanged }) {
+function TestDataPage({ cases = [], onChanged }) {
   const [info, setInfo]   = React.useState(null);
   const [err, setErr]     = React.useState('');
   const [msg, setMsg]     = React.useState('');
 
-  const [ids, setIds]         = React.useState('');
+  const [sel, setSel]         = React.useState({});   // {caseId: true}
+  const [q, setQ]             = React.useState('');
   const [delPw, setDelPw]     = React.useState('');
   const [delBusy, setDelBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
@@ -220,14 +221,23 @@ function TestDataPage({ onChanged }) {
   React.useEffect(() => { load(); }, []);
 
   const flash = (m) => { setMsg(m); setErr(''); setTimeout(()=>setMsg(''), 4000); };
-  const idList = ids.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean);
+
+  const kw = q.trim().toLowerCase();
+  const rows = cases.filter(c => !kw || c.id.toLowerCase().includes(kw) || (c.subject||'').toLowerCase().includes(kw));
+  const idList = Object.keys(sel).filter(id => sel[id]);
+  const allVisibleSelected = rows.length > 0 && rows.every(c => sel[c.id]);
+  const toggle = (id) => setSel(s => ({ ...s, [id]: !s[id] }));
+  const toggleAll = () => {
+    if (allVisibleSelected) { const n={...sel}; rows.forEach(c=>delete n[c.id]); setSel(n); }
+    else setSel(s => { const n={...s}; rows.forEach(c=>n[c.id]=true); return n; });
+  };
 
   const doDelete = async () => {
     setDelBusy(true); setErr('');
     try {
       const r = await api.testDataAction({ action:'bulk_delete', ids: idList, password: delPw });
       flash(`ลบสำเร็จ ${r.deleted.length} เรื่อง` + (r.not_found.length ? ` · ไม่พบ ${r.not_found.length} เรื่อง (${r.not_found.join(', ')})` : ''));
-      setIds(''); setDelPw(''); setConfirmDel(false);
+      setSel({}); setDelPw(''); setConfirmDel(false);
       if (onChanged) onChanged(); load();
     } catch(e) { setErr(e.message); }
     setDelBusy(false);
@@ -265,10 +275,27 @@ function TestDataPage({ onChanged }) {
       <div className="card card-pad" style={{marginBottom:18,borderLeft:'3px solid var(--danger)'}}>
         <h3 style={{fontSize:15,marginBottom:6,color:'var(--danger)'}}><Icon name="alert" style={{width:16,height:16}}/> ลบเรื่องทดสอบ (หลายเรื่องพร้อมกัน)</h3>
         <div className="notice notice-danger" style={{marginBottom:12}}><Icon name="alert"/><div>การดำเนินการนี้<b>มีความเสี่ยงสูงและไม่สามารถย้อนกลับได้</b> — จะลบสำนวน ไฟล์ ไทม์ไลน์ การเกษียน การแจ้งเตือน และเลขรับกลุ่มที่เกี่ยวข้องทั้งหมด</div></div>
-        <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>รหัสสำนวน (คั่นด้วยเว้นวรรค/บรรทัดใหม่/จุลภาค)</label>
-        <textarea className="input" rows={3} value={ids} onChange={e=>setIds(e.target.value)}
-          placeholder="เช่น CMP-2569-0039 CMP-2569-0040" style={{width:'100%',resize:'vertical',fontFamily:'monospace'}}/>
-        {idList.length > 0 && <div className="faint tiny" style={{marginTop:6}}>เลือก {idList.length} เรื่อง</div>}
+        <input className="input" value={q} onChange={e=>setQ(e.target.value)} placeholder="ค้นหา รหัส / ชื่อเรื่อง…" style={{maxWidth:340,marginBottom:10}}/>
+        <div className="table-wrap" style={{maxHeight:360,overflowY:'auto',border:'1px solid var(--line)',borderRadius:8}}>
+          <table className="tbl">
+            <thead><tr>
+              <th style={{width:40,textAlign:'center'}}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll}/></th>
+              <th>เลขทะเบียน</th><th>ชื่อเรื่อง</th><th>สถานะล่าสุด</th>
+            </tr></thead>
+            <tbody>
+              {rows.map(c => (
+                <tr key={c.id} onClick={()=>toggle(c.id)} style={{cursor:'pointer',background: sel[c.id]?'var(--danger-bg,#fef2f2)':undefined}}>
+                  <td style={{textAlign:'center'}} onClick={e=>e.stopPropagation()}><input type="checkbox" checked={!!sel[c.id]} onChange={()=>toggle(c.id)}/></td>
+                  <td><div className="code sm">{c.id}</div></td>
+                  <td style={{maxWidth:360}}><div style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.subject}</div></td>
+                  <td><StatusBadge s={c.status}/></td>
+                </tr>
+              ))}
+              {rows.length===0 && <tr><td colSpan={4} className="faint sm" style={{textAlign:'center',padding:'14px'}}>ไม่พบเรื่อง</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div className="faint tiny" style={{marginTop:6}}>เลือก {idList.length} จาก {cases.length} เรื่อง</div>
         {!confirmDel
           ? <button className="btn btn-outline" style={{marginTop:12,color:'var(--danger)',borderColor:'var(--danger)'}} disabled={idList.length===0} onClick={()=>setConfirmDel(true)}>
               <Icon name="x" style={{width:15,height:15}}/> ดำเนินการลบ {idList.length||''} เรื่อง

@@ -671,7 +671,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   } else if (view === "system" && role === "admin") {
     content = <SystemSettingsPage/>;
   } else if (view === "testdata" && role === "admin") {
-    content = <TestDataPage onChanged={refreshCases}/>;
+    content = <TestDataPage cases={cases} onChanged={refreshCases}/>;
   } else if (view === "groups" && role === "admin") {
     content = <GroupsPage currentUser={user}/>;
   } else if (view === "my-group" && user?.leader_of_group) {
