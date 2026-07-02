@@ -244,6 +244,15 @@ function buildCase(array $row, PDO $db): array {
         $row['has_archive'] = (bool)$ha->fetchColumn();
     } catch (Throwable $e) { $row['has_archive'] = false; }
 
+    // เรื่องสืบเนื่อง — ดึงชื่อเรื่องเดิม
+    if (!empty($row['origin_case_id'])) {
+        try {
+            $os = $db->prepare("SELECT subject FROM cases WHERE id = ?");
+            $os->execute([$row['origin_case_id']]);
+            $row['origin_subject'] = $os->fetchColumn() ?: null;
+        } catch (Throwable $e) { $row['origin_subject'] = null; }
+    }
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];

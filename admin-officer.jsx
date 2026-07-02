@@ -1353,7 +1353,7 @@ function DeleteCaseModal({ c, onDeleted, onClose }) {
   );
 }
 
-function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted, onRefresh }) {
+function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser, onCaseDeleted, onRefresh, onOpenCase }) {
   const [c, setC] = useState(() => cases.find(x=>x.id===cid) || null);
   const [tab, setTab] = useState("memos");
   const [assign, setAssign] = useState(false);
@@ -1464,6 +1464,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             <StatusBadge s={c.status}/>
           </div>
           <h1 style={{fontSize:22,lineHeight:1.45}}>{c.subject}</h1>
+          {c.origin_case_id && <div className="vcenter" style={{gap:6,marginTop:8,padding:'6px 12px',background:'var(--surface-2)',borderRadius:8,fontSize:13,display:'inline-flex'}}>
+            <Icon name="flag" style={{width:14,height:14,color:'var(--maroon)'}}/>
+            <span>เรื่องสืบเนื่องจาก <span className="code" style={{cursor:'pointer',color:'var(--maroon)'}} onClick={()=>onOpenCase && onOpenCase(c.origin_case_id)}>{c.origin_case_id}</span>{c.origin_subject ? ` — ${c.origin_subject}` : ''} (ดำเนินการเสร็จแล้ว)</span>
+          </div>}
           <div className="vcenter" style={{gap:8,marginTop:16,flexWrap:"wrap"}}>
             <PriBadge p={c.priority}/>
             <span className="badge badge-maroon">{TRACKS[c.track]?.label||c.track} · {c.cat}</span>

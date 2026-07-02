@@ -203,6 +203,8 @@ if ($action === 'hs_reopen') {
     foreach ($copyCols as $cc) $insVals[] = $case[$cc];
     $insVals = array_merge($insVals, ['received', 0, date('Y-m-d'), (int)$auth['id']]);
     if ($newToken !== null) { $insCols[] = 'track_token'; $insVals[] = $newToken; }
+    // เรื่องสืบเนื่อง — อ้างเลขเรื่องเดิม (ถ้ามีคอลัมน์)
+    if (in_array('origin_case_id', $caseCols)) { $insCols[] = 'origin_case_id'; $insVals[] = $caseId; }
     $db->prepare("INSERT INTO cases (" . implode(',', $insCols) . ") VALUES (" .
         implode(',', array_fill(0, count($insVals), '?')) . ")")->execute($insVals);
 
