@@ -1374,6 +1374,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [hsArchiveOpen, setHsArchiveOpen] = useState(false);
   const [hsReopenOpen, setHsReopenOpen] = useState(false);
+  const [sendLetterOpen, setSendLetterOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
@@ -1646,6 +1647,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setHsReopenOpen(true)}>
                 <Icon name="flag" style={{width:16,height:16}}/> ดำเนินการเป็นเรื่องใหม่
               </button>
+              <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--maroon)',color:'var(--maroon)'}} onClick={()=>setSendLetterOpen(true)}>
+                <Icon name="send" style={{width:16,height:16}}/> จัดทำหนังสือส่ง
+              </button>
             </>}
             {role==="head_secretary" && c.has_archive &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>เรื่องนี้ถูกจัดเก็บแล้ว</div></div>}
@@ -1786,6 +1790,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
           const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
           if (onRefresh) onRefresh();
         }}/>}
+      {sendLetterOpen && <SendLetterModal c={c} close={()=>setSendLetterOpen(false)} onDone={async ()=>{
+        setSendLetterOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
       {hsReopenOpen && <ForwardUpModal c={c} close={()=>setHsReopenOpen(false)}
         action="hs_reopen" title="ดำเนินการเป็นเรื่องใหม่"
         info="นำเรื่องกลับมาดำเนินการใหม่ — สถานะจะกลับเป็นรับเรื่องเพื่อเริ่มกระบวนการอีกครั้ง" noteLabel="หมายเหตุ"
@@ -2155,6 +2164,73 @@ function ForwardUpModal({ c, close, onDone, action='forward_up', title='รา�
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
           <button className="btn btn-primary" onClick={submit} disabled={!noteOk || saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงาน'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal จัดทำหนังสือส่ง (หัวหน้าธุรการ → เลขาธิการ/หน่วยงานภายนอก) ---------------- */
+function SendLetterModal({ c, close, onDone }) {
+  const [recipient, setRecipient] = useState('');
+  const [note, setNote] = useState('');
+  const [execs, setExecs] = useState([]);
+  const [agencies, setAgencies] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    api.getSendRecipients()
+      .then(r => { setExecs(r.executives || []); setAgencies(r.agencies || []); })
+      .catch(() => {});
+  }, []);
+
+  const noteOk = note.trim().length >= 10;
+  const canSubmit = recipient.trim() !== '' && noteOk && !saving;
+  const isNewAgency = recipient.trim() !== '' &&
+    !execs.includes(recipient.trim()) && !agencies.includes(recipient.trim());
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSaving(true); setErr('');
+    try {
+      await api.caseReport({ action:'hs_send_letter', case_id: c.id, recipient: recipient.trim(), note: note.trim() });
+      await onDone();
+    } catch(e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:500}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>จัดทำหนังสือส่ง</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>ส่งหนังสือถึงผู้บริหารระดับสูง (เลขาธิการ / รองเลขาธิการ สอศ.) หรือหน่วยงานภายนอก — พิมพ์ชื่อหน่วยงานใหม่ได้ ระบบจะบันทึกไว้ใช้ครั้งต่อไป</div></div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ส่งถึง <span style={{color:'var(--danger)'}}>*</span></label>
+            <input className="input" list="send-letter-recipients" value={recipient}
+              onChange={e=>setRecipient(e.target.value)}
+              placeholder="พิมพ์เพื่อค้นหา หรือพิมพ์ชื่อหน่วยงานใหม่…" style={{width:'100%'}}/>
+            <datalist id="send-letter-recipients">
+              {execs.map((n,i)=><option key={'e'+i} value={n}>ผู้บริหารระดับสูง</option>)}
+              {agencies.map((n,i)=><option key={'a'+i} value={n}>หน่วยงานภายนอก</option>)}
+            </datalist>
+            {isNewAgency && <div className="tiny" style={{color:'var(--warn)',marginTop:4}}>หน่วยงานใหม่ — ระบบจะบันทึก “{recipient.trim()}” ไว้ในรายการหน่วยงานภายนอก</div>}
+          </div>
+          <div>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>รายละเอียด <span style={{color:'var(--danger)'}}>*</span></label>
+            <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="ระบุรายละเอียดหนังสือส่ง (อย่างน้อย 10 ตัวอักษร)"
+              style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+            {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>รายละเอียดต้องมีอย่างน้อย 10 ตัวอักษร</div>}
+          </div>
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'จัดทำหนังสือส่ง'}</button>
         </div>
       </div>
     </div>

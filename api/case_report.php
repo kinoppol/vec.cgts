@@ -10,6 +10,21 @@ require_once __DIR__ . '/_common.php';
 
 $auth   = require_auth();
 $db     = getDB();
+
+/* ── GET ?action=recipients — รายชื่อปลายทางหนังสือส่ง (ผู้บริหารระดับสูง + หน่วยงานภายนอก) ── */
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (($_GET['action'] ?? '') !== 'recipients') err('Method not allowed', 405);
+    $execs = $db->query("SELECT display_name FROM users
+        WHERE role IN ('secretary','deputy_secretary') AND active=1
+        ORDER BY role='secretary' DESC, display_name")->fetchAll(PDO::FETCH_COLUMN);
+    try {
+        $agencies = $db->query("SELECT name FROM lookup_items
+            WHERE category='external_agency' AND active=1
+            ORDER BY sort_order, name")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) { $agencies = []; }
+    json_out(['executives' => $execs, 'agencies' => $agencies]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('Method not allowed', 405);
 
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -219,6 +234,38 @@ if ($action === 'hs_reopen') {
 
     audit('hs_reopen', $caseId, "new={$newId} files={$nFiles}");
     json_out(['ok' => true, 'new_id' => $newId]);
+}
+
+/* ── หัวหน้าธุรการ: จัดทำหนังสือส่ง (เลขาธิการ สอศ. / หน่วยงานภายนอก) ── */
+if ($action === 'hs_send_letter') {
+    $recipient = trim($body['recipient'] ?? '');
+    $note      = trim($body['note'] ?? '');
+    if ($recipient === '') err('กรุณาระบุปลายทางหนังสือส่ง', 422);
+    if (mb_strlen($note) < 10) err('กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร', 422);
+
+    addEvent($db, $caseId, 'จัดทำหนังสือส่ง', $actorName, $moment,
+        "ถึง: {$recipient}\n{$note}", 'send');
+
+    // ปลายทางเป็นผู้บริหารระดับสูงในระบบ → แจ้งเตือน; ไม่ใช่ → บันทึกเป็นหน่วยงานภายนอกไว้ใช้ครั้งต่อไป
+    $eu = $db->prepare("SELECT id FROM users WHERE display_name = ? AND role IN ('secretary','deputy_secretary') AND active=1 LIMIT 1");
+    $eu->execute([$recipient]);
+    $execId = $eu->fetchColumn();
+    if ($execId) {
+        notifyUser($db, (int)$execId, $caseId, 'send_letter',
+            "📨 หนังสือส่งถึงท่าน: {$subjShort}", $note);
+    } else {
+        try {
+            $ex = $db->prepare("SELECT id FROM lookup_items WHERE category='external_agency' AND name=? LIMIT 1");
+            $ex->execute([$recipient]);
+            if (!$ex->fetchColumn()) {
+                $db->prepare("INSERT INTO lookup_items (category, name, sort_order, active) VALUES ('external_agency', ?, 999, 1)")
+                   ->execute([$recipient]);
+            }
+        } catch (Throwable) {}
+    }
+
+    audit('hs_send_letter', $caseId, "to={$recipient}");
+    json_out(['ok' => true]);
 }
 
 err('action ไม่ถูกต้อง', 400);

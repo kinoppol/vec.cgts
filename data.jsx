@@ -173,6 +173,7 @@ const api = {
   uploadEventFile:  (eventId, file) => { const fd = new FormData(); fd.append('event_id', eventId); fd.append('file', file); return apiFetch('/api/upload_event.php', { method:'POST', body: fd }); },
   uploadCaseFile:   (caseId, file, cls='public') => { const fd = new FormData(); fd.append('case_id', caseId); fd.append('cls', cls); fd.append('file', file); return apiFetch('/api/upload.php', { method:'POST', body: fd }); },
   caseReport:       (data)       => apiFetch('/api/case_report.php', { method:'POST', body: JSON.stringify(data) }),
+  getSendRecipients: ()          => apiFetch('/api/case_report.php?action=recipients'),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),
   saveRoleLabel:     (data)     => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
   getLookups:        (cat)      => apiFetch('/api/lookup.php?cat=' + encodeURIComponent(cat)),
