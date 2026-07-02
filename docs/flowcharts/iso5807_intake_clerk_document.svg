@@ -1,0 +1,65 @@
+<svg viewBox="0 0 560 1360" width="560" height="1360" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Sarabun','TH Sarabun New',sans-serif">
+<title>ผังงาน ISO-5807 — การนำเรื่องเข้าจากเอกสารโดยธุรการ ตั้งแต่เริ่มจนสิ้นสุด</title>
+<desc>ธุรการรับหนังสือ/เอกสารเข้า ป้อนข้อมูล ลงทะเบียนเป็นสำนวน แล้วเข้ากระบวนการหลักจนออกคำสั่งและพิจารณาปลายทาง</desc>
+<defs>
+<marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8a8f98"/></marker>
+<marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9d2235"/></marker>
+</defs>
+<style>
+.sh{fill:#ffffff;stroke:#cfd4da;stroke-width:1.2;}
+.term{fill:#eceef1;stroke:#b3b9c2;stroke-width:1.2;}
+.dec{fill:#fff;stroke:#9d2235;stroke-width:1.3;}
+.t{fill:#141414;font-size:12.5px;}
+.tb{fill:#141414;font-size:12.5px;font-weight:700;}
+.dt{fill:#9d2235;font-size:12px;font-weight:700;}
+.ln{stroke:#8a8f98;stroke-width:1.5;fill:none;}
+.lp{stroke:#9d2235;stroke-width:1.4;fill:none;stroke-dasharray:5 4;}
+.el{fill:#5b6470;font-size:11px;font-weight:600;}
+.cap{fill:#9d2235;font-size:14px;font-weight:800;}
+</style>
+<rect x="0" y="0" width="560" height="1360" fill="#ffffff"/>
+<text class="cap" x="280" y="26" text-anchor="middle">ที่มา ข · ธุรการนำเรื่องเข้าจากเอกสาร</text>
+
+<rect class="term" x="195" y="42" width="170" height="38" rx="19"/><text class="tb" x="280" y="66" text-anchor="middle">เริ่ม — ธุรการ</text>
+<path class="sh" d="M175,100 H385 V150 c-26.25,11 -78.75,11 -105,0 c-26.25,-11 -78.75,-11 -105,0 Z"/><text class="t" x="280" y="126" text-anchor="middle">หนังสือ / เอกสารเข้า</text>
+<polygon class="sh" points="175,188 385,172 385,220 175,220"/><text class="t" x="280" y="200" text-anchor="middle">นำเข้าเรื่องจากเอกสาร (ป้อนข้อมูล)</text>
+<rect class="sh" x="175" y="238" width="210" height="46" rx="4"/><text class="t" x="280" y="257" text-anchor="middle">ลงทะเบียนเลขรับ · แปลงเป็นสำนวน</text><text class="t" x="280" y="273" text-anchor="middle">ย้ายไฟล์เข้าคลังสำนวน</text>
+
+<rect class="sh" x="150" y="418" width="260" height="46" rx="4" fill="#eceef1"/><text class="tb" x="280" y="437" text-anchor="middle">สำนวนเข้าระบบ</text><text class="t" x="280" y="454" text-anchor="middle">สถานะ: รับเรื่อง (SLA เริ่ม)</text>
+
+<rect class="sh" x="130" y="486" width="300" height="40" rx="4"/><text class="t" x="280" y="511" text-anchor="middle">หัวหน้าธุรการ: เกษียนเสนอ ผอ.สำนัก</text>
+<rect class="sh" x="130" y="544" width="300" height="40" rx="4"/><text class="t" x="280" y="569" text-anchor="middle">ผอ.สำนัก: มอบหมายสั่งการ + ข้อสั่งการ</text>
+<rect class="sh" x="130" y="602" width="300" height="40" rx="4"/><text class="t" x="280" y="627" text-anchor="middle">ธุรการ: เกษียนถึง ผอ.กลุ่ม (เลขรับกลุ่ม)</text>
+<rect class="sh" x="130" y="660" width="300" height="40" rx="4"/><text class="t" x="280" y="685" text-anchor="middle">ผอ.กลุ่ม: มอบหมายนิติกร → ส่งเรื่อง</text>
+<rect class="sh" x="130" y="718" width="300" height="40" rx="4"/><text class="t" x="280" y="743" text-anchor="middle">นิติกร: สอบสวน (ตรวจข้อเท็จจริง) → รายงานผล</text>
+<polygon class="dec" points="280,776 380,820 280,864 180,820"/><text class="dt" x="280" y="816" text-anchor="middle">นิติกร</text><text class="dt" x="280" y="832" text-anchor="middle">เกษียนกลับ?</text>
+<rect class="sh" x="130" y="896" width="300" height="40" rx="4"/><text class="t" x="280" y="921" text-anchor="middle">เสนอผู้บังคับบัญชา → ผอ.สำนัก</text>
+<rect class="sh" x="130" y="954" width="300" height="42" rx="4"/><text class="tb" x="280" y="972" text-anchor="middle">ผอ.สำนัก: ออกคำสั่ง → ปิดเรื่อง</text><text class="t" x="280" y="988" text-anchor="middle">เลือกคำสั่ง + ความเห็น + PDF</text>
+<polygon class="dec" points="280,1016 400,1066 280,1116 160,1066"/><text class="dt" x="280" y="1062" text-anchor="middle">หัวหน้าธุรการ</text><text class="dt" x="280" y="1078" text-anchor="middle">พิจารณา</text>
+
+<path class="ln" d="M280,80 V100" marker-end="url(#a)"/>
+<path class="ln" d="M280,154 V172" marker-end="url(#a)"/>
+<path class="ln" d="M280,220 V238" marker-end="url(#a)"/>
+<path class="ln" d="M280,284 V418" marker-end="url(#a)"/>
+<path class="ln" d="M280,464 V486" marker-end="url(#a)"/>
+<path class="ln" d="M280,526 V544" marker-end="url(#a)"/>
+<path class="ln" d="M280,584 V602" marker-end="url(#a)"/>
+<path class="ln" d="M280,642 V660" marker-end="url(#a)"/>
+<path class="ln" d="M280,700 V718" marker-end="url(#a)"/>
+<path class="ln" d="M280,758 V776" marker-end="url(#a)"/>
+<path class="ln" d="M280,864 V896" marker-end="url(#a)"/><text class="el" x="288" y="884">ไม่</text>
+<path class="ln" d="M280,936 V954" marker-end="url(#a)"/>
+<path class="ln" d="M280,996 V1016" marker-end="url(#a)"/>
+<path class="lp" d="M380,820 C450,802 450,700 432,681" marker-end="url(#ab)"/><text class="el" x="392" y="752" fill="#9d2235">ใช่ · ปลดล็อก</text>
+
+<rect class="term" x="30" y="1180" width="150" height="40" rx="20"/><text class="tb" x="105" y="1205" text-anchor="middle">จัดเก็บ · สิ้นสุด</text>
+<rect class="sh" x="205" y="1176" width="150" height="48" rx="4"/><line x1="214" y1="1176" x2="214" y2="1224" stroke="#cfd4da"/><line x1="346" y1="1176" x2="346" y2="1224" stroke="#cfd4da"/><text class="t" x="280" y="1196" text-anchor="middle">สำเนา+เลขใหม่</text><text class="t" x="280" y="1212" text-anchor="middle">(สืบเนื่อง)</text>
+<polygon class="sh" points="396,1180 536,1180 522,1222 382,1222"/><text class="t" x="459" y="1205" text-anchor="middle">ออกหนังสือส่ง</text>
+<rect class="term" x="384" y="1262" width="150" height="36" rx="18"/><text class="tb" x="459" y="1285" text-anchor="middle">สิ้นสุด</text>
+
+<path class="ln" d="M160,1066 C90,1100 100,1150 105,1180" marker-end="url(#a)"/><text class="el" x="96" y="1150">เก็บ</text>
+<path class="ln" d="M280,1116 V1176" marker-end="url(#a)"/><text class="el" x="288" y="1150">เรื่องใหม่</text>
+<path class="ln" d="M400,1066 C480,1100 470,1150 459,1180" marker-end="url(#a)"/><text class="el" x="466" y="1150">หนังสือส่ง</text>
+<path class="ln" d="M459,1222 V1262" marker-end="url(#a)"/>
+<path class="lp" d="M205,1200 H26 V441 H150" marker-end="url(#ab)"/>
+</svg>
