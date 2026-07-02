@@ -1360,6 +1360,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [showAssignDone, setShowAssignDone] = useState(false);
   const [confirmAssignDone, setConfirmAssignDone] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [sendReportOpen, setSendReportOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -1568,11 +1569,15 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {c.lawyer_sent_at &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้นิติกรผู้ดำเนินการแล้ว — ล็อกการเปลี่ยนนิติกร</div></div>}
 
-            {/* นิติกรผู้ดำเนินการ: รายงานผล / เกษียนกลับให้ ผอ.กลุ่ม ทบทวน */}
-            {viewerIsLawyer && c.status!=="closed" && <>
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> รายงานผลการดำเนินการ</button>
+            {/* นิติกรผู้ดำเนินการ: รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
+            {viewerIsLawyer && c.status!=="closed" && !c.report_sent_at && <>
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {(c.report_note || c.status==='reporting') ? 'แก้ไขรายงานผล' : 'รายงานผลการดำเนินการ'}</button>
+              {(c.report_note || c.status==='reporting') &&
+                <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendReportOpen(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งรายงานให้ ผอ.กลุ่ม</button>}
               <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setReturnOpen(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนกลับให้ ผอ.กลุ่ม</button>
             </>}
+            {viewerIsLawyer && c.report_sent_at &&
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานผลให้ ผอ.กลุ่มแล้ว</div></div>}
 
             {/* ผอ.กลุ่ม: เกษียนรายงานผลถึง ผอ.สำนัก ผ่านธุรการ (เมื่อนิติกรรายงานผลแล้ว) */}
             {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.has_report &&
@@ -1663,6 +1668,11 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       }}/>}
       {reportOpen && <ReportResultModal c={c} close={()=>setReportOpen(false)} onDone={async ()=>{
         setReportOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {sendReportOpen && <SendReportModal c={c} close={()=>setSendReportOpen(false)} onDone={async ()=>{
+        setSendReportOpen(false);
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
@@ -1805,7 +1815,7 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
 
 /* ---------------- Modal นิติกรรายงานผลการดำเนินการ (ข้อความ + แนบหลายไฟล์) ---------------- */
 function ReportResultModal({ c, close, onDone }) {
-  const [note, setNote] = useState('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n');
+  const [note, setNote] = useState(c.report_note || ('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n'));
   const [files, setFiles] = useState([]); // File[]
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -1832,7 +1842,7 @@ function ReportResultModal({ c, close, onDone }) {
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>รายงานผลถึง ผอ.กลุ่ม โดยพิมพ์ข้อความ และ/หรือ แนบไฟล์รายงาน (แนบได้หลายไฟล์)</div></div>
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>บันทึกร่างรายงานผล (พิมพ์ข้อความ และ/หรือ แนบไฟล์หลายไฟล์) — แก้ไขได้จนกว่าจะกด “ส่งรายงานให้ ผอ.กลุ่ม”</div></div>
           <div style={{marginBottom:14}}>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ผลการดำเนินการ</label>
             <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
@@ -1856,7 +1866,41 @@ function ReportResultModal({ c, close, onDone }) {
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงานผล'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'บันทึกรายงาน'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal ยืนยันส่งรายงานผลให้ ผอ.กลุ่ม (ล็อกการแก้ไข) ---------------- */
+function SendReportModal({ c, close, onDone }) {
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true); setErr('');
+    try { await api.caseReport({ action:'report_send', case_id: c.id }); await onDone(); }
+    catch(e) { setErr(e.message); setSaving(false); }
+  };
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันส่งรายงานผลให้ ผอ.กลุ่ม</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>เมื่อส่งรายงานแล้ว จะ<b>ไม่สามารถแก้ไขรายงานผลได้อีก</b> โปรดตรวจสอบให้แน่ใจก่อนยืนยัน</div></div>
+          {c.report_note && <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px'}}>
+            <div className="faint tiny" style={{marginBottom:4}}>ผลการดำเนินการ</div>
+            <div style={{fontSize:13,whiteSpace:'pre-wrap',lineHeight:1.6}}>{c.report_note}</div>
+          </div>}
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันส่งรายงาน'}</button>
         </div>
       </div>
     </div>

@@ -10,6 +10,32 @@ require_once __DIR__ . '/../config/db.php';
 
 $confirm = $_GET['confirm'] ?? '';
 
+/* ── [28] report_draft — รายงานผลนิติกร (ร่าง แก้ได้จนกว่าจะส่ง) ──────── */
+if ($confirm === 'report_draft') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [28]: รายงานผลนิติกร (ร่าง)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $cols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ([
+            'report_note    TEXT     DEFAULT NULL AFTER lawyer_sent_at',
+            'report_sent_at DATETIME DEFAULT NULL AFTER report_note',
+        ] as $col) {
+            $name = explode(' ', $col)[0];
+            if (!in_array($name, $cols)) {
+                $db->exec("ALTER TABLE cases ADD COLUMN $col");
+                echo "✓ ALTER cases ADD $name\n";
+            } else { echo "– cases.$name มีอยู่แล้ว ข้าม\n"; }
+        }
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) {
+        echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n";
+    }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [27] lawyer_dispatch — ข้อสั่งการ + สถานะส่งเรื่องให้นิติกร ─────── */
 if ($confirm === 'lawyer_dispatch') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -974,6 +1000,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[28] รายงานผลนิติกร (ร่าง)</b> — cases.report_note + report_sent_at (แก้ได้จนกว่าจะส่งให้ ผอ.กลุ่ม)<br><code><a href="?confirm=report_draft">migrate.php?confirm=report_draft</a></code></li>';
     echo '<li><b>[27] ข้อสั่งการ + ส่งเรื่องให้นิติกร</b> — cases.lawyer_note/by/at + lawyer_sent_at (ล็อกการเปลี่ยนนิติกร)<br><code><a href="?confirm=lawyer_dispatch">migrate.php?confirm=lawyer_dispatch</a></code></li>';
     echo '<li><b>[26] ขั้น SLA เสนอ ผอ.กลุ่ม</b> — เพิ่มขั้นตอน propose_group (auto เมื่อมอบหมาย clerk / เกษียน)<br><code><a href="?confirm=propose_group_step">migrate.php?confirm=propose_group_step</a></code></li>';
     echo '<li><b>[25] เลขรับภายในกลุ่ม</b> — groups.recv_prefix + cases.group_recv_no + ตาราง group_receipts<br><code><a href="?confirm=group_receipt">migrate.php?confirm=group_receipt</a></code></li>';

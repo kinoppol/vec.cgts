@@ -74,18 +74,39 @@ if ($action === 'return') {
     json_out(['ok' => true]);
 }
 
-/* ── นิติกรรายงานผลการดำเนินการ ── */
+/* ── นิติกรบันทึก/แก้ไขร่างรายงานผล (ยังไม่ส่ง — แก้ได้จนกว่าจะส่งให้ ผอ.กลุ่ม) ── */
 if ($action === 'report') {
+    $hasReportCol = in_array('report_note', $caseCols);
+    if ($hasReportCol && !empty($case['report_sent_at'])) {
+        err('ส่งรายงานให้ ผอ.กลุ่ม แล้ว ไม่สามารถแก้ไขได้', 409);
+    }
     $note      = trim($body['note'] ?? '');
     $fileCount = (int)($body['file_count'] ?? 0);
     if ($note === '' && $fileCount < 1) err('กรุณาพิมพ์รายงานผลหรือแนบไฟล์อย่างน้อย 1 อย่าง', 422);
-    $detail = $note !== '' ? $note : '(รายงานผลโดยแนบไฟล์)';
-    if ($fileCount > 0) $detail .= "\n📎 แนบไฟล์รายงาน {$fileCount} ไฟล์ (ดูในคลังสำนวน)";
-    addEvent($db, $caseId, 'รายงานผลการดำเนินการ', $actorName, $moment, $detail, 'checkCircle');
+    if ($hasReportCol) {
+        $db->prepare("UPDATE cases SET report_note = ? WHERE id = ?")->execute([$note ?: null, $caseId]);
+    }
     $db->prepare("UPDATE cases SET status='reporting' WHERE id = ? AND status NOT IN ('closed','rejected')")->execute([$caseId]);
+    audit('lawyer_report_draft', $caseId, $note);
+    json_out(['ok' => true]);
+}
+
+/* ── นิติกรส่งรายงานผลให้ ผอ.กลุ่ม (ล็อกการแก้ไข + แจ้งเตือน) ── */
+if ($action === 'report_send') {
+    $hasReportCol = in_array('report_note', $caseCols);
+    if ($hasReportCol && !empty($case['report_sent_at'])) err('ส่งรายงานแล้ว', 409);
+    $note = $hasReportCol ? trim($case['report_note'] ?? '') : '';
+    $fc = $db->prepare("SELECT COUNT(*) FROM case_files WHERE case_id = ?");
+    $fc->execute([$caseId]);
+    $fileCount = (int)$fc->fetchColumn();
+    if ($note === '' && $fileCount < 1) err('ยังไม่มีรายงานผลให้ส่ง กรุณาบันทึกรายงานก่อน', 422);
+    $detail = $note !== '' ? $note : '(รายงานผลโดยแนบไฟล์)';
+    if ($fileCount > 0) $detail .= "\n📎 มีไฟล์แนบในคลังสำนวน";
+    addEvent($db, $caseId, 'รายงานผลการดำเนินการ', $actorName, $moment, $detail, 'checkCircle');
+    if ($hasReportCol) $db->prepare("UPDATE cases SET report_sent_at = NOW() WHERE id = ?")->execute([$caseId]);
     notifyUser($db, groupLeaderUserId($db, $case['assigned_group'] ?? null), $caseId, 'report',
-        "📄 นิติกรรายงานผลการดำเนินการ: {$subjShort}", $detail);
-    audit('lawyer_report', $caseId, $detail);
+        "📄 นิติกรส่งรายงานผลการดำเนินการ: {$subjShort}", $detail);
+    audit('lawyer_report_send', $caseId, $detail);
     json_out(['ok' => true]);
 }
 
