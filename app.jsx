@@ -116,7 +116,7 @@ function navFor(role, counts, user) {
   if (role === "officer") return [
     {v:"dashboard", ic:"home",     l:"แดชบอร์ด"},
     {sec:"การดำเนินงาน"},
-    {v:"cases",     ic:"inbox",    l:"จัดการเรื่อง", count:counts.newQ},
+    {v:"cases",     ic:"inbox",    l:"เรื่องที่ได้รับมอบหมาย", count:counts.newQ},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงาน"},
@@ -561,6 +561,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   const counts = {
     newQ: role === 'head_secretary'
       ? cases.filter(c => !c.assignee && c.status === 'received').length
+      : role === 'officer'
+      ? cases.filter(c => !['investigating','reporting','closed','rejected'].includes(c.status)).length
       : cases.filter(c=>["received","screening"].includes(c.status)).length,
     pendingProposals: role === 'dir_legal'
       ? cases.filter(c => {
