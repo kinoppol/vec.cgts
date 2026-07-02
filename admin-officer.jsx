@@ -1602,6 +1602,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {/* ธุรการ: เกษียนรายงานผลต่อ ผอ.สำนัก (หลัง ผอ.กลุ่มส่งกลับ, เริ่มขั้นเสนอผู้บังคับบัญชา) */}
             {viewerIsClerk && c.status!=="closed" && investigateDone && !proposeBossStarted &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setClerkForwardOpen(true)}><Icon name="send" style={{width:16,height:16}}/> เกษียนรายงานถึง ผอ.สำนัก</button>}
+
+            {/* ธุรการ: เสนอรายงานต่อ ผอ.สำนัก เรียบร้อยแล้ว */}
+            {viewerIsClerk && investigateDone && proposeBossStarted &&
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ได้เสนอรายงานต่อผู้อำนวยการสำนักเรียบร้อยแล้ว</div></div>}
           </div>
 
           <div className="card card-pad">
