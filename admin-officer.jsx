@@ -1805,7 +1805,7 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
 
 /* ---------------- Modal นิติกรรายงานผลการดำเนินการ (ข้อความ + แนบหลายไฟล์) ---------------- */
 function ReportResultModal({ c, close, onDone }) {
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n');
   const [files, setFiles] = useState([]); // File[]
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
