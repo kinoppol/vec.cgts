@@ -171,6 +171,8 @@ const api = {
   createEvent:      (data)       => apiFetch('/api/case_events.php', { method:'POST', body: JSON.stringify(data) }),
   updateEvent:      (id, data)   => apiFetch('/api/case_events.php?id=' + id, { method:'PATCH', body: JSON.stringify(data) }),
   uploadEventFile:  (eventId, file) => { const fd = new FormData(); fd.append('event_id', eventId); fd.append('file', file); return apiFetch('/api/upload_event.php', { method:'POST', body: fd }); },
+  uploadCaseFile:   (caseId, file, cls='public') => { const fd = new FormData(); fd.append('case_id', caseId); fd.append('cls', cls); fd.append('file', file); return apiFetch('/api/upload.php', { method:'POST', body: fd }); },
+  caseReport:       (data)       => apiFetch('/api/case_report.php', { method:'POST', body: JSON.stringify(data) }),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),
   saveRoleLabel:     (data)     => apiFetch('/api/role_labels.php', { method:'POST', body: JSON.stringify(data) }),
   getLookups:        (cat)      => apiFetch('/api/lookup.php?cat=' + encodeURIComponent(cat)),

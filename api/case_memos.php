@@ -115,6 +115,24 @@ try {
     }
 } catch (Throwable) {}
 
+/* 5) เกษียนกลับ / รายงานผล / เกษียนรายงานถึง ผอ.สำนัก (จาก case_events) */
+try {
+    $eq = $db->prepare("SELECT title, actor, detail, started_at
+        FROM case_events
+        WHERE case_id = ? AND title IN ('เกษียนกลับ ผอ.กลุ่ม','รายงานผลการดำเนินการ','เกษียนรายงานถึง ผอ.สำนัก')
+          AND detail IS NOT NULL AND detail <> ''
+        ORDER BY id");
+    $eq->execute([$caseId]);
+    foreach ($eq->fetchAll() as $e) {
+        $memos[] = [
+            'when' => $e['started_at'] ?: $case['created_at'],
+            'kind' => $e['title'],
+            'actor_name' => $e['actor'] ?: '—', 'actor_title' => null, 'actor_role' => null,
+            'text' => $e['detail'], 'extra' => null,
+        ];
+    }
+} catch (Throwable) {}
+
 /* เรียงตามเวลา (เก่า→ใหม่) */
 usort($memos, fn($a, $b) => strcmp($a['when'] ?? '', $b['when'] ?? ''));
 

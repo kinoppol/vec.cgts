@@ -1359,6 +1359,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [markingAssign, setMarkingAssign] = useState(false);
   const [showAssignDone, setShowAssignDone] = useState(false);
   const [confirmAssignDone, setConfirmAssignDone] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [forwardUpOpen, setForwardUpOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
@@ -1564,6 +1567,16 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {/* แสดงสถานะเมื่อส่งเรื่องแล้ว */}
             {c.lawyer_sent_at &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้นิติกรผู้ดำเนินการแล้ว — ล็อกการเปลี่ยนนิติกร</div></div>}
+
+            {/* นิติกรผู้ดำเนินการ: รายงานผล / เกษียนกลับให้ ผอ.กลุ่ม ทบทวน */}
+            {viewerIsLawyer && c.status!=="closed" && <>
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> รายงานผลการดำเนินการ</button>
+              <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setReturnOpen(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนกลับให้ ผอ.กลุ่ม</button>
+            </>}
+
+            {/* ผอ.กลุ่ม: เกษียนรายงานผลถึง ผอ.สำนัก ผ่านธุรการ (เมื่อนิติกรรายงานผลแล้ว) */}
+            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.has_report &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setForwardUpOpen(true)}><Icon name="send" style={{width:16,height:16}}/> เกษียนรายงานถึง ผอ.สำนัก</button>}
           </div>
 
           <div className="card card-pad">
@@ -1645,6 +1658,21 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       }}/>}
       {forwardGroup && <ForwardToGroupModal c={c} close={()=>setForwardGroup(false)} onDone={async ()=>{
         setForwardGroup(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {reportOpen && <ReportResultModal c={c} close={()=>setReportOpen(false)} onDone={async ()=>{
+        setReportOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {returnOpen && <ReturnToDirModal c={c} close={()=>setReturnOpen(false)} onDone={async ()=>{
+        setReturnOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {forwardUpOpen && <ForwardUpModal c={c} close={()=>setForwardUpOpen(false)} onDone={async ()=>{
+        setForwardUpOpen(false);
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
@@ -1769,6 +1797,138 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
           <button className="btn btn-primary" onClick={submit} disabled={saving || !noteOk}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal นิติกรรายงานผลการดำเนินการ (ข้อความ + แนบหลายไฟล์) ---------------- */
+function ReportResultModal({ c, close, onDone }) {
+  const [note, setNote] = useState('');
+  const [files, setFiles] = useState([]); // File[]
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const canSubmit = (note.trim().length > 0 || files.length > 0) && !saving;
+
+  const addFiles = (list) => setFiles(prev => [...prev, ...Array.from(list)]);
+  const removeFile = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i));
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSaving(true); setErr('');
+    try {
+      for (const f of files) { await api.uploadCaseFile(c.id, f, 'public'); }
+      await api.caseReport({ action:'report', case_id: c.id, note: note.trim(), file_count: files.length });
+      await onDone();
+    } catch(e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>รายงานผลการดำเนินการ</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>รายงานผลถึง ผอ.กลุ่ม โดยพิมพ์ข้อความ และ/หรือ แนบไฟล์รายงาน (แนบได้หลายไฟล์)</div></div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ผลการดำเนินการ</label>
+            <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="สรุปผลการดำเนินการตามข้อสั่งการ…"
+              style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+          </div>
+          <div>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ไฟล์แนบรายงาน</label>
+            <input type="file" multiple onChange={e=>{ addFiles(e.target.files); e.target.value=''; }}
+              accept=".pdf,.jpg,.jpeg,.png,.zip,.docx,.xlsx"/>
+            {files.length > 0 && <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+              {files.map((f,i)=>(
+                <div key={i} className="between" style={{background:'var(--surface-2)',borderRadius:6,padding:'6px 10px'}}>
+                  <span className="vcenter" style={{gap:6,fontSize:13,overflow:'hidden'}}><Icon name="file" style={{width:15,height:15}}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.name}</span></span>
+                  <button className="icon-btn" style={{width:26,height:26}} onClick={()=>removeFile(i)} disabled={saving}><Icon name="x" style={{width:13,height:13}}/></button>
+                </div>
+              ))}
+            </div>}
+          </div>
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงานผล'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal นิติกรเกษียนกลับให้ ผอ.กลุ่ม ทบทวน ---------------- */
+function ReturnToDirModal({ c, close, onDone }) {
+  const [note, setNote] = useState('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const noteOk = note.trim().length >= 3;
+  const submit = async () => {
+    if (!noteOk || saving) return;
+    setSaving(true); setErr('');
+    try { await api.caseReport({ action:'return', case_id: c.id, note: note.trim() }); await onDone(); }
+    catch(e) { setErr(e.message); setSaving(false); }
+  };
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="flag" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เกษียนกลับให้ ผอ.กลุ่ม ทบทวน</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>ส่งเรื่องกลับให้ ผอ.กลุ่ม พิจารณาเปลี่ยนผู้ดำเนินการหรือแก้ข้อสั่งการ (จะปลดล็อกการเปลี่ยนนิติกร)</div></div>
+          <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อความเกษียนกลับ <span style={{color:'var(--danger)'}}>*</span></label>
+          <textarea className="input" rows={6} value={note} onChange={e=>setNote(e.target.value)}
+            style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+          {!noteOk && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>กรุณาระบุข้อความอย่างน้อย 3 ตัวอักษร</div>}
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!noteOk || saving}><Icon name="flag" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'เกษียนกลับ'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal ผอ.กลุ่ม เกษียนรายงานผลถึง ผอ.สำนัก ผ่านธุรการ ---------------- */
+function ForwardUpModal({ c, close, onDone }) {
+  const [note, setNote] = useState('เรียน ผู้อำนวยการสำนักนิติการ (ผ่านเจ้าหน้าที่ธุรการ)\n');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const noteOk = note.trim().length >= 3;
+  const submit = async () => {
+    if (!noteOk || saving) return;
+    setSaving(true); setErr('');
+    try { await api.caseReport({ action:'forward_up', case_id: c.id, note: note.trim() }); await onDone(); }
+    catch(e) { setErr(e.message); setSaving(false); }
+  };
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เกษียนรายงานถึง ผอ.สำนัก</h3></div>
+          <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>ส่งรายงานผลจากนิติกรกลับถึง ผอ.สำนัก ผ่านเจ้าหน้าที่ธุรการเจ้าของเรื่อง</div></div>
+          <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อความ <span style={{color:'var(--danger)'}}>*</span></label>
+          <textarea className="input" rows={6} value={note} onChange={e=>setNote(e.target.value)}
+            style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
+          {!noteOk && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>กรุณาระบุข้อความอย่างน้อย 3 ตัวอักษร</div>}
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!noteOk || saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงาน'}</button>
         </div>
       </div>
     </div>

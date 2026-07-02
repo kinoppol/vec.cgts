@@ -203,6 +203,13 @@ function buildCase(array $row, PDO $db): array {
         $row['review_note'] = $rn->fetchColumn() ?: null;
     } catch (Throwable $e) { $row['review_note'] = null; }
 
+    // มีการรายงานผลจากนิติกรแล้วหรือยัง (ใช้แสดงปุ่มเกษียนรายงานถึง ผอ.สำนัก)
+    try {
+        $hr = $db->prepare("SELECT 1 FROM case_events WHERE case_id=? AND title='รายงานผลการดำเนินการ' LIMIT 1");
+        $hr->execute([$row['id']]);
+        $row['has_report'] = (bool)$hr->fetchColumn();
+    } catch (Throwable $e) { $row['has_report'] = false; }
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];
