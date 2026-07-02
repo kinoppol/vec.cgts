@@ -649,7 +649,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       title="เรื่องดำเนินการเสร็จแล้ว" sub="เรื่องที่ ผอ.สำนัก ออกคำสั่งขั้นสุดท้ายแล้ว — เลือกเพื่อเก็บเรื่องหรือดำเนินการเป็นเรื่องใหม่"/>;
   } else if (view === "archived") {
     content = <CaseListPage cases={cases.filter(c => c.status === "closed" && c.has_archive)} officers={officers} openCase={openCase}
-      title="เรื่องที่ถูกจัดเก็บ" sub="เรื่องที่เก็บเสร็จสิ้นแล้ว รวมถึงเรื่องเดิมที่ถูกนำไปดำเนินการเป็นเรื่องใหม่"/>;
+      title="เรื่องที่ถูกจัดเก็บ" sub="เรื่องที่เก็บเสร็จสิ้นแล้ว รวมถึงเรื่องเดิมที่ถูกนำไปดำเนินการเป็นเรื่องใหม่"
+      defaultStatus="closed"/>;
   } else if (view === "import") {
     content = <ImportDocument back={()=>{ setView("dashboard"); refreshCases(); }}/>;
   } else if (view === "vault") {
