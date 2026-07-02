@@ -60,6 +60,20 @@ if ($confirm === 'all') {
             $ins->execute();
             echo $ins->rowCount() ? "✓ เพิ่มขั้น propose_group\n" : "– propose_group มีอยู่แล้ว\n";
         } catch (Throwable $e) { echo "– ข้าม propose_group: ".$e->getMessage()."\n"; }
+        // สมาชิกหลายกลุ่ม (group_members)
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS group_members (
+                group_id INT NOT NULL, user_id INT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (group_id, user_id), KEY idx_gm_user (user_id),
+                CONSTRAINT fk_gm_group FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
+                CONSTRAINT fk_gm_user  FOREIGN KEY (user_id)  REFERENCES users(id)   ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $n = $db->exec("INSERT IGNORE INTO group_members (group_id, user_id)
+                SELECT g.id, u.id FROM users u JOIN `groups` g ON g.name = u.group_name
+                WHERE u.group_name IS NOT NULL AND u.group_name <> ''");
+            echo "✓ group_members (backfill $n แถว)\n";
+        } catch (Throwable $e) { echo "– ข้าม group_members: ".$e->getMessage()."\n"; }
         echo "\n<span class='ok'>✅ เสร็จสิ้น — คอลัมน์/ตารางครบแล้ว</span>\n";
     } catch (Throwable $e) { echo "<span class='err'>❌ ".htmlspecialchars($e->getMessage())."</span>\n"; }
     echo '</pre>';
