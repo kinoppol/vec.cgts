@@ -540,18 +540,14 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
               <label style={{fontSize:13}}>มอบหมายเจ้าหน้าที่ <span className="req">*</span></label>
               <select className="input" value={staffId} onChange={e=>setStaffId(e.target.value)}>
                 <option value="">— เลือกเจ้าหน้าที่ —</option>
-                {(() => {
-                  const groups = [...new Set(staffUsers.map(u => u.group_name || ''))].sort((a,b) => a.localeCompare(b,'th'));
-                  return groups.map(g => (
-                    <optgroup key={g||'__none'} label={g || '(ไม่ระบุกลุ่ม)'}>
-                      {staffUsers.filter(u => (u.group_name||'') === g).map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.display_name}{u.job_title ? ` · ${u.job_title}` : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ));
-                })()}
+                {[...staffUsers].sort((a,b)=>(a.display_name||'').localeCompare(b.display_name||'','th')).map(u => {
+                  const isProposed = pers.includes(u.display_name) || pers.includes(String(u.officer_id));
+                  return (
+                    <option key={u.id} value={u.id}>
+                      {u.display_name}{isProposed ? '  ✓ (หัวหน้าธุรการเสนอ)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
