@@ -614,7 +614,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
         (c.group_recv_no && myGroups.includes(c.assigned_group)) ||
         (user?.officer_id && String(c.lawyer) === String(user.officer_id))
       );
-      content = <CaseListPage cases={myCases} officers={officers} openCase={openCase}
+      content = <CaseListPage key={view} cases={myCases} officers={officers} openCase={openCase}
         title="เรื่องที่ได้รับมอบหมาย" sub="เรื่องที่เกษียนเข้ากลุ่มของท่าน รอพิจารณามอบหมายนิติกร"/>;
     } else {
       content = <AssignProposalsPage proposals={pendingProposals} officers={officers}
@@ -641,14 +641,14 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     const caseListTitle = role === "head_secretary" ? "เรื่องรอเกษียน" : role === "clerk" ? "งานที่ได้รับมอบหมาย" : "จัดการเรื่องร้องเรียน–ร้องทุกข์";
     const caseListSub   = role === "head_secretary" ? "สำนวนที่ยังไม่ได้รับมอบหมาย — เลือกเพื่อนำเสนอผู้อำนวยการ" : role === "clerk" ? "งานที่หัวหน้าธุรการมอบหมายให้" : undefined;
     const caseListRows  = role === "head_secretary" ? cases.filter(c => c.status !== "closed") : cases;
-    content = <CaseListPage cases={caseListRows} officers={officers} openCase={openCase}
+    content = <CaseListPage key={view} cases={caseListRows} officers={officers} openCase={openCase}
       title={caseListTitle} sub={caseListSub}
       defaultStatus={role === "head_secretary" ? "received" : "all"}/>;
   } else if (view === "completed") {
-    content = <CaseListPage cases={cases.filter(c => c.status === "closed" && !c.has_archive)} officers={officers} openCase={openCase}
+    content = <CaseListPage key={view} cases={cases.filter(c => c.status === "closed" && !c.has_archive)} officers={officers} openCase={openCase}
       title="เรื่องดำเนินการเสร็จแล้ว" sub="เรื่องที่ ผอ.สำนัก ออกคำสั่งขั้นสุดท้ายแล้ว — เลือกเพื่อเก็บเรื่องหรือดำเนินการเป็นเรื่องใหม่"/>;
   } else if (view === "archived") {
-    content = <CaseListPage cases={cases.filter(c => c.status === "closed" && c.has_archive)} officers={officers} openCase={openCase}
+    content = <CaseListPage key={view} cases={cases.filter(c => c.status === "closed" && c.has_archive)} officers={officers} openCase={openCase}
       title="เรื่องที่ถูกจัดเก็บ" sub="เรื่องที่เก็บเสร็จสิ้นแล้ว รวมถึงเรื่องเดิมที่ถูกนำไปดำเนินการเป็นเรื่องใหม่"
       defaultStatus="closed"/>;
   } else if (view === "import") {

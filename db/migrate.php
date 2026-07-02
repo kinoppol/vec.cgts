@@ -10,6 +10,62 @@ require_once __DIR__ . '/../config/db.php';
 
 $confirm = $_GET['confirm'] ?? '';
 
+/* ── [ALL] รันคอลัมน์/ตารางที่ค้างทั้งหมด (idempotent) ─────────────────── */
+if ($confirm === 'all') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [ALL]: ตรวจสอบ/เพิ่มคอลัมน์และตารางที่ค้าง</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $ensureCol = function(string $table, string $name, string $ddl) use ($db) {
+            $cols = $db->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array($name, $cols)) { $db->exec("ALTER TABLE `$table` ADD COLUMN $ddl"); echo "✓ $table ADD $name\n"; }
+            else echo "– $table.$name มีอยู่แล้ว\n";
+        };
+        // cases — คอลัมน์จากหลายรุ่น
+        $casesCols = [
+            'assigned_group'  => "assigned_group VARCHAR(200) DEFAULT NULL",
+            'group_recv_no'   => "group_recv_no VARCHAR(40) DEFAULT NULL",
+            'lawyer_id'       => "lawyer_id VARCHAR(10) DEFAULT NULL",
+            'lawyer_note'     => "lawyer_note TEXT DEFAULT NULL",
+            'lawyer_note_by'  => "lawyer_note_by INT DEFAULT NULL",
+            'lawyer_note_at'  => "lawyer_note_at DATETIME DEFAULT NULL",
+            'lawyer_sent_at'  => "lawyer_sent_at DATETIME DEFAULT NULL",
+            'report_note'     => "report_note TEXT DEFAULT NULL",
+            'report_sent_at'  => "report_sent_at DATETIME DEFAULT NULL",
+            'origin_case_id'  => "origin_case_id VARCHAR(20) DEFAULT NULL",
+        ];
+        foreach ($casesCols as $n => $ddl) $ensureCol('cases', $n, $ddl);
+        // case_events — attachment + step + order
+        foreach ([
+            'step_key'        => "step_key VARCHAR(50) DEFAULT NULL",
+            'started_at'      => "started_at DATETIME DEFAULT NULL",
+            'completed_at'    => "completed_at DATETIME DEFAULT NULL",
+            'attachment_name' => "attachment_name VARCHAR(300) DEFAULT NULL",
+            'attachment_path' => "attachment_path VARCHAR(300) DEFAULT NULL",
+            'attachment_size' => "attachment_size VARCHAR(30) DEFAULT NULL",
+            'order_items'     => "order_items TEXT DEFAULT NULL",
+        ] as $n => $ddl) $ensureCol('case_events', $n, $ddl);
+        // groups
+        foreach ([
+            'recv_prefix' => "recv_prefix VARCHAR(20) DEFAULT NULL",
+            'dept_name'   => "dept_name VARCHAR(200) DEFAULT NULL",
+            'leader_role' => "leader_role VARCHAR(50) DEFAULT NULL",
+        ] as $n => $ddl) { try { $ensureCol('groups', $n, $ddl); } catch (Throwable) {} }
+        // ขั้น SLA propose_group
+        try {
+            $ins = $db->prepare("INSERT INTO sla_steps (step_key,label,days_allowed,sort_order,active,note)
+                SELECT 'propose_group','เสนอ ผอ.กลุ่ม',1,25,1,'เจ้าหน้าที่เสนอเรื่องต่อผู้อำนวยการกลุ่ม'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sla_steps WHERE step_key='propose_group')");
+            $ins->execute();
+            echo $ins->rowCount() ? "✓ เพิ่มขั้น propose_group\n" : "– propose_group มีอยู่แล้ว\n";
+        } catch (Throwable $e) { echo "– ข้าม propose_group: ".$e->getMessage()."\n"; }
+        echo "\n<span class='ok'>✅ เสร็จสิ้น — คอลัมน์/ตารางครบแล้ว</span>\n";
+    } catch (Throwable $e) { echo "<span class='err'>❌ ".htmlspecialchars($e->getMessage())."</span>\n"; }
+    echo '</pre>';
+    exit;
+}
+
 /* ── [29] origin_case — เรื่องสืบเนื่อง (อ้างเลขเรื่องเดิม) ──────────── */
 if ($confirm === 'origin_case') {
     echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
@@ -999,7 +1055,9 @@ if ($confirm === 'event_datetime') {
 // ป้องกันการเรียกโดยไม่ตั้งใจ
 if ($confirm !== 'run') {
     echo '<style>body{font-family:sans-serif;padding:24px}code{background:#f5f5f5;padding:2px 6px;border-radius:4px}li{margin:8px 0}</style>';
-    echo '<h2>Migration</h2><ul>';
+    echo '<h2>Migration</h2>';
+    echo '<p style="background:#fff3cd;padding:12px 16px;border-radius:6px"><b>[ทางลัด] รันที่ค้างทั้งหมดทีเดียว (idempotent):</b><br><code><a href="?confirm=all">migrate.php?confirm=all</a></code></p>';
+    echo '<ul>';
     echo '<li><b>[1] Personnel + รหัสผ่าน</b><br><code><a href="?confirm=run&pass=password">migrate.php?confirm=run&pass=password</a></code></li>';
     echo '<li><b>[2] SLA Steps</b> — เพิ่มตาราง sla_steps และคอลัมน์ case_events<br><code><a href="?confirm=sla">migrate.php?confirm=sla</a></code></li>';
     echo '<li><b>[3] Event Attachment</b> — เพิ่มคอลัมน์ attachment_name/path/size ใน case_events<br><code><a href="?confirm=event_attach">migrate.php?confirm=event_attach</a></code></li>';
