@@ -182,6 +182,7 @@ function HeadSecretaryDashboard({ cases, officers, openCase, setView, onProposed
 /* ---------------- Modal เกษียนเรื่อง (head_secretary) ---------------- */
 function ProposeModal({ case_, officers, onClose, onSaved }) {
   const [groups, setGroups]             = useState([]);
+  const [users, setUsers]               = useState([]);
   const [selGroups, setSelGroups]       = useState([]);
   const [selPersonnel, setSelPersonnel] = useState([]);
   const NOTE_PREFIX = 'เรียน ผู้อำนวยการสำนักนิติการ\n';
@@ -194,7 +195,15 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
     api.getGroups()
       .then(gs => setGroups((gs||[]).map(g => ({ name: g.name, dept_name: g.dept_name }))))
       .catch(() => api.getLookups('group_name').then(setGroups).catch(() => {}));
+    apiFetch('/api/users.php').then(setUsers).catch(() => {});
   }, []);
+
+  // officer_id ของผู้ใช้ที่มีบทบาทธุรการ (clerk) — จากบทบาทตนเองหรือบทบาทของกลุ่ม
+  const clerkOfficerIds = React.useMemo(() => new Set(
+    (users||[])
+      .filter(u => u.active && (u.role === 'clerk' || u.group_role === 'clerk') && u.officer_id)
+      .map(u => String(u.officer_id))
+  ), [users]);
 
   // ชุดชื่อกลุ่มที่ใช้จับคู่กับ officers.group_name (ครอบคลุมทั้ง name และ dept_name)
   const matchSet = (() => {
@@ -300,14 +309,14 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
               }
             </div>
 
-            {/* บุคลากรที่เกี่ยวข้อง */}
+            {/* เจ้าหน้าที่ธุรการที่เกี่ยวข้อง (เฉพาะบทบาท clerk) */}
             <div className="field" style={{margin:0}}>
-              <label>บุคลากรที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
+              <label>เจ้าหน้าที่ธุรการที่เกี่ยวข้อง <span style={{color:'var(--ink-3)',fontWeight:400}}>(ไม่บังคับ)</span></label>
               {(() => {
                 if (selGroups.length === 0) {
-                  return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อสมาชิก</div>;
+                  return <div className="faint sm" style={{padding:'8px 0'}}>เลือกกลุ่มงานอย่างน้อย 1 กลุ่มก่อน เพื่อแสดงรายชื่อเจ้าหน้าที่ธุรการ</div>;
                 }
-                const pool = (officers||[]).filter(o => matchSet.has(o.group));
+                const pool = (officers||[]).filter(o => matchSet.has(o.group) && clerkOfficerIds.has(String(o.id)));
                 return pool.length > 0
                   ? <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4,maxHeight:240,overflowY:'auto',paddingRight:2}}>
                       {pool.map(o =>
@@ -318,7 +327,7 @@ function ProposeModal({ case_, officers, onClose, onSaved }) {
                         )}</React.Fragment>
                       )}
                     </div>
-                  : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบบุคลากรในกลุ่มที่เลือก</div>;
+                  : <div className="faint sm" style={{padding:'8px 0'}}>ไม่พบเจ้าหน้าที่ธุรการ (clerk) ในกลุ่มที่เลือก</div>;
               })()}
             </div>
           </div>
