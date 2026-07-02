@@ -10,15 +10,24 @@ $db     = getDB();
    GET /api/users.php — รายการ users ทั้งหมด
 ---------------------------------------------------------------- */
 if ($method === 'GET') {
+    $hasGM = (bool)$db->query("SHOW TABLES LIKE 'group_members'")->fetchColumn();
+    $groupsSel = $hasGM
+        ? "(SELECT GROUP_CONCAT(g.name ORDER BY g.name SEPARATOR '||') FROM group_members gm JOIN `groups` g ON g.id = gm.group_id WHERE gm.user_id = u.id)"
+        : "u.group_name";
     $rows = $db->query(
         "SELECT u.id, u.username, u.display_name, u.email, u.role, u.init, u.job_title, u.group_name, u.officer_id,
                 u.active, u.can_manage_users, u.avatar_path, u.created_at,
+                $groupsSel AS groups_concat,
                 (SELECT gr.role FROM group_roles gr
                  JOIN `groups` g ON g.id = gr.group_id
                  WHERE g.name = u.group_name
                  ORDER BY gr.role LIMIT 1) AS group_role
          FROM users u ORDER BY u.role, u.display_name"
     )->fetchAll();
+    foreach ($rows as &$r) {
+        $r['groups'] = $r['groups_concat'] ? explode('||', $r['groups_concat']) : ($r['group_name'] ? [$r['group_name']] : []);
+        unset($r['groups_concat']);
+    }
     json_out($rows);
 }
 

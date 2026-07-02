@@ -379,15 +379,18 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
 
   const [showInactive, setShowInactive] = useState(false);
 
-  // รายชื่อกลุ่มที่สังกัด (distinct จาก users)
-  const groupOpts = [...new Set(users.map(u => u.group_name).filter(Boolean))]
+  // กลุ่มที่ผู้ใช้สังกัด (รองรับหลายกลุ่ม)
+  const userGroups = (u) => (u.groups && u.groups.length ? u.groups : (u.group_name ? [u.group_name] : []));
+  // รายชื่อกลุ่มที่สังกัด (distinct จาก users — ครอบคลุมทุกกลุ่มที่สังกัด)
+  const groupOpts = [...new Set(users.flatMap(userGroups).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'th'));
 
   const filtered = users.filter(u => {
     if (filterRole === '__null__' && u.role) return false;
     if (filterRole && filterRole !== '__null__' && u.role !== filterRole) return false;
-    if (filterGroup === '__none__' && u.group_name) return false;
-    if (filterGroup && filterGroup !== '__none__' && u.group_name !== filterGroup) return false;
+    const grps = userGroups(u);
+    if (filterGroup === '__none__' && grps.length) return false;
+    if (filterGroup && filterGroup !== '__none__' && !grps.includes(filterGroup)) return false;
     if (search) {
       const q = search.toLowerCase();
       return u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q);
