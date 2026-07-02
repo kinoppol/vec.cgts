@@ -242,9 +242,10 @@ if ($action === 'hs_send_letter') {
     $note      = trim($body['note'] ?? '');
     if ($recipient === '') err('กรุณาระบุปลายทางหนังสือส่ง', 422);
     if (mb_strlen($note) < 10) err('กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร', 422);
+    $fileCount = (int)($body['file_count'] ?? 0);
 
     addEvent($db, $caseId, 'จัดทำหนังสือส่ง', $actorName, $moment,
-        "ถึง: {$recipient}\n{$note}", 'send');
+        "ถึง: {$recipient}\n{$note}" . ($fileCount > 0 ? "\n📎 แนบไฟล์หลักฐาน {$fileCount} ไฟล์ (ดูในคลังสำนวน)" : ''), 'send');
 
     // ปลายทางเป็นผู้บริหารระดับสูงในระบบ → แจ้งเตือน; ไม่ใช่ → บันทึกเป็นหน่วยงานภายนอกไว้ใช้ครั้งต่อไป
     $eu = $db->prepare("SELECT id FROM users WHERE display_name = ? AND role IN ('secretary','deputy_secretary') AND active=1 LIMIT 1");

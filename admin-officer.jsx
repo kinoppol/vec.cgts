@@ -2174,10 +2174,13 @@ function ForwardUpModal({ c, close, onDone, action='forward_up', title='รา�
 function SendLetterModal({ c, close, onDone }) {
   const [recipient, setRecipient] = useState('');
   const [note, setNote] = useState('');
+  const [files, setFiles] = useState([]);
   const [execs, setExecs] = useState([]);
   const [agencies, setAgencies] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const addFiles = (list) => setFiles(prev => [...prev, ...Array.from(list)]);
+  const removeFile = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   useEffect(() => {
     api.getSendRecipients()
@@ -2194,7 +2197,8 @@ function SendLetterModal({ c, close, onDone }) {
     if (!canSubmit) return;
     setSaving(true); setErr('');
     try {
-      await api.caseReport({ action:'hs_send_letter', case_id: c.id, recipient: recipient.trim(), note: note.trim() });
+      for (const f of files) { await api.uploadCaseFile(c.id, f, 'public'); }
+      await api.caseReport({ action:'hs_send_letter', case_id: c.id, recipient: recipient.trim(), note: note.trim(), file_count: files.length });
       await onDone();
     } catch(e) { setErr(e.message); setSaving(false); }
   };
@@ -2225,6 +2229,19 @@ function SendLetterModal({ c, close, onDone }) {
               placeholder="ระบุรายละเอียดหนังสือส่ง (อย่างน้อย 10 ตัวอักษร)"
               style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
             {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>รายละเอียดต้องมีอย่างน้อย 10 ตัวอักษร</div>}
+          </div>
+          <div style={{marginTop:14}}>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>แนบไฟล์หลักฐาน (แนบได้หลายไฟล์)</label>
+            <input type="file" multiple onChange={e=>{ addFiles(e.target.files); e.target.value=''; }}
+              accept=".pdf,.jpg,.jpeg,.png,.zip,.docx,.xlsx"/>
+            {files.length > 0 && <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+              {files.map((f,i)=>(
+                <div key={i} className="between" style={{background:'var(--surface-2)',borderRadius:6,padding:'6px 10px'}}>
+                  <span className="vcenter" style={{gap:6,fontSize:13,overflow:'hidden'}}><Icon name="file" style={{width:15,height:15}}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.name}</span></span>
+                  <button className="icon-btn" style={{width:26,height:26}} onClick={()=>removeFile(i)} disabled={saving}><Icon name="x" style={{width:13,height:13}}/></button>
+                </div>
+              ))}
+            </div>}
           </div>
           {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
         </div>
