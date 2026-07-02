@@ -206,6 +206,7 @@ function TestDataPage({ cases = [], onChanged }) {
   const [sel, setSel]         = React.useState({});   // {caseId: true}
   const [q, setQ]             = React.useState('');
   const [delPw, setDelPw]     = React.useState('');
+  const [delErr, setDelErr]   = React.useState('');
   const [delBusy, setDelBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
 
@@ -233,13 +234,24 @@ function TestDataPage({ cases = [], onChanged }) {
   };
 
   const doDelete = async () => {
-    setDelBusy(true); setErr('');
+    setDelBusy(true); setErr(''); setDelErr(''); setMsg('');
     try {
       const r = await api.testDataAction({ action:'bulk_delete', ids: idList, password: delPw });
-      flash(`ลบสำเร็จ ${r.deleted.length} เรื่อง` + (r.not_found.length ? ` · ไม่พบ ${r.not_found.length} เรื่อง (${r.not_found.join(', ')})` : ''));
-      setSel({}); setDelPw(''); setConfirmDel(false);
+      // ลบสำเร็จ — ล้างเฉพาะรายการที่ลบจริง
+      setSel(s => { const n={...s}; (r.deleted||[]).forEach(id=>delete n[id]); return n; });
+      setDelPw('');
+      const failed = r.failed || [];
+      if (failed.length) {
+        setDelErr(`✓ รหัสผ่านถูกต้อง · ลบสำเร็จ ${r.deleted.length} · ลบไม่ได้ ${failed.length} เรื่อง: ` + failed.map(f=>`${f.id} (${f.error})`).join(', '));
+      } else {
+        setConfirmDel(false);
+        flash(`✓ รหัสผ่านถูกต้อง · ลบสำเร็จ ${r.deleted.length} เรื่อง` + (r.not_found.length ? ` · ไม่พบ ${r.not_found.length} เรื่อง (${r.not_found.join(', ')})` : ''));
+      }
       if (onChanged) onChanged(); load();
-    } catch(e) { setErr(e.message); }
+    } catch(e) {
+      // แสดงในกล่องยืนยัน (ไม่ปิดกล่อง ไม่ล้างการเลือก — ข้อมูลยังไม่ถูกลบ)
+      setDelErr(/รหัสผ่าน/.test(e.message) ? '✗ รหัสผ่าน admin ไม่ถูกต้อง — ยังไม่ได้ลบข้อมูลใด ๆ' : ('ยังไม่ได้ลบข้อมูล: ' + e.message));
+    }
     setDelBusy(false);
   };
 
@@ -297,14 +309,20 @@ function TestDataPage({ cases = [], onChanged }) {
         </div>
         <div className="faint tiny" style={{marginTop:6}}>เลือก {idList.length} จาก {cases.length} เรื่อง</div>
         {!confirmDel
-          ? <button className="btn btn-outline" style={{marginTop:12,color:'var(--danger)',borderColor:'var(--danger)'}} disabled={idList.length===0} onClick={()=>setConfirmDel(true)}>
+          ? <button className="btn btn-outline" style={{marginTop:12,color:'var(--danger)',borderColor:'var(--danger)'}} disabled={idList.length===0} onClick={()=>{setConfirmDel(true);setDelErr('');}}>
               <Icon name="x" style={{width:15,height:15}}/> ดำเนินการลบ {idList.length||''} เรื่อง
             </button>
-          : <div style={{marginTop:12,padding:'12px 14px',background:'var(--danger-bg,#fef2f2)',borderRadius:8}}>
-              <div style={{fontWeight:600,marginBottom:8,color:'var(--danger)'}}>ยืนยันการลบ {idList.length} เรื่อง — กรอกรหัสผ่าน admin</div>
-              <input className="input" type="password" value={delPw} onChange={e=>setDelPw(e.target.value)} placeholder="รหัสผ่าน admin" style={{maxWidth:280}}/>
+          : <div style={{marginTop:12,padding:'14px 16px',background:'var(--danger-bg,#fef2f2)',borderRadius:8}}>
+              <div style={{fontWeight:600,marginBottom:8,color:'var(--danger)'}}>ยืนยันการลบถาวร {idList.length} เรื่อง</div>
+              {/* รายการที่จะถูกลบ — แสดงให้เห็นชัดโดยไม่ขึ้นกับช่องค้นหา */}
+              <div style={{maxHeight:120,overflowY:'auto',background:'var(--surface)',borderRadius:6,padding:'8px 10px',marginBottom:10,fontSize:12,fontFamily:'monospace',lineHeight:1.8}}>
+                {idList.map(id => <span key={id} style={{display:'inline-block',marginRight:8}}>{id}</span>)}
+              </div>
+              <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:4}}>กรอกรหัสผ่าน admin เพื่อยืนยัน</label>
+              <input className="input" type="password" value={delPw} onChange={e=>{setDelPw(e.target.value);setDelErr('');}} placeholder="รหัสผ่าน admin" style={{maxWidth:280}} autoFocus/>
+              {delErr && <div className="tiny" style={{color:'var(--danger)',fontWeight:600,marginTop:6}}>{delErr}</div>}
               <div className="vcenter" style={{gap:8,marginTop:10}}>
-                <button className="btn btn-ghost" onClick={()=>{setConfirmDel(false);setDelPw('');}} disabled={delBusy}>ยกเลิก</button>
+                <button className="btn btn-ghost" onClick={()=>{setConfirmDel(false);setDelPw('');setDelErr('');}} disabled={delBusy}>ยกเลิก</button>
                 <button className="btn btn-primary" style={{background:'var(--danger)'}} disabled={delBusy || !delPw} onClick={doDelete}>{delBusy?'กำลังลบ…':'ยืนยันลบถาวร'}</button>
               </div>
             </div>}

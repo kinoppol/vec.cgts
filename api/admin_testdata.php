@@ -72,13 +72,14 @@ if ($action === 'bulk_delete') {
     if (count($ids) > 200) err('ลบได้ครั้งละไม่เกิน 200 เรื่อง', 422);
 
     $uploadDir = __DIR__ . '/../uploads/';
-    $deleted = []; $notFound = [];
+    $deleted = []; $notFound = []; $failed = [];
 
     foreach ($ids as $cid) {
         $ck = $db->prepare("SELECT id FROM cases WHERE id = ?");
         $ck->execute([$cid]);
         if (!$ck->fetchColumn()) { $notFound[] = $cid; continue; }
 
+        if ($db->inTransaction()) $db->rollBack();
         $db->beginTransaction();
         try {
             // ลบไฟล์จริงบนดิสก์ (คลังสำนวน + ไฟล์แนบ event)
@@ -93,6 +94,8 @@ if ($action === 'bulk_delete') {
                 if ($ap && is_file($uploadDir . $ap)) @unlink($uploadDir . $ap);
             }
 
+            // ล้างการอ้างอิงเรื่องสืบเนื่อง (กัน FK/ค้างอ้างอิง)
+            try { $db->prepare("UPDATE cases SET origin_case_id = NULL WHERE origin_case_id = ?")->execute([$cid]); } catch (Throwable) {}
             // ลบแถวในทุกตารางที่เกี่ยวข้อง (ตารางที่อาจไม่มี → ข้าม)
             foreach (['case_files','case_events','case_task_proposals','notifications',
                       'notification_log','group_receipts','case_tasks','calendar_events'] as $tbl) {
@@ -104,11 +107,11 @@ if ($action === 'bulk_delete') {
             $deleted[] = $cid;
             audit('testdata_delete_case', $cid, 'ลบข้อมูลทดสอบ (bulk)');
         } catch (Throwable $e) {
-            $db->rollBack();
-            err("ลบ {$cid} ล้มเหลว: " . $e->getMessage(), 500);
+            if ($db->inTransaction()) $db->rollBack();
+            $failed[] = ['id' => $cid, 'error' => $e->getMessage()];
         }
     }
-    json_out(['ok' => true, 'deleted' => $deleted, 'not_found' => $notFound]);
+    json_out(['ok' => true, 'deleted' => $deleted, 'not_found' => $notFound, 'failed' => $failed]);
 }
 
 /* ── ตั้งเลขทะเบียนหลักของเรื่องถัดไป ─────────────────────── */
