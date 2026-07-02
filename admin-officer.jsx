@@ -1370,6 +1370,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [returnOpen, setReturnOpen] = useState(false);
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
   const [clerkForwardOpen, setClerkForwardOpen] = useState(false);
+  const [viewReportOpen, setViewReportOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
@@ -1576,8 +1577,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
               <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendLawyer(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งเรื่องไปให้นิติกร</button>}
 
-            {/* แสดงสถานะเมื่อส่งเรื่องแล้ว */}
-            {c.lawyer_sent_at &&
+            {/* ผอ.กลุ่ม: นิติกรส่งรายงานกลับมาแล้ว → ดูรายงาน */}
+            {c.has_report && (role==="dir_legal" || role==="admin") &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setViewReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> นิติกรส่งรายงานกลับมาแล้ว — คลิกเพื่อดูรายงาน</button>}
+
+            {/* แสดงสถานะเมื่อส่งเรื่องให้นิติกรแล้ว แต่ยังไม่ได้รับรายงานกลับ */}
+            {c.lawyer_sent_at && !c.has_report &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้นิติกรผู้ดำเนินการแล้ว — ล็อกการเปลี่ยนนิติกร</div></div>}
 
             {/* นิติกรผู้ดำเนินการ: รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
@@ -1701,6 +1706,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
+      {viewReportOpen && <ViewReportModal c={c} close={()=>setViewReportOpen(false)}/>}
       {clerkForwardOpen && <ForwardUpModal c={c} close={()=>setClerkForwardOpen(false)}
         action="clerk_forward" title="เกษียนรายงานถึง ผอ.สำนัก"
         info="เกษียนรายงานผลจากกลุ่มต่อ ผอ.สำนัก (เริ่มขั้นเสนอผู้บังคับบัญชา)"
@@ -1831,6 +1837,52 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
           <button className="btn btn-primary" onClick={submit} disabled={saving || !noteOk}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal ดูรายงานผลจากนิติกร (ผอ.กลุ่ม) ---------------- */
+function ViewReportModal({ c, close }) {
+  const files = c.files || [];
+  return (
+    <div className="overlay" onClick={close}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>รายงานผลการดำเนินการจากนิติกร</h3></div>
+          <button className="icon-btn" onClick={close}><Icon name="x"/></button>
+        </div>
+        <div className="modal-b">
+          {c.lawyer_name && <div className="faint tiny" style={{marginBottom:10}}>โดย {c.lawyer_name}{c.lawyer_role ? ' · ' + c.lawyer_role : ''}</div>}
+          <div style={{marginBottom:14}}>
+            <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ผลการดำเนินการ</div>
+            <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px',fontSize:13.5,whiteSpace:'pre-wrap',lineHeight:1.7}}>
+              {c.report_note || <span className="faint">(รายงานผลโดยแนบไฟล์)</span>}
+            </div>
+          </div>
+          <div>
+            <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ไฟล์แนบ ({files.length})</div>
+            {files.length === 0
+              ? <div className="faint sm">ไม่มีไฟล์แนบ</div>
+              : <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  {files.map((f,i)=>{
+                    const base = window.__APP_BASE__ || '';
+                    const url  = f.sn ? base + '/api/file.php?case=' + encodeURIComponent(f.sn) : null;
+                    return (
+                      <div key={i} className="vcenter" style={{gap:6,background:'var(--surface-2)',borderRadius:6,padding:'6px 10px',fontSize:13}}>
+                        <Icon name="file" style={{width:15,height:15}}/>
+                        <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.n}</span>
+                        <span className="faint tiny">{f.s}</span>
+                        {url && <a href={url} download={f.n} className="icon-btn" style={{width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center'}} title="ดาวน์โหลด"><Icon name="download" style={{width:13,height:13}}/></a>}
+                      </div>
+                    );
+                  })}
+                </div>}
+          </div>
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-primary" onClick={close}>ปิด</button>
         </div>
       </div>
     </div>
