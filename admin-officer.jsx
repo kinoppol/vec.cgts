@@ -1371,6 +1371,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
   const [clerkForwardOpen, setClerkForwardOpen] = useState(false);
   const [viewReportOpen, setViewReportOpen] = useState(false);
+  const [orderFormOpen, setOrderFormOpen] = useState(false);
+  const [hsArchiveOpen, setHsArchiveOpen] = useState(false);
+  const [hsReopenOpen, setHsReopenOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [caseProposal, setCaseProposal] = useState(null); // ข้อเสนอรอพิจารณาของเรื่องนี้ (dir_admin)
   const [pdfModal, setPdfModal] = useState(null); // {url, filename}
@@ -1405,6 +1408,18 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const stepStatus = (k) => (c.steps||[]).find(s=>s.step_key===k)?.ev_status || 'pending';
   const investigateDone   = stepStatus('investigate') === 'done';
   const proposeBossStarted = stepStatus('propose_boss') !== 'pending';
+  const orderDone          = stepStatus('order') === 'done';
+
+  // เริ่มขั้น "ออกคำสั่ง" อัตโนมัติ (เมื่อ ผอ.สำนัก เปิดดูรายงาน)
+  const ensureOrderStarted = async () => {
+    if (stepStatus('order') !== 'pending') return;
+    try {
+      const s = (c.steps||[]).find(x=>x.step_key==='order');
+      if (s?.event_id) await api.updateEvent(s.event_id, { ev_status:'active' });
+      else             await api.createEvent({ case_id:c.id, step_key:'order', ev_status:'active' });
+      const fresh = await api.getCase(c.id); setC(fresh);
+    } catch(e) {}
+  };
   // ความคืบหน้าตามไทม์ไลน์ SLA (สัดส่วนขั้นที่เสร็จแล้ว)
   const _totalSteps = (c.steps||[]).length;
   const _doneSteps  = (c.steps||[]).filter(s=>s.ev_status==='done').length;
@@ -1610,6 +1625,30 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {/* ธุรการ: เสนอรายงานต่อ ผอ.สำนัก เรียบร้อยแล้ว */}
             {viewerIsClerk && investigateDone && proposeBossStarted &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ได้เสนอรายงานต่อผู้อำนวยการสำนักเรียบร้อยแล้ว</div></div>}
+
+            {/* ผอ.สำนัก: ได้รับรายงานผลคืนจากธุรการ → ดูรายงาน (เริ่มขั้นออกคำสั่งอัตโนมัติ) + สั่งการ */}
+            {(role==="dir_admin" || role==="admin") && proposeBossStarted && c.status!=="closed" && <>
+              <button className="btn btn-primary btn-block" style={{marginTop:14}}
+                onClick={()=>{ setViewReportOpen(true); ensureOrderStarted(); }}>
+                <Icon name="eye" style={{width:16,height:16}}/> ดูรายงานผลการดำเนินงาน
+              </button>
+              <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--maroon)',color:'var(--maroon)'}}
+                onClick={()=>setOrderFormOpen(true)}>
+                <Icon name="gavel" style={{width:16,height:16}}/> สั่งการ
+              </button>
+            </>}
+
+            {/* หัวหน้าธุรการ: หลังออกคำสั่งเสร็จ → เก็บเรื่อง / ดำเนินการเป็นเรื่องใหม่ */}
+            {role==="head_secretary" && c.status==="closed" && orderDone && !c.has_archive && <>
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setHsArchiveOpen(true)}>
+                <Icon name="checkCircle" style={{width:16,height:16}}/> เก็บเรื่อง — เสร็จสิ้นการดำเนินงาน
+              </button>
+              <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setHsReopenOpen(true)}>
+                <Icon name="flag" style={{width:16,height:16}}/> ดำเนินการเป็นเรื่องใหม่
+              </button>
+            </>}
+            {role==="head_secretary" && c.has_archive &&
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>เก็บเรื่องเสร็จสิ้นการดำเนินงานแล้ว</div></div>}
           </div>
 
           <div className="card card-pad">
@@ -1716,6 +1755,46 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         if (onRefresh) onRefresh();
       }}/>}
       {viewReportOpen && <ViewReportModal c={c} close={()=>setViewReportOpen(false)}/>}
+      {orderFormOpen && (() => {
+        const orderStep = (c.steps||[]).find(s=>s.step_key==='order');
+        const fakeStep = { label:'ออกคำสั่ง', step_key:'order', event_id: orderStep?.event_id, order_items: orderStep?.order_items, _case_id: c.id };
+        const handleConfirm = async ({ note, file, orderItems }) => {
+          let eid = orderStep?.event_id;
+          if (!eid) {
+            const created = await api.createEvent({ case_id:c.id, step_key:'order', ev_status:'active' });
+            eid = created.id;
+          }
+          let attachFields = {};
+          if (file) {
+            const uploaded = await api.uploadEventFile(eid, file);
+            attachFields = { attachment_name:uploaded.attachment_name, attachment_path:uploaded.attachment_path, attachment_size:uploaded.attachment_size, _has_file:true };
+          }
+          await api.updateEvent(eid, { ev_status:'done', detail:note||null,
+            ...(orderItems !== undefined ? { order_items: orderItems } : {}), ...attachFields });
+          const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+          setOrderFormOpen(false);
+          if (onRefresh) onRefresh();
+        };
+        return <StepDoneModal step={fakeStep} onConfirm={handleConfirm} onClose={()=>setOrderFormOpen(false)}/>;
+      })()}
+      {hsArchiveOpen && <ForwardUpModal c={c} close={()=>setHsArchiveOpen(false)}
+        action="hs_archive" title="เก็บเรื่อง — เสร็จสิ้นการดำเนินงาน"
+        info="ยืนยันเก็บเรื่องนี้เป็นเสร็จสิ้นการดำเนินงาน" noteLabel="หมายเหตุ"
+        prefill={'เก็บเรื่อง เสร็จสิ้นการดำเนินงาน'}
+        onDone={async ()=>{
+          setHsArchiveOpen(false);
+          const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+          if (onRefresh) onRefresh();
+        }}/>}
+      {hsReopenOpen && <ForwardUpModal c={c} close={()=>setHsReopenOpen(false)}
+        action="hs_reopen" title="ดำเนินการเป็นเรื่องใหม่"
+        info="นำเรื่องกลับมาดำเนินการใหม่ — สถานะจะกลับเป็นรับเรื่องเพื่อเริ่มกระบวนการอีกครั้ง" noteLabel="หมายเหตุ"
+        prefill={'นำกลับมาดำเนินการเป็นเรื่องใหม่'}
+        onDone={async ()=>{
+          setHsReopenOpen(false);
+          const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+          if (onRefresh) onRefresh();
+        }}/>}
       {clerkForwardOpen && <ForwardUpModal c={c} close={()=>setClerkForwardOpen(false)}
         action="clerk_forward" title="เกษียนรายงานถึง ผอ.สำนัก"
         info="เกษียนรายงานผลจากกลุ่มต่อ ผอ.สำนัก (เริ่มขั้นเสนอผู้บังคับบัญชา)"

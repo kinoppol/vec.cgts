@@ -237,6 +237,13 @@ function buildCase(array $row, PDO $db): array {
         $row['has_report'] = (bool)$hr->fetchColumn();
     } catch (Throwable $e) { $row['has_report'] = false; }
 
+    // หัวหน้าธุรการเก็บเรื่องแล้วหรือยัง (หลังออกคำสั่งเสร็จ)
+    try {
+        $ha = $db->prepare("SELECT 1 FROM case_events WHERE case_id=? AND title='เก็บเรื่องเสร็จสิ้น' LIMIT 1");
+        $ha->execute([$row['id']]);
+        $row['has_archive'] = (bool)$ha->fetchColumn();
+    } catch (Throwable $e) { $row['has_archive'] = false; }
+
     // cast types
     $row['anon']     = (bool)$row['anon'];
     $row['progress'] = (int)$row['progress'];

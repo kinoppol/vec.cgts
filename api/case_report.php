@@ -144,4 +144,21 @@ if ($action === 'clerk_forward') {
     json_out(['ok' => true]);
 }
 
+/* ── หัวหน้าธุรการ: เก็บเรื่อง — เสร็จสิ้นการดำเนินงาน ── */
+if ($action === 'hs_archive') {
+    $note = trim($body['note'] ?? '') ?: 'เก็บเรื่อง เสร็จสิ้นการดำเนินงาน';
+    addEvent($db, $caseId, 'เก็บเรื่องเสร็จสิ้น', $actorName, $moment, $note, 'checkCircle');
+    audit('hs_archive', $caseId, $note);
+    json_out(['ok' => true]);
+}
+
+/* ── หัวหน้าธุรการ: นำกลับมาดำเนินการเป็นเรื่องใหม่ ── */
+if ($action === 'hs_reopen') {
+    $note = trim($body['note'] ?? '') ?: 'นำกลับมาดำเนินการเป็นเรื่องใหม่';
+    addEvent($db, $caseId, 'ดำเนินการเป็นเรื่องใหม่', $actorName, $moment, $note, 'flag');
+    $db->prepare("UPDATE cases SET status='received' WHERE id = ?")->execute([$caseId]);
+    audit('hs_reopen', $caseId, $note);
+    json_out(['ok' => true]);
+}
+
 err('action ไม่ถูกต้อง', 400);

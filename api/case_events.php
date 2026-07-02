@@ -149,6 +149,18 @@ if ($event['step_key'] === 'order' && array_key_exists('ev_status', $body)) {
         // ออกคำสั่งเสร็จ → ดำเนินการเสร็จสิ้น
         $db->prepare("UPDATE cases SET status='closed' WHERE id=?")->execute([$event['case_id']]);
         audit('case_closed', $event['case_id'], 'ออกคำสั่ง — ปิดเรื่อง');
+        // ส่งเรื่องต่อให้หัวหน้าธุรการพิจารณา (เก็บเรื่อง / ดำเนินการใหม่)
+        try {
+            $cs = $db->prepare("SELECT subject FROM cases WHERE id=?");
+            $cs->execute([$event['case_id']]);
+            $subj = mb_substr($cs->fetchColumn() ?: $event['case_id'], 0, 50);
+            foreach ($db->query("SELECT id FROM users WHERE role='head_secretary' AND active=1")->fetchAll(PDO::FETCH_COLUMN) as $hsId) {
+                $db->prepare("INSERT INTO notifications (user_id, case_id, notif_type, title, body) VALUES (?,?,?,?,?)")
+                   ->execute([(int)$hsId, $event['case_id'], 'order_done',
+                       "📥 ออกคำสั่งเสร็จสิ้น: {$subj}",
+                       "สำนวน {$event['case_id']} ออกคำสั่งเรียบร้อยแล้ว โปรดพิจารณาเก็บเรื่องหรือดำเนินการเป็นเรื่องใหม่"]);
+            }
+        } catch (Throwable) {}
     } elseif (in_array($newSt, ['active','pending'], true)) {
         // ยกเลิกคำสั่ง → เปิดเรื่องให้ดำเนินการต่อ (กลับสู่ขั้นรายงาน)
         $db->prepare("UPDATE cases SET status='reporting' WHERE id=? AND status='closed'")->execute([$event['case_id']]);
