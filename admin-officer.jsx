@@ -1648,7 +1648,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               </button>
             </>}
             {role==="head_secretary" && c.has_archive &&
-              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>เก็บเรื่องเสร็จสิ้นการดำเนินงานแล้ว</div></div>}
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>เรื่องนี้ถูกจัดเก็บแล้ว</div></div>}
           </div>
 
           <div className="card card-pad">

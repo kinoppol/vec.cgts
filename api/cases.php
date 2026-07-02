@@ -239,7 +239,7 @@ function buildCase(array $row, PDO $db): array {
 
     // หัวหน้าธุรการเก็บเรื่องแล้วหรือยัง (หลังออกคำสั่งเสร็จ)
     try {
-        $ha = $db->prepare("SELECT 1 FROM case_events WHERE case_id=? AND title='เก็บเรื่องเสร็จสิ้น' LIMIT 1");
+        $ha = $db->prepare("SELECT 1 FROM case_events WHERE case_id=? AND title IN ('เก็บเรื่องเสร็จสิ้น','ดำเนินการเป็นเรื่องใหม่') LIMIT 1");
         $ha->execute([$row['id']]);
         $row['has_archive'] = (bool)$ha->fetchColumn();
     } catch (Throwable $e) { $row['has_archive'] = false; }
@@ -507,7 +507,7 @@ if ($method === 'GET') {
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
                    c.agency, c.assignee_id AS assignee, $lawyerCol, $groupCol, $recvCol,
                    $rptNoteCol, $rptSentCol,
-                   EXISTS(SELECT 1 FROM case_events ae WHERE ae.case_id = c.id AND ae.title = 'เก็บเรื่องเสร็จสิ้น') AS has_archive,
+                   EXISTS(SELECT 1 FROM case_events ae WHERE ae.case_id = c.id AND ae.title IN ('เก็บเรื่องเสร็จสิ้น','ดำเนินการเป็นเรื่องใหม่')) AS has_archive,
                    c.progress, c.received_date AS received, c.due_date AS due,
                    COALESCE(ss.days, 30) AS sla_days
             FROM cases c

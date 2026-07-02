@@ -136,6 +136,7 @@ function navFor(role, counts, user) {
     {sec:"การดำเนินงาน"},
     {v:"cases",     ic:"inbox",    l:"เรื่องรอเกษียน", count:counts.newQ},
     {v:"completed", ic:"checkCircle", l:"เรื่องดำเนินการเสร็จแล้ว", count:counts.completedQ},
+    {v:"archived",  ic:"layers",   l:"เรื่องที่ถูกจัดเก็บ"},
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
@@ -587,7 +588,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
 
   const sectionTitle = {
     exec:"Dashboard ผู้บริหาร",
-    dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง", completed:"เรื่องดำเนินการเสร็จแล้ว",
+    dashboard:"แดชบอร์ด", cases:"จัดการเรื่อง", completed:"เรื่องดำเนินการเสร็จแล้ว", archived:"เรื่องที่ถูกจัดเก็บ",
     "case-detail":"รายละเอียดสำนวน", import:"นำเข้าเรื่อง",
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้", proposals:"ข้อเสนอรอพิจารณา",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
@@ -643,8 +644,11 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
       title={caseListTitle} sub={caseListSub}
       defaultStatus={role === "head_secretary" ? "received" : "all"}/>;
   } else if (view === "completed") {
-    content = <CaseListPage cases={cases.filter(c => c.status === "closed")} officers={officers} openCase={openCase}
+    content = <CaseListPage cases={cases.filter(c => c.status === "closed" && !c.has_archive)} officers={officers} openCase={openCase}
       title="เรื่องดำเนินการเสร็จแล้ว" sub="เรื่องที่ ผอ.สำนัก ออกคำสั่งขั้นสุดท้ายแล้ว — เลือกเพื่อเก็บเรื่องหรือดำเนินการเป็นเรื่องใหม่"/>;
+  } else if (view === "archived") {
+    content = <CaseListPage cases={cases.filter(c => c.status === "closed" && c.has_archive)} officers={officers} openCase={openCase}
+      title="เรื่องที่ถูกจัดเก็บ" sub="เรื่องที่เก็บเสร็จสิ้นแล้ว รวมถึงเรื่องเดิมที่ถูกนำไปดำเนินการเป็นเรื่องใหม่"/>;
   } else if (view === "import") {
     content = <ImportDocument back={()=>{ setView("dashboard"); refreshCases(); }}/>;
   } else if (view === "vault") {

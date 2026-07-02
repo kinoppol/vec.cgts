@@ -152,13 +152,73 @@ if ($action === 'hs_archive') {
     json_out(['ok' => true]);
 }
 
-/* ── หัวหน้าธุรการ: นำกลับมาดำเนินการเป็นเรื่องใหม่ ── */
+/* ── หัวหน้าธุรการ: ดำเนินการเป็นเรื่องใหม่ —
+      เรื่องเดิมถูกจัดเก็บ + สำเนาเรื่อง/ไฟล์ทั้งหมดออกเป็นเลขรับใหม่ (status=received) ── */
 if ($action === 'hs_reopen') {
     $note = trim($body['note'] ?? '') ?: 'นำกลับมาดำเนินการเป็นเรื่องใหม่';
-    addEvent($db, $caseId, 'ดำเนินการเป็นเรื่องใหม่', $actorName, $moment, $note, 'flag');
-    $db->prepare("UPDATE cases SET status='received' WHERE id = ?")->execute([$caseId]);
-    audit('hs_reopen', $caseId, $note);
-    json_out(['ok' => true]);
+
+    // ออกเลขเรื่องใหม่ (ตรรกะเดียวกับ nextCaseId ใน cases.php)
+    $year = date('Y') + 543;
+    try { $pfx = $db->query("SELECT `value` FROM app_settings WHERE `key`='case_id_prefix'")->fetchColumn(); }
+    catch (Throwable) { $pfx = null; }
+    $pfx    = preg_replace('/[^A-Za-z0-9ก-๙]/', '', $pfx ?: 'CMP');
+    $prefix = "{$pfx}-{$year}-";
+    $last   = $db->prepare("SELECT id FROM cases WHERE id LIKE ? ORDER BY id DESC LIMIT 1");
+    $last->execute([$prefix . '%']);
+    $lastId = $last->fetchColumn();
+    $newId  = $prefix . str_pad($lastId ? ((int)substr($lastId, -4) + 1) : 1, 4, '0', STR_PAD_LEFT);
+
+    // track_token ใหม่ (ถ้าคอลัมน์มี)
+    $newToken = null;
+    if (array_key_exists('track_token', $case)) {
+        do {
+            $newToken = strtoupper(bin2hex(random_bytes(5)));
+            $ex = $db->prepare("SELECT id FROM cases WHERE track_token=?");
+            $ex->execute([$newToken]);
+        } while ($ex->fetchColumn());
+    }
+
+    // สำเนาข้อมูลเรื่อง (เริ่มกระบวนการใหม่ — ไม่คัดลอกผู้รับผิดชอบ/ข้อสั่งการ/รายงานเดิม)
+    $copyCols = array_values(array_intersect(
+        ['subject','track','cat','channel','cls','priority','anon','complainant','contact','agency','detail','sla'],
+        $caseCols
+    ));
+    $insCols = array_merge(['id'], $copyCols, ['status','progress','received_date','created_by']);
+    $insVals = [$newId];
+    foreach ($copyCols as $cc) $insVals[] = $case[$cc];
+    $insVals = array_merge($insVals, ['received', 0, date('Y-m-d'), (int)$auth['id']]);
+    if ($newToken !== null) { $insCols[] = 'track_token'; $insVals[] = $newToken; }
+    $db->prepare("INSERT INTO cases (" . implode(',', $insCols) . ") VALUES (" .
+        implode(',', array_fill(0, count($insVals), '?')) . ")")->execute($insVals);
+
+    // สำเนาไฟล์ทั้งหมด (คัดลอกไฟล์จริงบนดิสก์ด้วย)
+    $uploadDir = __DIR__ . '/../uploads/';
+    $fq = $db->prepare("SELECT filename, stored_name, size_label, cls FROM case_files WHERE case_id = ?");
+    $fq->execute([$caseId]);
+    $nFiles = 0;
+    foreach ($fq->fetchAll() as $f) {
+        $newStored = $f['stored_name'];
+        if ($f['stored_name'] && is_file($uploadDir . $f['stored_name'])) {
+            $ext = pathinfo($f['stored_name'], PATHINFO_EXTENSION);
+            $newStored = bin2hex(random_bytes(16)) . ($ext ? '.' . $ext : '');
+            if (!copy($uploadDir . $f['stored_name'], $uploadDir . $newStored)) $newStored = $f['stored_name'];
+        }
+        $db->prepare("INSERT INTO case_files (case_id, filename, stored_name, size_label, cls) VALUES (?,?,?,?,?)")
+           ->execute([$newId, $f['filename'], $newStored, $f['size_label'], $f['cls']]);
+        $nFiles++;
+    }
+
+    // เริ่มขั้น "รับเรื่อง" ของเรื่องใหม่ + บันทึกที่มา
+    try { startSlaStep($db, $newId, 'receive'); } catch (Throwable) {}
+    addEvent($db, $newId, 'รับเรื่องเข้าระบบ (เรื่องใหม่จาก ' . $caseId . ')', $actorName, $moment,
+        $note . ($nFiles ? "\n📎 สำเนาไฟล์ {$nFiles} ไฟล์จากเรื่องเดิม" : ''), 'inbox');
+
+    // เรื่องเดิม: บันทึกการจัดเก็บ (คงสถานะ closed)
+    addEvent($db, $caseId, 'ดำเนินการเป็นเรื่องใหม่', $actorName, $moment,
+        $note . "\nออกเลขเรื่องใหม่: {$newId}", 'flag');
+
+    audit('hs_reopen', $caseId, "new={$newId} files={$nFiles}");
+    json_out(['ok' => true, 'new_id' => $newId]);
 }
 
 err('action ไม่ถูกต้อง', 400);
