@@ -450,13 +450,14 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
   const noteOk = note.trim().length >= 3;
 
   const submit = async (action) => {
-    if (!noteOk) { setErr('กรุณาระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร'); return; }
+    const user = allUsers.find(u => String(u.id) === String(staffId));
+    const finalOfficer = user?.officer_id || proposal.proposed_officer || null;
+    const miss = [];
+    if (!finalOfficer) miss.push('เลือกเจ้าหน้าที่ผู้รับผิดชอบ');
+    if (!noteOk)       miss.push('ระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร');
+    if (miss.length) { setErr('ยังกรอกไม่ครบ — ' + miss.join(' · ')); return; }
     setSaving(true); setErr('');
     try {
-      // ถ้าเลือก staff ไว้ → ใช้ officer_id ของคนนั้น
-      // ถ้าไม่ได้เลือก → ใช้ proposed_officer จาก proposal (เดิม)
-      const user = allUsers.find(u => String(u.id) === String(staffId));
-      const finalOfficer = user?.officer_id || proposal.proposed_officer || null;
       await api.approveAssign(proposal.id, { action, final_officer: finalOfficer, final_group: filterGroup || null, review_note: note });
       onApproved(proposal.case_id);
     } catch(e) {
@@ -577,7 +578,7 @@ function ApproveProposalModal({ proposal, officers, onClose, onApproved }) {
         {/* ── Footer ── */}
         <div style={{padding:'14px 24px',borderTop:'1px solid var(--line)',display:'flex',gap:10,justifyContent:'flex-end',flexShrink:0,background:'var(--surface)'}}>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>ยกเลิก</button>
-          <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving || !noteOk}>
+          <button type="button" className="btn btn-primary" onClick={()=>submit('approve')} disabled={saving}>
             {saving ? <LoadingSpinner/> : <><Icon name="gavel" style={{width:14,height:14}}/> สั่งการ</>}
           </button>
         </div>
@@ -786,6 +787,7 @@ function StepDoneModal({ step, onConfirm, onClose }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (!valid) { setErr('ยังกรอกไม่ครบ — เลือกการสั่งการอย่างน้อย 1 ข้อ / พิมพ์ความเห็น ≥3 ตัวอักษร / แนบไฟล์อย่างน้อย 1 ไฟล์'); return; }
     setBusy(true); setErr('');
     try {
       await onConfirm({ note: note.trim(), file, orderItems: isOrder ? orderSel : undefined });
@@ -865,7 +867,7 @@ function StepDoneModal({ step, onConfirm, onClose }) {
           {err && <div className="notice notice-danger" style={{margin:0,padding:'8px 12px',fontSize:13}}>{err}</div>}
           <div style={{display:'flex',gap:8,justifyContent:'flex-end',paddingTop:4}}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} disabled={busy}>ยกเลิก</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !valid}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
               {busy ? '…กำลังบันทึก' : '✓ ยืนยันเสร็จสิ้น'}
             </button>
           </div>
@@ -1847,12 +1849,15 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
   const [sel, setSel] = useState(c.lawyer || '');
   const [note, setNote] = useState(c.lawyer_note || '');
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
-  const canSubmit = !!sel && noteOk && !saving;
 
   const submit = async () => {
-    if (!canSubmit) return;
-    setSaving(true);
+    const miss = [];
+    if (!sel)    miss.push('เลือกนิติกรผู้ดำเนินการ');
+    if (!noteOk) miss.push('ระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร');
+    if (miss.length) { setErr('ยังกรอกไม่ครบ — ' + miss.join(' · ')); return; }
+    setSaving(true); setErr('');
     try { await onAssign(sel, note.trim()); }
     finally { setSaving(false); }
   };
@@ -1893,10 +1898,11 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
               style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
             {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
           </div>
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" disabled={!canSubmit} onClick={submit}><Icon name="check" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'ยืนยันมอบหมาย'}</button>
+          <button className="btn btn-primary" disabled={saving} onClick={submit}><Icon name="check" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'ยืนยันมอบหมาย'}</button>
         </div>
       </div>
     </div>
@@ -1907,10 +1913,12 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
 function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
   const [note, setNote] = useState(c.review_note || '');
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
   const submit = async () => {
-    if (!noteOk || saving) return;
-    setSaving(true);
+    if (saving) return;
+    if (!noteOk) { setErr('ยังกรอกไม่ครบ — ระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร'); return; }
+    setSaving(true); setErr('');
     try { await onConfirm(note); }
     finally { setSaving(false); }
   };
@@ -1945,10 +1953,11 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
               style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.6,fontSize:13}}/>
             {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
           </div>
+          {err && <div className="notice notice-danger" style={{marginTop:12}}><Icon name="alert"/><div>{err}</div></div>}
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={saving || !noteOk}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ยืนยันมอบหมาย'}</button>
         </div>
       </div>
     </div>
@@ -2013,7 +2022,8 @@ function ReportResultModal({ c, close, onDone }) {
   const removeFile = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i));
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (saving) return;
+    if (note.trim().length === 0 && files.length === 0) { setErr('ยังกรอกไม่ครบ — พิมพ์ผลการดำเนินการ หรือแนบไฟล์อย่างน้อย 1 ไฟล์'); return; }
     setSaving(true); setErr('');
     try {
       for (const f of files) { await api.uploadCaseFile(c.id, f, 'public'); }
@@ -2072,7 +2082,7 @@ function ReportResultModal({ c, close, onDone }) {
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'บันทึกรายงาน'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'บันทึกรายงาน'}</button>
         </div>
       </div>
     </div>
@@ -2120,7 +2130,8 @@ function ReturnToDirModal({ c, close, onDone }) {
   const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
   const submit = async () => {
-    if (!noteOk || saving) return;
+    if (saving) return;
+    if (!noteOk) { setErr('ยังกรอกไม่ครบ — ระบุข้อความอย่างน้อย 3 ตัวอักษร'); return; }
     setSaving(true); setErr('');
     try { await api.caseReport({ action:'return', case_id: c.id, note: note.trim() }); await onDone(); }
     catch(e) { setErr(e.message); setSaving(false); }
@@ -2142,7 +2153,7 @@ function ReturnToDirModal({ c, close, onDone }) {
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!noteOk || saving}><Icon name="flag" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'เกษียนกลับ'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="flag" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'เกษียนกลับ'}</button>
         </div>
       </div>
     </div>
@@ -2156,7 +2167,8 @@ function ForwardUpModal({ c, close, onDone, action='forward_up', title='รา�
   const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
   const submit = async () => {
-    if (!noteOk || saving) return;
+    if (saving) return;
+    if (!noteOk) { setErr('ยังกรอกไม่ครบ — ระบุ' + noteLabel + 'อย่างน้อย 3 ตัวอักษร'); return; }
     setSaving(true); setErr('');
     try { await api.caseReport({ action, case_id: c.id, note: note.trim() }); await onDone(); }
     catch(e) { setErr(e.message); setSaving(false); }
@@ -2178,7 +2190,7 @@ function ForwardUpModal({ c, close, onDone, action='forward_up', title='รา�
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!noteOk || saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงาน'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'ส่งรายงาน'}</button>
         </div>
       </div>
     </div>
@@ -2209,7 +2221,11 @@ function SendLetterModal({ c, close, onDone }) {
     !execs.includes(recipient.trim()) && !agencies.includes(recipient.trim());
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (saving) return;
+    const miss = [];
+    if (recipient.trim() === '') miss.push('ระบุปลายทาง (ส่งถึง)');
+    if (!noteOk)                 miss.push('ระบุรายละเอียดอย่างน้อย 10 ตัวอักษร');
+    if (miss.length) { setErr('ยังกรอกไม่ครบ — ' + miss.join(' · ')); return; }
     setSaving(true); setErr('');
     try {
       for (const f of files) { await api.uploadCaseFile(c.id, f, 'public'); }
@@ -2262,7 +2278,7 @@ function SendLetterModal({ c, close, onDone }) {
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={!canSubmit}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'จัดทำหนังสือส่ง'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="send" style={{width:16,height:16}}/> {saving?'กำลังส่ง…':'จัดทำหนังสือส่ง'}</button>
         </div>
       </div>
     </div>
@@ -2433,8 +2449,10 @@ function AssignModal({ c, officers, close, onAssign }) {
           }
         </div>
         <div className="modal-f">
+          {!sel && <div className="tiny" style={{color:'var(--danger)',alignSelf:'center',marginRight:'auto'}}>กรุณาเลือกผู้ดำเนินการก่อน</div>}
           <button className="btn btn-outline" onClick={close}>ยกเลิก</button>
-          <button className="btn btn-primary" disabled={!sel} onClick={()=>{
+          <button className="btn btn-primary" onClick={()=>{
+            if (!sel) return;
             const user = allUsers.find(u => String(u.id) === sel);
             onAssign(user?.officer_id || sel);
           }}><Icon name="check" style={{width:16,height:16}}/> ยืนยันการแต่งตั้ง</button>
