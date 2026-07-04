@@ -2011,20 +2011,24 @@ function ConfirmAssignDoneModal({ c, officer, close, onConfirm }) {
 
 /* ---------------- Modal ดูรายงานผลจากนิติกร (ผอ.กลุ่ม) ---------------- */
 function ViewReportModal({ c, close }) {
-  const files = c.files || [];
+  // ดึงข้อมูลสำนวนล่าสุดเสมอ เพื่อให้เห็นไฟล์ที่ผู้ดำเนินการแนบมาล่าสุด (กันข้อมูลค้าง)
+  const [full, setFull] = useState(c);
+  useEffect(() => { api.getCase(c.id).then(setFull).catch(()=>{}); }, [c.id]);
+  const isGen = full.work_track === 'general';
+  const files = full.files || [];
   return (
     <div className="overlay" onClick={close}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>รายงานผลการดำเนินการจากนิติกร</h3></div>
+          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>{isGen ? 'รายงานการดำเนินงาน' : 'รายงานผลการดำเนินการจากนิติกร'}</h3></div>
           <button className="icon-btn" onClick={close}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          {c.lawyer_name && <div className="faint tiny" style={{marginBottom:10}}>โดย {c.lawyer_name}{c.lawyer_role ? ' · ' + c.lawyer_role : ''}</div>}
+          {!isGen && full.lawyer_name && <div className="faint tiny" style={{marginBottom:10}}>โดย {full.lawyer_name}{full.lawyer_role ? ' · ' + full.lawyer_role : ''}</div>}
           <div style={{marginBottom:14}}>
             <div className="faint tiny" style={{marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'}}>ผลการดำเนินการ</div>
             <div style={{background:'var(--surface-2)',borderRadius:8,padding:'12px 14px',fontSize:13.5,whiteSpace:'pre-wrap',lineHeight:1.7}}>
-              {c.report_note || <span className="faint">(รายงานผลโดยแนบไฟล์)</span>}
+              {full.report_note || <span className="faint">(รายงานผลโดยแนบไฟล์)</span>}
             </div>
           </div>
           <div>
