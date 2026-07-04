@@ -1,0 +1,75 @@
+<svg viewBox="0 0 560 1420" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Sarabun','TH Sarabun New',sans-serif">
+<title>ผังงาน ISO-5807 — สายงานนิติการ (เรื่องที่เป็นคดี/ร้องเรียน)</title>
+<desc>เรื่องเข้าระบบ ผอ.สำนักมอบหมายกลุ่มงานนิติการ ธุรการเกษียนถึง ผอ.กลุ่ม มอบหมายนิติกรตรวจข้อเท็จจริงและรายงานผล ส่งกลับผ่านธุรการถึง ผอ.สำนักออกคำสั่ง แล้วหัวหน้าธุรการพิจารณาปลายทาง 3 ทาง</desc>
+<defs>
+<marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8a8f98"/></marker>
+<marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9d2235"/></marker>
+</defs>
+<style>
+.sh{fill:#ffffff;stroke:#cfd4da;stroke-width:1.2;}
+.term{fill:#eceef1;stroke:#b3b9c2;stroke-width:1.2;}
+.leg{fill:#f3e9ea;stroke:#9d2235;stroke-width:1.2;}
+.dec{fill:#fff;stroke:#9d2235;stroke-width:1.3;}
+.t{fill:#141414;font-size:12.5px;}
+.tb{fill:#141414;font-size:12.5px;font-weight:700;}
+.dt{fill:#9d2235;font-size:12px;font-weight:700;}
+.ln{stroke:#8a8f98;stroke-width:1.5;fill:none;}
+.lp{stroke:#9d2235;stroke-width:1.4;fill:none;stroke-dasharray:5 4;}
+.el{fill:#5b6470;font-size:11px;font-weight:600;}
+.cap{fill:#9d2235;font-size:14px;font-weight:800;}
+.sub{fill:#5b6470;font-size:11.5px;}
+</style>
+<rect x="0" y="0" width="560" height="1420" fill="#ffffff"/>
+<text class="cap" x="280" y="26" text-anchor="middle">สายงานนิติการ — เรื่องที่เป็นคดี/ร้องเรียน</text>
+<text class="sub" x="280" y="44" text-anchor="middle">มอบหมายกลุ่มงานนิติการ (ผ่านขั้นตอนนิติกรตรวจข้อเท็จจริง)</text>
+
+<rect class="term" x="195" y="60" width="170" height="38" rx="19"/><text class="tb" x="280" y="84" text-anchor="middle">เริ่ม — รับเรื่องเข้าระบบ</text>
+<rect class="sh" x="150" y="118" width="260" height="46" rx="4" fill="#eceef1"/><text class="tb" x="280" y="137" text-anchor="middle">สำนวนเข้าระบบ</text><text class="t" x="280" y="154" text-anchor="middle">สถานะ: รับเรื่อง (SLA เริ่ม)</text>
+
+<rect class="sh" x="130" y="188" width="300" height="40" rx="4"/><text class="t" x="280" y="213" text-anchor="middle">หัวหน้าธุรการ: เกษียนเสนอ ผอ.สำนัก</text>
+<rect class="sh" x="130" y="246" width="300" height="42" rx="4"/><text class="t" x="280" y="266" text-anchor="middle">ผอ.สำนัก: มอบหมายสั่งการ + ข้อสั่งการ</text><text class="t" x="280" y="281" text-anchor="middle">→ กลุ่มงานนิติการ</text>
+
+<rect class="leg" x="130" y="306" width="300" height="42" rx="4"/><text class="tb" x="280" y="326" text-anchor="middle">เข้าสายงานนิติการ</text><text class="t" x="280" y="341" text-anchor="middle">(กลุ่มงานกฎหมาย/วินัย ฯลฯ)</text>
+
+<rect class="leg" x="130" y="366" width="300" height="40" rx="4"/><text class="t" x="280" y="391" text-anchor="middle">ธุรการ: เกษียนถึง ผอ.กลุ่ม (เลขรับภายในกลุ่ม)</text>
+<rect class="leg" x="130" y="424" width="300" height="40" rx="4"/><text class="t" x="280" y="449" text-anchor="middle">ผอ.กลุ่ม: มอบหมายนิติกร + ข้อสั่งการ</text>
+<rect class="leg" x="130" y="482" width="300" height="40" rx="4"/><text class="t" x="280" y="507" text-anchor="middle">ผอ.กลุ่ม: ส่งเรื่องให้นิติกร (ล็อก)</text>
+<rect class="leg" x="130" y="540" width="300" height="40" rx="4"/><text class="t" x="280" y="565" text-anchor="middle">นิติกร: ตรวจข้อเท็จจริง → รายงานผล</text>
+<polygon class="dec" points="280,598 380,642 280,686 180,642"/><text class="dt" x="280" y="638" text-anchor="middle">นิติกร</text><text class="dt" x="280" y="654" text-anchor="middle">เกษียนกลับ?</text>
+
+<rect class="leg" x="130" y="718" width="300" height="40" rx="4"/><text class="t" x="280" y="743" text-anchor="middle">ผอ.กลุ่ม: ส่งรายงานผลกลับให้ธุรการ</text>
+<rect class="leg" x="130" y="776" width="300" height="40" rx="4"/><text class="t" x="280" y="801" text-anchor="middle">ธุรการ: เกษียนรายงานถึง ผอ.สำนัก</text>
+
+<rect class="sh" x="130" y="834" width="300" height="42" rx="4"/><text class="tb" x="280" y="854" text-anchor="middle">ผอ.สำนัก: ออกคำสั่ง → ปิดเรื่อง</text><text class="t" x="280" y="869" text-anchor="middle">เลือกคำสั่ง + ความเห็น + แนบไฟล์</text>
+
+<polygon class="dec" points="280,914 400,970 280,1026 160,970"/><text class="dt" x="280" y="962" text-anchor="middle">หัวหน้าธุรการ</text><text class="dt" x="280" y="978" text-anchor="middle">พิจารณา</text>
+
+<path class="ln" d="M280,98 V118" marker-end="url(#a)"/>
+<path class="ln" d="M280,164 V188" marker-end="url(#a)"/>
+<path class="ln" d="M280,228 V246" marker-end="url(#a)"/>
+<path class="ln" d="M280,288 V306" marker-end="url(#a)"/>
+<path class="ln" d="M280,348 V366" marker-end="url(#a)"/>
+<path class="ln" d="M280,406 V424" marker-end="url(#a)"/>
+<path class="ln" d="M280,464 V482" marker-end="url(#a)"/>
+<path class="ln" d="M280,522 V540" marker-end="url(#a)"/>
+<path class="ln" d="M280,580 V598" marker-end="url(#a)"/>
+<path class="ln" d="M280,686 V718" marker-end="url(#a)"/><text class="el" x="288" y="706">ไม่</text>
+<path class="ln" d="M280,758 V776" marker-end="url(#a)"/>
+<path class="ln" d="M280,816 V834" marker-end="url(#a)"/>
+<path class="ln" d="M280,876 V914" marker-end="url(#a)"/>
+<path class="lp" d="M380,642 C450,624 450,502 432,483" marker-end="url(#ab)"/><text class="el" x="392" y="562" fill="#9d2235">ใช่ · ปลดล็อก</text>
+
+<rect class="term" x="20" y="1080" width="150" height="40" rx="20"/><text class="tb" x="95" y="1105" text-anchor="middle">จัดเก็บ · สิ้นสุด</text>
+<rect class="leg" x="205" y="1076" width="150" height="48" rx="4"/><text class="t" x="280" y="1096" text-anchor="middle">สำเนา+เลขใหม่</text><text class="t" x="280" y="1112" text-anchor="middle">(สืบเนื่อง)</text>
+<polygon class="leg" points="396,1080 536,1080 522,1122 382,1122"/><text class="t" x="459" y="1105" text-anchor="middle">ออกหนังสือส่ง</text>
+<rect class="term" x="384" y="1162" width="150" height="36" rx="18"/><text class="tb" x="459" y="1185" text-anchor="middle">สิ้นสุด</text>
+
+<path class="ln" d="M180,970 C110,1000 100,1050 95,1080" marker-end="url(#a)"/><text class="el" x="86" y="1050">เก็บเรื่อง</text>
+<path class="ln" d="M280,1026 V1076" marker-end="url(#a)"/><text class="el" x="288" y="1050">เรื่องใหม่</text>
+<path class="ln" d="M380,970 C450,1000 470,1050 459,1080" marker-end="url(#a)"/><text class="el" x="466" y="1050">หนังสือส่ง</text>
+<path class="ln" d="M459,1122 V1162" marker-end="url(#a)"/>
+<path class="lp" d="M280,1124 V1145 H26 V441 H130" marker-end="url(#ab)"/><text class="el" x="30" y="770" fill="#9d2235">เลขเรื่องใหม่ → รับเรื่อง</text>
+
+<text class="sub" x="280" y="1230" text-anchor="middle">หมายเหตุ: สายนี้มีขั้น "มอบหมายนิติกร" และ "ตรวจข้อเท็จจริง" ต่างจากสายงานบริหารทั่วไป</text>
+<text class="sub" x="280" y="1248" text-anchor="middle">SLA แยกชุด — เรื่องที่มอบหมายกลุ่มซึ่งหัวหน้ากลุ่มเป็นหัวหน้าธุรการจะเข้าสายงานบริหารทั่วไปแทน</text>
+</svg>
