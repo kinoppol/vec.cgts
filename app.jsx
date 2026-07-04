@@ -682,6 +682,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   }
 
   const [showProfile, setShowProfile] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(null); // ชื่อบทบาทที่กำลังสลับไป (แสดง overlay)
 
   const handleLogout = async () => {
     if (user.is_impersonating) {
@@ -708,14 +709,24 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   };
 
   const handleSwitchRole = async (newRole) => {
+    setSwitchingRole(roleLabel(newRole, roleLabels)); // แสดง overlay ระหว่างสลับ (กันผู้ใช้คิดว่าค้าง)
     try {
       await api.switchRole(newRole);
       window.location.reload(); // โหลดใหม่เพื่อให้เมนู/สิทธิ์ตรงกับบทบาทใหม่
-    } catch(e) { alert(e.message); }
+    } catch(e) { setSwitchingRole(null); alert(e.message); }
   };
 
   return (
     <div className="admin">
+      {switchingRole && (
+        <div className="role-switch-overlay">
+          <div className="role-switch-card">
+            <div className="role-switch-spinner"><span></span><span></span><span></span></div>
+            <div className="role-switch-title">กำลังสลับบทบาท</div>
+            <div className="role-switch-sub">เปลี่ยนเป็น <b>{switchingRole}</b> — กรุณารอสักครู่</div>
+          </div>
+        </div>
+      )}
       {user.is_impersonating && (
         <div style={{
           position:'fixed', top:0, left:0, right:0, zIndex:9999,
