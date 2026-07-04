@@ -65,8 +65,7 @@ if ($confirm === 'all') {
             $ensureCol('sla_steps', 'track', "track VARCHAR(10) NOT NULL DEFAULT 'legal' AFTER step_key");
             $db->exec("UPDATE sla_steps SET track='common' WHERE step_key IN ('receive','propose_dir') AND track<>'common'");
             $gaSteps = [
-                ['ga_propose_group','เสนอหัวหน้าธุรการ',1,25,'เจ้าหน้าที่เสนอเรื่องต่อหัวหน้าธุรการ'],
-                ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'มอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
+                ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'ผอ.สำนักมอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
                 ['ga_execute','ดำเนินการตามข้อสั่งการ',10,40,'เจ้าหน้าที่ธุรการดำเนินการตามข้อสั่งการ'],
                 ['ga_propose_boss','เสนอผู้บังคับบัญชา',3,50,'เสนอ ผอ.สำนัก พิจารณาสั่งการ'],
                 ['ga_order','สั่งการ',2,60,'ผอ.สำนัก สั่งการขั้นสุดท้าย'],
@@ -77,7 +76,8 @@ if ($confirm === 'all') {
                 $ins->execute([$k,$l,$d,$o,$nt,$k]);
                 echo $ins->rowCount() ? "✓ เพิ่มขั้น $k\n" : "– $k มีอยู่แล้ว\n";
             }
-            echo "✓ sla_steps.track (common/legal/general)\n";
+            $db->exec("UPDATE sla_steps SET active=0 WHERE step_key='ga_propose_group'");
+            echo "✓ sla_steps.track (common/legal/general) + ยุบ ga_propose_group\n";
         } catch (Throwable $e) { echo "– ข้าม sla track: ".$e->getMessage()."\n"; }
         // สมาชิกหลายกลุ่ม (group_members)
         try {
@@ -113,9 +113,11 @@ if ($confirm === 'general_track') {
         } else echo "– sla_steps.track มีอยู่แล้ว\n";
         $db->exec("UPDATE sla_steps SET track='common' WHERE step_key IN ('receive','propose_dir') AND track<>'common'");
         echo "✓ receive/propose_dir → track=common\n";
+        // สายบริหารทั่วไปไม่ผ่าน ผอ.กลุ่ม — ยุบขั้น ga_propose_group ทิ้ง (ปิดใช้งาน)
+        $db->exec("UPDATE sla_steps SET active=0 WHERE step_key='ga_propose_group'");
+        echo "✓ ปิดใช้งานขั้น ga_propose_group (ยุบเข้ากับ ga_assign)\n";
         foreach ([
-            ['ga_propose_group','เสนอหัวหน้าธุรการ',1,25,'เจ้าหน้าที่เสนอเรื่องต่อหัวหน้าธุรการ'],
-            ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'มอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
+            ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'ผอ.สำนักมอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
             ['ga_execute','ดำเนินการตามข้อสั่งการ',10,40,'เจ้าหน้าที่ธุรการดำเนินการตามข้อสั่งการ'],
             ['ga_propose_boss','เสนอผู้บังคับบัญชา',3,50,'เสนอ ผอ.สำนัก พิจารณาสั่งการ'],
             ['ga_order','สั่งการ',2,60,'ผอ.สำนัก สั่งการขั้นสุดท้าย'],

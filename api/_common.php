@@ -134,8 +134,10 @@ function caseWorkTrack(PDO $db, ?string $groupName): string {
 /** trackSlaKey — แปลง step_key มาตรฐาน (สายนิติการ) เป็น key ของสายบริหารทั่วไป (ga_*) */
 function trackSlaKey(string $track, string $key): string {
     if ($track !== 'general') return $key;
+    // สายบริหารทั่วไป: ไม่ผ่าน ผอ.กลุ่ม — dir_admin มอบหมายเจ้าหน้าที่ธุรการโดยตรง
+    // จึงยุบขั้น "เสนอ ผอ.กลุ่ม" เข้ากับขั้น "มอบหมายเจ้าหน้าที่ธุรการ" (ga_assign)
     return [
-        'propose_group' => 'ga_propose_group',
+        'propose_group' => 'ga_assign',
         'assign'        => 'ga_assign',
         'investigate'   => 'ga_execute',
         'propose_boss'  => 'ga_propose_boss',

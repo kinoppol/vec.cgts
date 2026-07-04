@@ -187,6 +187,29 @@ if ($action === 'clerk_forward') {
     json_out(['ok' => true]);
 }
 
+/* ── สายบริหารทั่วไป: เจ้าหน้าที่ธุรการรายงานการดำเนินงานตรงถึง ผอ.สำนัก ── */
+if ($action === 'clerk_report') {
+    $note      = trim($body['note'] ?? '');
+    $fileCount = (int)($body['file_count'] ?? 0);
+    if ($note === '' && $fileCount < 1) err('กรุณาพิมพ์รายงานหรือแนบไฟล์อย่างน้อย 1 อย่าง', 422);
+    $detail = $note !== '' ? $note : '(รายงานการดำเนินงานโดยแนบไฟล์)';
+    if ($fileCount > 0) $detail .= "\n📎 แนบไฟล์ในคลังสำนวน {$fileCount} ไฟล์";
+    addEvent($db, $caseId, 'รายงานการดำเนินงาน', $actorName, $moment, $detail, 'checkCircle');
+    if (in_array('report_note', $caseCols)) {
+        $db->prepare("UPDATE cases SET report_note = ?, report_sent_at = NOW() WHERE id = ?")->execute([$note ?: null, $caseId]);
+    }
+    $db->prepare("UPDATE cases SET status='reporting' WHERE id = ? AND status NOT IN ('closed','rejected')")->execute([$caseId]);
+    // เสร็จสิ้นขั้นดำเนินการ แล้วเริ่มขั้นเสนอผู้บังคับบัญชา (ให้ ผอ.สำนัก พิจารณาสั่งการ)
+    try { completeSlaStep($db, $caseId, 'ga_assign'); } catch (Throwable) {}
+    try { completeSlaStep($db, $caseId, 'ga_execute'); } catch (Throwable) {}
+    try { startSlaStep($db, $caseId, 'ga_propose_boss'); } catch (Throwable) {}
+    foreach ($db->query("SELECT id FROM users WHERE role='dir_admin' AND active=1")->fetchAll(PDO::FETCH_COLUMN) as $daId) {
+        notifyUser($db, $daId, $caseId, 'clerk_report', "📄 เจ้าหน้าที่รายงานการดำเนินงาน: {$subjShort}", $detail);
+    }
+    audit('clerk_report', $caseId, $detail);
+    json_out(['ok' => true]);
+}
+
 /* ── หัวหน้าธุรการ: เก็บเรื่อง — เสร็จสิ้นการดำเนินงาน ── */
 if ($action === 'hs_archive') {
     $note = trim($body['note'] ?? '') ?: 'เก็บเรื่อง เสร็จสิ้นการดำเนินงาน';

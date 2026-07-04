@@ -1377,6 +1377,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [showAssignDone, setShowAssignDone] = useState(false);
   const [confirmAssignDone, setConfirmAssignDone] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [genReportOpen, setGenReportOpen] = useState(false);
   const [sendReportOpen, setSendReportOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
@@ -1617,27 +1618,33 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {(role==="dir_admin" || role==="admin") && caseProposal && c.status!=="closed" &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setApproveOpen(true)}><Icon name="gavel" style={{width:16,height:16}}/> มอบหมายสั่งการ</button>}
 
-            {/* เจ้าหน้าที่ผู้รับผิดชอบ (clerk) เกษียนเรื่องถึงผู้อำนวยการกลุ่ม (เฉพาะครั้งแรก — ยังไม่มีเลขรับภายในกลุ่ม) */}
-            {o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
+            {/* เจ้าหน้าที่ผู้รับผิดชอบ (clerk) เกษียนเรื่องถึงผู้อำนวยการกลุ่ม — สายนิติการเท่านั้น */}
+            {!isGeneral && o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
 
-            {/* หัวหน้ากลุ่ม มอบหมายผู้ดำเนินการในกลุ่ม (สายนิติการ = นิติกร / สายบริหารทั่วไป = เจ้าหน้าที่ธุรการ) */}
-            {isGroupLead && c.status!=="closed" && (c.group_recv_no || c.assigned_group) && !c.lawyer_sent_at &&
+            {/* สายบริหารทั่วไป: เจ้าหน้าที่ธุรการ (ผู้รับผิดชอบ) รายงานการดำเนินงานตรงถึง ผอ.สำนัก */}
+            {isGeneral && viewerIsClerk && c.status!=="closed" && !proposeBossStarted &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setGenReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> รายงานการดำเนินงาน</button>}
+            {isGeneral && viewerIsClerk && proposeBossStarted &&
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานการดำเนินงานให้ ผอ.สำนักแล้ว</div></div>}
+
+            {/* สายนิติการ: หัวหน้ากลุ่ม (ผอ.กลุ่ม) มอบหมายนิติกรในกลุ่ม */}
+            {!isGeneral && isGroupLead && c.status!=="closed" && (c.group_recv_no || c.assigned_group) && !c.lawyer_sent_at &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name ? ("เปลี่ยน"+workerTitle+"ผู้ดำเนินการ") : ("มอบหมาย"+workerTitle)}</button>}
 
-            {/* ส่งเรื่องไปให้ผู้ดำเนินการ (ล็อกการเปลี่ยนหลังกดยืนยัน) */}
-            {isGroupLead && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
+            {/* ส่งเรื่องไปให้ผู้ดำเนินการ (ล็อกการเปลี่ยนหลังกดยืนยัน) — สายนิติการ */}
+            {!isGeneral && isGroupLead && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
               <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendLawyer(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งเรื่องไปให้{workerTitle}</button>}
 
-            {/* หัวหน้ากลุ่ม: ผู้ดำเนินการส่งรายงานกลับมาแล้ว → ดูรายงาน */}
-            {c.has_report && isGroupLead &&
+            {/* หัวหน้ากลุ่ม: ผู้ดำเนินการส่งรายงานกลับมาแล้ว → ดูรายงาน — สายนิติการ */}
+            {!isGeneral && c.has_report && isGroupLead &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setViewReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {workerTitle}ส่งรายงานกลับมาแล้ว — คลิกเพื่อดูรายงาน</button>}
 
-            {/* แสดงสถานะเมื่อส่งเรื่องให้ผู้ดำเนินการแล้ว แต่ยังไม่ได้รับรายงานกลับ */}
-            {c.lawyer_sent_at && !c.has_report &&
+            {/* แสดงสถานะเมื่อส่งเรื่องให้ผู้ดำเนินการแล้ว แต่ยังไม่ได้รับรายงานกลับ — สายนิติการ */}
+            {!isGeneral && c.lawyer_sent_at && !c.has_report &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้{workerTitle}ผู้ดำเนินการแล้ว — ล็อกการเปลี่ยน{workerTitle}</div></div>}
 
-            {/* ผู้ดำเนินการ: รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
+            {/* ผู้ดำเนินการ (นิติกร): รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
             {viewerIsLawyer && c.status!=="closed" && !c.report_sent_at && <>
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {(c.report_note || c.status==='reporting') ? 'แก้ไขรายงานผล' : 'รายงานผลการดำเนินการ'}</button>
               {(c.report_note || c.status==='reporting') &&
@@ -1647,8 +1654,8 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {viewerIsLawyer && c.report_sent_at &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานผลให้ {leadTitle}แล้ว</div></div>}
 
-            {/* หัวหน้ากลุ่ม: ส่งรายงานผลขึ้นตามสาย (สายนิติการ → ผ่านธุรการ / สายบริหารทั่วไป → ตรง ผอ.สำนัก) */}
-            {isGroupLead && c.status!=="closed" && c.has_report && !investigateDone &&
+            {/* สายนิติการ: ผอ.กลุ่ม ส่งรายงานผลกลับให้ธุรการ เพื่อเกษียนต่อ ผอ.สำนัก */}
+            {!isGeneral && isGroupLead && c.status!=="closed" && c.has_report && !investigateDone &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setForwardUpOpen(true)}><Icon name="send" style={{width:16,height:16}}/> รายงานผู้อำนวยการสำนักนิติการ</button>}
 
             {/* ธุรการ: เกษียนรายงานผลต่อ ผอ.สำนัก (เฉพาะสายนิติการ — หลัง ผอ.กลุ่มส่งกลับ) */}
@@ -1772,6 +1779,15 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       }}/>}
       {reportOpen && <ReportResultModal c={c} close={()=>setReportOpen(false)} onDone={async ()=>{
         setReportOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {genReportOpen && <ReportResultModal c={c}
+        action="clerk_report" title="รายงานการดำเนินงาน" submitLabel="ส่งรายงานให้ ผอ.สำนัก"
+        prefillOverride={"เรียน ผู้อำนวยการสำนักนิติการ\n"}
+        infoText="พิมพ์รายงานการดำเนินงานตามข้อสั่งการ (แนบไฟล์ PDF/รูปภาพได้หลายไฟล์ — ไม่บังคับ) เพื่อเสนอต่อ ผอ.สำนัก"
+        close={()=>setGenReportOpen(false)} onDone={async ()=>{
+        setGenReportOpen(false);
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
@@ -2029,9 +2045,9 @@ function ViewReportModal({ c, close }) {
 }
 
 /* ---------------- Modal นิติกรรายงานผลการดำเนินการ (ข้อความ + แนบหลายไฟล์) ---------------- */
-function ReportResultModal({ c, close, onDone }) {
+function ReportResultModal({ c, close, onDone, action='report', title='รายงานผลการดำเนินการ', submitLabel='บันทึกรายงาน', prefillOverride=null, infoText=null }) {
   const lt = c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม';
-  const [note, setNote] = useState(c.report_note ||
+  const [note, setNote] = useState(c.report_note || prefillOverride ||
     (c.work_track === 'general' ? 'เรียน หัวหน้าธุรการ\n' : ('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n')));
   const [files, setFiles] = useState([]); // File[]
   const [saving, setSaving] = useState(false);
@@ -2047,7 +2063,7 @@ function ReportResultModal({ c, close, onDone }) {
     setSaving(true); setErr('');
     try {
       for (const f of files) { await api.uploadCaseFile(c.id, f, 'public'); }
-      await api.caseReport({ action:'report', case_id: c.id, note: note.trim(), file_count: files.length });
+      await api.caseReport({ action, case_id: c.id, note: note.trim(), file_count: files.length });
       await onDone();
     } catch(e) { setErr(e.message); setSaving(false); }
   };
@@ -2056,11 +2072,11 @@ function ReportResultModal({ c, close, onDone }) {
     <div className="overlay" onClick={close}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>รายงานผลการดำเนินการ</h3></div>
+          <div className="vcenter"><Icon name="checkCircle" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>{title}</h3></div>
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>บันทึกร่างรายงานผล (พิมพ์ข้อความ และ/หรือ แนบไฟล์หลายไฟล์) — แก้ไขได้จนกว่าจะกด “ส่งรายงานให้ {lt}”</div></div>
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>{infoText || <>บันทึกร่างรายงานผล (พิมพ์ข้อความ และ/หรือ แนบไฟล์หลายไฟล์) — แก้ไขได้จนกว่าจะกด “ส่งรายงานให้ {lt}”</>}</div></div>
           <div style={{marginBottom:14}}>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ผลการดำเนินการ</label>
             <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
@@ -2102,7 +2118,7 @@ function ReportResultModal({ c, close, onDone }) {
         </div>
         <div className="modal-f">
           <button className="btn btn-outline" onClick={close} disabled={saving}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':'บันทึกรายงาน'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}><Icon name="checkCircle" style={{width:16,height:16}}/> {saving?'กำลังบันทึก…':submitLabel}</button>
         </div>
       </div>
     </div>
