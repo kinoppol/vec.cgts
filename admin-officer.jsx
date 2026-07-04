@@ -1378,6 +1378,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const [confirmAssignDone, setConfirmAssignDone] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [genReportOpen, setGenReportOpen] = useState(false);
+  const [genSendOpen, setGenSendOpen] = useState(false);
   const [sendReportOpen, setSendReportOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [forwardUpOpen, setForwardUpOpen] = useState(false);
@@ -1622,10 +1623,13 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {!isGeneral && o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
 
-            {/* สายบริหารทั่วไป: เจ้าหน้าที่ธุรการ (ผู้รับผิดชอบ) รายงานการดำเนินงานตรงถึง ผอ.สำนัก */}
-            {isGeneral && viewerIsClerk && c.status!=="closed" && !proposeBossStarted &&
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setGenReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> รายงานการดำเนินงาน</button>}
-            {isGeneral && viewerIsClerk && proposeBossStarted &&
+            {/* สายบริหารทั่วไป: เจ้าหน้าที่ธุรการ (ผู้รับผิดชอบ) บันทึกร่างรายงาน (แก้ได้) แล้วส่งให้ ผอ.สำนัก */}
+            {isGeneral && viewerIsClerk && c.status!=="closed" && !c.report_sent_at && <>
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setGenReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {(c.report_note || c.status==='reporting') ? 'แก้ไขรายงานการดำเนินงาน' : 'รายงานการดำเนินงาน'}</button>
+              {(c.report_note || c.status==='reporting') &&
+                <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setGenSendOpen(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งรายงานไปยังผู้อำนวยการสำนักนิติการ</button>}
+            </>}
+            {isGeneral && viewerIsClerk && c.report_sent_at &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานการดำเนินงานให้ ผอ.สำนักแล้ว</div></div>}
 
             {/* สายนิติการ: หัวหน้ากลุ่ม (ผอ.กลุ่ม) มอบหมายนิติกรในกลุ่ม */}
@@ -1783,11 +1787,18 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         if (onRefresh) onRefresh();
       }}/>}
       {genReportOpen && <ReportResultModal c={c}
-        action="clerk_report" title="รายงานการดำเนินงาน" submitLabel="ส่งรายงานให้ ผอ.สำนัก"
+        action="clerk_report" title="รายงานการดำเนินงาน" submitLabel="บันทึกรายงาน"
         prefillOverride={"เรียน ผู้อำนวยการสำนักนิติการ\n"}
-        infoText="พิมพ์รายงานการดำเนินงานตามข้อสั่งการ (แนบไฟล์ PDF/รูปภาพได้หลายไฟล์ — ไม่บังคับ) เพื่อเสนอต่อ ผอ.สำนัก"
+        infoText="บันทึกร่างรายงานการดำเนินงานตามข้อสั่งการ (แนบไฟล์ PDF/รูปภาพได้หลายไฟล์ — ไม่บังคับ) — แก้ไขได้จนกว่าจะกด “ส่งรายงานไปยังผู้อำนวยการสำนักนิติการ”"
         close={()=>setGenReportOpen(false)} onDone={async ()=>{
         setGenReportOpen(false);
+        const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
+        if (onRefresh) onRefresh();
+      }}/>}
+      {genSendOpen && <SendReportModal c={c}
+        action="clerk_report_send" title="ยืนยันส่งรายงานไปยังผู้อำนวยการสำนักนิติการ" recipient="ผอ.สำนัก"
+        close={()=>setGenSendOpen(false)} onDone={async ()=>{
+        setGenSendOpen(false);
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
@@ -2126,21 +2137,21 @@ function ReportResultModal({ c, close, onDone, action='report', title='ราย
 }
 
 /* ---------------- Modal ยืนยันส่งรายงานผลให้ ผอ.กลุ่ม (ล็อกการแก้ไข) ---------------- */
-function SendReportModal({ c, close, onDone }) {
-  const lt = c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม';
+function SendReportModal({ c, close, onDone, action='report_send', title=null, recipient=null }) {
+  const lt = recipient || (c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const submit = async () => {
     if (saving) return;
     setSaving(true); setErr('');
-    try { await api.caseReport({ action:'report_send', case_id: c.id }); await onDone(); }
+    try { await api.caseReport({ action, case_id: c.id }); await onDone(); }
     catch(e) { setErr(e.message); setSaving(false); }
   };
   return (
     <div className="overlay" onClick={close}>
       <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันส่งรายงานผลให้ {lt}</h3></div>
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>{title || ('ยืนยันส่งรายงานผลให้ ' + lt)}</h3></div>
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">

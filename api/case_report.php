@@ -187,18 +187,34 @@ if ($action === 'clerk_forward') {
     json_out(['ok' => true]);
 }
 
-/* ── สายบริหารทั่วไป: เจ้าหน้าที่ธุรการรายงานการดำเนินงานตรงถึง ผอ.สำนัก ── */
+/* ── สายบริหารทั่วไป: เจ้าหน้าที่ธุรการบันทึก/แก้ไขร่างรายงานการดำเนินงาน (แก้ได้จนกว่าจะส่ง) ── */
 if ($action === 'clerk_report') {
+    $hasReportCol = in_array('report_note', $caseCols);
+    if ($hasReportCol && !empty($case['report_sent_at'])) err('ส่งรายงานให้ ผอ.สำนัก แล้ว ไม่สามารถแก้ไขได้', 409);
     $note      = trim($body['note'] ?? '');
     $fileCount = (int)($body['file_count'] ?? 0);
     if ($note === '' && $fileCount < 1) err('กรุณาพิมพ์รายงานหรือแนบไฟล์อย่างน้อย 1 อย่าง', 422);
+    if ($hasReportCol) $db->prepare("UPDATE cases SET report_note = ? WHERE id = ?")->execute([$note ?: null, $caseId]);
+    $db->prepare("UPDATE cases SET status='reporting' WHERE id = ? AND status NOT IN ('closed','rejected')")->execute([$caseId]);
+    // เริ่มขั้น "ดำเนินการตามข้อสั่งการ" อัตโนมัติเมื่อเริ่มบันทึกรายงาน
+    try { startSlaStep($db, $caseId, 'ga_execute'); } catch (Throwable) {}
+    audit('clerk_report_draft', $caseId, $note);
+    json_out(['ok' => true]);
+}
+
+/* ── สายบริหารทั่วไป: เจ้าหน้าที่ธุรการส่งรายงานการดำเนินงานให้ ผอ.สำนัก (ล็อก + แจ้งเตือน) ── */
+if ($action === 'clerk_report_send') {
+    $hasReportCol = in_array('report_note', $caseCols);
+    if ($hasReportCol && !empty($case['report_sent_at'])) err('ส่งรายงานแล้ว', 409);
+    $note = $hasReportCol ? trim($case['report_note'] ?? '') : '';
+    $fc = $db->prepare("SELECT COUNT(*) FROM case_files WHERE case_id = ?");
+    $fc->execute([$caseId]);
+    $fileCount = (int)$fc->fetchColumn();
+    if ($note === '' && $fileCount < 1) err('ยังไม่มีรายงานให้ส่ง กรุณาบันทึกรายงานก่อน', 422);
     $detail = $note !== '' ? $note : '(รายงานการดำเนินงานโดยแนบไฟล์)';
     if ($fileCount > 0) $detail .= "\n📎 แนบไฟล์ในคลังสำนวน {$fileCount} ไฟล์";
     addEvent($db, $caseId, 'รายงานการดำเนินงาน', $actorName, $moment, $detail, 'checkCircle');
-    if (in_array('report_note', $caseCols)) {
-        $db->prepare("UPDATE cases SET report_note = ?, report_sent_at = NOW() WHERE id = ?")->execute([$note ?: null, $caseId]);
-    }
-    $db->prepare("UPDATE cases SET status='reporting' WHERE id = ? AND status NOT IN ('closed','rejected')")->execute([$caseId]);
+    if ($hasReportCol) $db->prepare("UPDATE cases SET report_sent_at = NOW() WHERE id = ?")->execute([$caseId]);
     // เสร็จสิ้นขั้นดำเนินการ แล้วเริ่มขั้นเสนอผู้บังคับบัญชา (ให้ ผอ.สำนัก พิจารณาสั่งการ)
     try { completeSlaStep($db, $caseId, 'ga_assign'); } catch (Throwable) {}
     try { completeSlaStep($db, $caseId, 'ga_execute'); } catch (Throwable) {}
@@ -206,7 +222,7 @@ if ($action === 'clerk_report') {
     foreach ($db->query("SELECT id FROM users WHERE role='dir_admin' AND active=1")->fetchAll(PDO::FETCH_COLUMN) as $daId) {
         notifyUser($db, $daId, $caseId, 'clerk_report', "📄 เจ้าหน้าที่รายงานการดำเนินงาน: {$subjShort}", $detail);
     }
-    audit('clerk_report', $caseId, $detail);
+    audit('clerk_report_send', $caseId, $detail);
     json_out(['ok' => true]);
 }
 
