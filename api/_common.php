@@ -106,13 +106,29 @@ function completeSlaStep(PDO $db, string $caseId, string $stepKey): void {
 function caseWorkTrack(PDO $db, ?string $groupName): string {
     if (!$groupName) return 'legal';
     try {
+        // หัวหน้ากลุ่มมีบทบาทหัวหน้าธุรการจากแหล่งใดแหล่งหนึ่ง:
+        //   (1) groups.leader_role  (2) users.role ของหัวหน้ากลุ่ม  (3) group_roles ของกลุ่ม
         $s = $db->prepare(
-            "SELECT u.role FROM `groups` g JOIN users u ON u.id = g.leader_id
+            "SELECT
+                (g.leader_role = 'head_secretary')
+                OR (u.role = 'head_secretary')
+                OR EXISTS(SELECT 1 FROM group_roles gr WHERE gr.group_id = g.id AND gr.role = 'head_secretary')
+             FROM `groups` g LEFT JOIN users u ON u.id = g.leader_id
              WHERE g.name = ? LIMIT 1"
         );
         $s->execute([$groupName]);
-        return $s->fetchColumn() === 'head_secretary' ? 'general' : 'legal';
-    } catch (Throwable) { return 'legal'; }
+        return (int)$s->fetchColumn() === 1 ? 'general' : 'legal';
+    } catch (Throwable) {
+        // fallback: เผื่อ group_roles ยังไม่มี — เช็คเฉพาะ leader_role / users.role
+        try {
+            $s = $db->prepare(
+                "SELECT (g.leader_role = 'head_secretary') OR (u.role = 'head_secretary')
+                 FROM `groups` g LEFT JOIN users u ON u.id = g.leader_id WHERE g.name = ? LIMIT 1"
+            );
+            $s->execute([$groupName]);
+            return (int)$s->fetchColumn() === 1 ? 'general' : 'legal';
+        } catch (Throwable) { return 'legal'; }
+    }
 }
 
 /** trackSlaKey — แปลง step_key มาตรฐาน (สายนิติการ) เป็น key ของสายบริหารทั่วไป (ga_*) */
