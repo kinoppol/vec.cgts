@@ -151,6 +151,33 @@ if ($initialUser) {
 </head>
 <body>
 <div id="root"></div>
+
+<!-- overlay ระหว่างสลับบทบาท — inline style เพื่อให้แสดงทันทีตอนรีโหลด (ก่อน Babel/CSS) กัน FOUC -->
+<div id="role-switch-loader" style="display:none;position:fixed;inset:0;z-index:100000;align-items:center;justify-content:center;background:rgba(20,10,12,.55);font-family:'Sarabun','TH Sarabun New',sans-serif">
+  <div style="background:#fff;border-radius:16px;padding:30px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div class="rsl-dots" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px"><span></span><span></span><span></span></div>
+    <div style="font-size:16px;font-weight:700;color:#211619">กำลังสลับบทบาท</div>
+    <div id="rsl-sub" style="font-size:13px;color:#8C8084;margin-top:4px">กรุณารอสักครู่</div>
+  </div>
+</div>
+<style>
+  #role-switch-loader .rsl-dots span{width:12px;height:12px;border-radius:50%;background:#7A1E2A;display:inline-block;animation:rslDot 1s ease-in-out infinite}
+  #role-switch-loader .rsl-dots span:nth-child(2){animation-delay:.16s}
+  #role-switch-loader .rsl-dots span:nth-child(3){animation-delay:.32s}
+  @keyframes rslDot{0%,80%,100%{transform:scale(.5);opacity:.4}40%{transform:scale(1);opacity:1}}
+</style>
+<script>
+(function(){ try {
+  var lbl = sessionStorage.getItem('__role_switching__');
+  if (lbl) {
+    var sub = document.getElementById('rsl-sub');
+    if (sub) sub.innerHTML = 'เปลี่ยนเป็น <b>' + lbl.replace(/[<>&]/g,'') + '</b> — กรุณารอสักครู่';
+    var el = document.getElementById('role-switch-loader');
+    if (el) el.style.display = 'flex';
+  }
+} catch(e){} })();
+</script>
+
 <!-- ข้อมูลผู้ใช้เริ่มต้น (server-injected) -->
 <script>
 window.__INITIAL_USER__  = <?= json_encode($initialUser,      JSON_UNESCAPED_UNICODE) ?>;

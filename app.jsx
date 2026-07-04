@@ -709,11 +709,14 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
   };
 
   const handleSwitchRole = async (newRole) => {
-    setSwitchingRole(roleLabel(newRole, roleLabels)); // แสดง overlay ระหว่างสลับ (กันผู้ใช้คิดว่าค้าง)
+    const label = roleLabel(newRole, roleLabels);
+    setSwitchingRole(label); // overlay บนหน้าเดิม (ช่วงก่อนรีโหลด)
+    // ตั้ง flag ให้ index.php แสดง overlay ทันทีหลังรีโหลด (ครอบช่วง Babel/FOUC จนกว่า React จะ mount)
+    try { sessionStorage.setItem('__role_switching__', label); } catch(e) {}
     try {
       await api.switchRole(newRole);
       window.location.reload(); // โหลดใหม่เพื่อให้เมนู/สิทธิ์ตรงกับบทบาทใหม่
-    } catch(e) { setSwitchingRole(null); alert(e.message); }
+    } catch(e) { setSwitchingRole(null); try { sessionStorage.removeItem('__role_switching__'); } catch(_) {} alert(e.message); }
   };
 
   return (
@@ -1265,6 +1268,12 @@ function TodoPage() {
 /* ---------------- Root ---------------- */
 function App() {
   const [theme, setTheme] = useTheme();
+  // ปิด overlay สลับบทบาท (จาก index.php) เมื่อ React mount + สไตล์พร้อมแล้ว
+  useEffect(() => {
+    const el = document.getElementById('role-switch-loader');
+    if (el) el.style.display = 'none';
+    try { sessionStorage.removeItem('__role_switching__'); } catch(e) {}
+  }, []);
   const [user,  setUser]  = useState(window.__INITIAL_USER__ || null);
   const [screen, setScreen] = useState(
     window.__INITIAL_USER__ ? "admin" : "public"
