@@ -1503,9 +1503,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         </div>
         <div className="vcenter" style={{gap:8}}>
           {canAssign && c.assignee && c.status!=="closed" && (() => {
-            const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
+            const assignStep = (c.steps||[]).find(s=>s.step_key===kAssign);
             if (assignStep?.ev_status==='done') return null;
-            return (<button key="mark-assign" className="btn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setConfirmAssignDone(true)}>
+            return (<button key="mark-assign" className="btn btn-attn" style={{background:'var(--ok-bg)',color:'var(--ok)',border:'1.5px solid var(--ok)',fontWeight:600}} onClick={()=>setConfirmAssignDone(true)}>
               <Icon name="checkCircle" style={{width:16,height:16}}/> มอบหมายผู้ดำเนินการ
             </button>);
           })()}
