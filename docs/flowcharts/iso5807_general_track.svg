@@ -1,0 +1,70 @@
+<svg viewBox="0 0 560 1260" width="560" height="1260" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Sarabun','TH Sarabun New',sans-serif">
+<title>ผังงาน ISO-5807 — สายงานบริหารทั่วไป (เรื่องที่ไม่ใช่คดี/ร้องเรียน มอบหมายกลุ่มที่หัวหน้ากลุ่มเป็นหัวหน้าธุรการ)</title>
+<desc>เรื่องเข้าระบบ ผอ.สำนักมอบหมายกลุ่มบริหารงานทั่วไป หัวหน้าธุรการดำเนินการแทนสายนิติการ ไม่ผ่านขั้นตอนนิติกร แล้วเข้าสู่การสั่งการและปลายทางเก็บเรื่อง/ทำหนังสือส่ง</desc>
+<defs>
+<marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8a8f98"/></marker>
+<marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9d2235"/></marker>
+</defs>
+<style>
+.sh{fill:#ffffff;stroke:#cfd4da;stroke-width:1.2;}
+.term{fill:#eceef1;stroke:#b3b9c2;stroke-width:1.2;}
+.gen{fill:#fbf3e7;stroke:#c78a2e;stroke-width:1.2;}
+.dec{fill:#fff;stroke:#9d2235;stroke-width:1.3;}
+.t{fill:#141414;font-size:12.5px;}
+.tb{fill:#141414;font-size:12.5px;font-weight:700;}
+.dt{fill:#9d2235;font-size:12px;font-weight:700;}
+.ln{stroke:#8a8f98;stroke-width:1.5;fill:none;}
+.lp{stroke:#9d2235;stroke-width:1.4;fill:none;stroke-dasharray:5 4;}
+.el{fill:#5b6470;font-size:11px;font-weight:600;}
+.cap{fill:#c78a2e;font-size:14px;font-weight:800;}
+.sub{fill:#5b6470;font-size:11.5px;}
+</style>
+<rect x="0" y="0" width="560" height="1260" fill="#ffffff"/>
+<text class="cap" x="280" y="26" text-anchor="middle">สายงานบริหารทั่วไป — เรื่องที่ไม่ใช่คดี/ร้องเรียน</text>
+<text class="sub" x="280" y="44" text-anchor="middle">มอบหมายกลุ่มที่หัวหน้ากลุ่ม = หัวหน้าธุรการ (ไม่ผ่านขั้นตอนนิติกร)</text>
+
+<rect class="term" x="195" y="60" width="170" height="38" rx="19"/><text class="tb" x="280" y="84" text-anchor="middle">เริ่ม — รับเรื่องเข้าระบบ</text>
+<rect class="sh" x="150" y="118" width="260" height="46" rx="4" fill="#eceef1"/><text class="tb" x="280" y="137" text-anchor="middle">สำนวนเข้าระบบ</text><text class="t" x="280" y="154" text-anchor="middle">สถานะ: รับเรื่อง (SLA เริ่ม)</text>
+
+<rect class="sh" x="130" y="188" width="300" height="40" rx="4"/><text class="t" x="280" y="213" text-anchor="middle">หัวหน้าธุรการ: เกษียนเสนอ ผอ.สำนัก</text>
+<rect class="sh" x="130" y="246" width="300" height="42" rx="4"/><text class="t" x="280" y="266" text-anchor="middle">ผอ.สำนัก: มอบหมายสั่งการ + ข้อสั่งการ</text><text class="t" x="280" y="281" text-anchor="middle">→ กลุ่มบริหารงานทั่วไป</text>
+
+<rect class="gen" x="130" y="306" width="300" height="42" rx="4"/><text class="tb" x="280" y="326" text-anchor="middle">เข้าสายงานบริหารทั่วไป</text><text class="t" x="280" y="341" text-anchor="middle">(หัวหน้ากลุ่ม = หัวหน้าธุรการ)</text>
+
+<rect class="gen" x="130" y="366" width="300" height="40" rx="4"/><text class="t" x="280" y="391" text-anchor="middle">หัวหน้าธุรการ: มอบหมายเจ้าหน้าที่ธุรการ + ข้อสั่งการ</text>
+<rect class="gen" x="130" y="424" width="300" height="40" rx="4"/><text class="t" x="280" y="449" text-anchor="middle">หัวหน้าธุรการ: ส่งเรื่องให้เจ้าหน้าที่ (ล็อก)</text>
+<rect class="gen" x="130" y="482" width="300" height="40" rx="4"/><text class="t" x="280" y="507" text-anchor="middle">เจ้าหน้าที่ธุรการ: ดำเนินการตามข้อสั่งการ → รายงานผล</text>
+<polygon class="dec" points="280,540 380,584 280,628 180,584"/><text class="dt" x="280" y="580" text-anchor="middle">เจ้าหน้าที่</text><text class="dt" x="280" y="596" text-anchor="middle">เกษียนกลับ?</text>
+
+<rect class="gen" x="130" y="660" width="300" height="40" rx="4"/><text class="t" x="280" y="685" text-anchor="middle">หัวหน้าธุรการ: เสนอรายงานตรงถึง ผอ.สำนัก</text>
+<text class="sub" x="280" y="702" text-anchor="middle">(ข้ามขั้นตอนธุรการกลาง — ไม่ผ่านสายนิติการ)</text>
+
+<rect class="sh" x="130" y="726" width="300" height="42" rx="4"/><text class="tb" x="280" y="746" text-anchor="middle">ผอ.สำนัก: สั่งการ → ปิดเรื่อง</text><text class="t" x="280" y="761" text-anchor="middle">เลือกคำสั่ง + ความเห็น + แนบไฟล์</text>
+
+<polygon class="dec" points="280,806 400,856 280,906 160,856"/><text class="dt" x="280" y="852" text-anchor="middle">หัวหน้าธุรการ</text><text class="dt" x="280" y="868" text-anchor="middle">พิจารณา</text>
+
+<path class="ln" d="M280,98 V118" marker-end="url(#a)"/>
+<path class="ln" d="M280,164 V188" marker-end="url(#a)"/>
+<path class="ln" d="M280,228 V246" marker-end="url(#a)"/>
+<path class="ln" d="M280,288 V306" marker-end="url(#a)"/>
+<path class="ln" d="M280,348 V366" marker-end="url(#a)"/>
+<path class="ln" d="M280,406 V424" marker-end="url(#a)"/>
+<path class="ln" d="M280,464 V482" marker-end="url(#a)"/>
+<path class="ln" d="M280,522 V540" marker-end="url(#a)"/>
+<path class="ln" d="M280,628 V660" marker-end="url(#a)"/><text class="el" x="288" y="648">ไม่</text>
+<path class="ln" d="M280,702 V726" marker-end="url(#a)"/>
+<path class="ln" d="M280,768 V806" marker-end="url(#a)"/>
+<path class="lp" d="M380,584 C450,566 450,464 432,445" marker-end="url(#ab)"/><text class="el" x="392" y="516" fill="#9d2235">ใช่ · ปลดล็อก</text>
+
+<rect class="term" x="105" y="960" width="150" height="40" rx="20"/><text class="tb" x="180" y="985" text-anchor="middle">จัดเก็บ · สิ้นสุด</text>
+<polygon class="gen" points="330,964 480,964 466,1006 316,1006"/><text class="t" x="398" y="989" text-anchor="middle">ออกหนังสือส่ง</text>
+<text class="sub" x="398" y="1004" text-anchor="middle">(รองเลขาธิการ/เลขาธิการ/หน่วยงานภายนอก)</text>
+<rect class="term" x="323" y="1046" width="150" height="36" rx="18"/><text class="tb" x="398" y="1069" text-anchor="middle">สิ้นสุด</text>
+
+<path class="ln" d="M235,856 C170,890 175,930 180,960" marker-end="url(#a)"/><text class="el" x="171" y="930">เก็บเรื่อง</text>
+<path class="ln" d="M325,856 C390,890 395,930 398,964" marker-end="url(#a)"/><text class="el" x="405" y="930">หนังสือส่ง</text>
+<path class="ln" d="M398,1006 V1046" marker-end="url(#a)"/>
+
+<text class="sub" x="280" y="1110" text-anchor="middle">หมายเหตุ: สายนี้ไม่มีขั้นตอน "ดำเนินการเป็นเรื่องใหม่" ต่างจากสายงานนิติการ</text>
+<text class="sub" x="280" y="1128" text-anchor="middle">SLA แยกชุด — ไม่มีขั้น "มอบหมายนิติกร" / ขั้น "ตรวจข้อเท็จจริง" เปลี่ยนเป็น "ดำเนินการตามข้อสั่งการ"</text>
+</svg>
