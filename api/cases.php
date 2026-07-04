@@ -56,8 +56,52 @@ function buildCase(array $row, PDO $db): array {
     $fs->execute([$row['id']]);
     $row['files'] = $fs->fetchAll();
 
-    // sla_steps ทั้งหมด (backbone 6 ขั้น)
-    $allSteps = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order")->fetchAll();
+    // กลุ่มที่ผู้บริหารมอบหมาย — ใช้ assigned_group ถ้ามี
+    // ถ้ายังว่าง (เรื่องเก่า / ยังไม่ได้ migrate) → ดึงจาก proposal ที่อนุมัติล่าสุด
+    $assignedGroup = $row['assigned_group'] ?? null;
+    if (!$assignedGroup) {
+        try {
+            $pcols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
+            $hasFinalGroup = in_array('final_group', $pcols);
+            $hasPropGroups = in_array('proposed_groups', $pcols);
+            $sel = ['1 AS _x'];
+            if ($hasFinalGroup) $sel[] = 'final_group';
+            if ($hasPropGroups) $sel[] = 'proposed_groups';
+            $pq = $db->prepare("SELECT " . implode(',', $sel) . "
+                FROM case_task_proposals
+                WHERE case_id=? AND from_task_no=0 AND status IN ('approved','changed')
+                ORDER BY reviewed_at DESC, id DESC LIMIT 1");
+            $pq->execute([$row['id']]);
+            $p = $pq->fetch();
+            if ($p) {
+                if (!empty($p['final_group'])) {
+                    $assignedGroup = $p['final_group'];
+                } elseif (!empty($p['proposed_groups'])) {
+                    $g = json_decode($p['proposed_groups'], true);
+                    if (is_array($g) && count($g)) $assignedGroup = $g[0];
+                }
+            }
+        } catch (Throwable $e) { /* graceful */ }
+    }
+    $row['assigned_group'] = $assignedGroup;
+
+    // สายงานของเรื่อง (legal = นิติการปกติ / general = กลุ่มบริหารทั่วไป — หัวหน้ากลุ่มเป็นหัวหน้าธุรการ)
+    $workTrack = caseWorkTrack($db, $assignedGroup);
+    $row['work_track'] = $workTrack;
+
+    // sla_steps เฉพาะสายของเรื่อง (common + track ของเรื่อง); ถ้ายังไม่มีคอลัมน์ track → ทั้งหมด
+    try {
+        $slaCols = $db->query("SHOW COLUMNS FROM sla_steps")->fetchAll(PDO::FETCH_COLUMN);
+        if (in_array('track', $slaCols)) {
+            $st = $db->prepare("SELECT * FROM sla_steps WHERE active = 1 AND track IN ('common', ?) ORDER BY sort_order");
+            $st->execute([$workTrack]);
+            $allSteps = $st->fetchAll();
+        } else {
+            $allSteps = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order")->fetchAll();
+        }
+    } catch (Throwable $e) {
+        $allSteps = $db->query("SELECT * FROM sla_steps WHERE active = 1 ORDER BY sort_order")->fetchAll();
+    }
     $stepsMap = [];
     foreach ($allSteps as $s) $stepsMap[$s['step_key']] = $s;
 
@@ -191,35 +235,6 @@ function buildCase(array $row, PDO $db): array {
             }
         } catch (Throwable $e) { /* graceful */ }
     }
-
-    // กลุ่มที่ผู้บริหารมอบหมาย — ใช้ assigned_group ถ้ามี
-    // ถ้ายังว่าง (เรื่องเก่า / ยังไม่ได้ migrate) → ดึงจาก proposal ที่อนุมัติล่าสุด
-    $assignedGroup = $row['assigned_group'] ?? null;
-    if (!$assignedGroup) {
-        try {
-            $pcols = $db->query("SHOW COLUMNS FROM case_task_proposals")->fetchAll(PDO::FETCH_COLUMN);
-            $hasFinalGroup = in_array('final_group', $pcols);
-            $hasPropGroups = in_array('proposed_groups', $pcols);
-            $sel = ['1 AS _x'];
-            if ($hasFinalGroup) $sel[] = 'final_group';
-            if ($hasPropGroups) $sel[] = 'proposed_groups';
-            $pq = $db->prepare("SELECT " . implode(',', $sel) . "
-                FROM case_task_proposals
-                WHERE case_id=? AND from_task_no=0 AND status IN ('approved','changed')
-                ORDER BY reviewed_at DESC, id DESC LIMIT 1");
-            $pq->execute([$row['id']]);
-            $p = $pq->fetch();
-            if ($p) {
-                if (!empty($p['final_group'])) {
-                    $assignedGroup = $p['final_group'];
-                } elseif (!empty($p['proposed_groups'])) {
-                    $g = json_decode($p['proposed_groups'], true);
-                    if (is_array($g) && count($g)) $assignedGroup = $g[0];
-                }
-            }
-        } catch (Throwable $e) { /* graceful */ }
-    }
-    $row['assigned_group'] = $assignedGroup;
 
     // ข้อสั่งการล่าสุดจากการอนุมัติข้อเสนอ (review_note) — ใช้ pre-fill ตอนยืนยันมอบหมาย
     try {
@@ -821,9 +836,9 @@ if ($method === 'PATCH') {
         }
     }
 
-    // มอบหมาย clerk → เริ่มขั้น "เสนอ ผอ.กลุ่ม" อัตโนมัติ
+    // มอบหมาย clerk → เริ่มขั้น "เสนอ ผอ.กลุ่ม / เสนอหัวหน้าธุรการ" อัตโนมัติ (ตามสายของเรื่อง)
     if (isset($body['assignee']) && ($body['assignee'] ?? null)) {
-        try { startSlaStep($db, $id, 'propose_group'); } catch (Throwable) {}
+        try { startSlaStep($db, $id, slaKeyForCase($db, $id, 'propose_group')); } catch (Throwable) {}
     }
 
     // sync SLA calendar event เมื่อเปลี่ยน assignee หรือ status

@@ -60,6 +60,25 @@ if ($confirm === 'all') {
             $ins->execute();
             echo $ins->rowCount() ? "✓ เพิ่มขั้น propose_group\n" : "– propose_group มีอยู่แล้ว\n";
         } catch (Throwable $e) { echo "– ข้าม propose_group: ".$e->getMessage()."\n"; }
+        // สาย SLA แยก (track) + ขั้นสายบริหารทั่วไป (ga_*)
+        try {
+            $ensureCol('sla_steps', 'track', "track VARCHAR(10) NOT NULL DEFAULT 'legal' AFTER step_key");
+            $db->exec("UPDATE sla_steps SET track='common' WHERE step_key IN ('receive','propose_dir') AND track<>'common'");
+            $gaSteps = [
+                ['ga_propose_group','เสนอหัวหน้าธุรการ',1,25,'เจ้าหน้าที่เสนอเรื่องต่อหัวหน้าธุรการ'],
+                ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'มอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
+                ['ga_execute','ดำเนินการตามข้อสั่งการ',10,40,'เจ้าหน้าที่ธุรการดำเนินการตามข้อสั่งการ'],
+                ['ga_propose_boss','เสนอผู้บังคับบัญชา',3,50,'เสนอ ผอ.สำนัก พิจารณาสั่งการ'],
+                ['ga_order','สั่งการ',2,60,'ผอ.สำนัก สั่งการขั้นสุดท้าย'],
+            ];
+            foreach ($gaSteps as [$k,$l,$d,$o,$nt]) {
+                $ins = $db->prepare("INSERT INTO sla_steps (step_key,track,label,days_allowed,sort_order,active,note)
+                    SELECT ?,'general',?,?,?,1,? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sla_steps WHERE step_key=?)");
+                $ins->execute([$k,$l,$d,$o,$nt,$k]);
+                echo $ins->rowCount() ? "✓ เพิ่มขั้น $k\n" : "– $k มีอยู่แล้ว\n";
+            }
+            echo "✓ sla_steps.track (common/legal/general)\n";
+        } catch (Throwable $e) { echo "– ข้าม sla track: ".$e->getMessage()."\n"; }
         // สมาชิกหลายกลุ่ม (group_members)
         try {
             $db->exec("CREATE TABLE IF NOT EXISTS group_members (
@@ -76,6 +95,38 @@ if ($confirm === 'all') {
         } catch (Throwable $e) { echo "– ข้าม group_members: ".$e->getMessage()."\n"; }
         echo "\n<span class='ok'>✅ เสร็จสิ้น — คอลัมน์/ตารางครบแล้ว</span>\n";
     } catch (Throwable $e) { echo "<span class='err'>❌ ".htmlspecialchars($e->getMessage())."</span>\n"; }
+    echo '</pre>';
+    exit;
+}
+
+/* ── [31] general_track — สาย SLA แยกสำหรับกลุ่มบริหารงานทั่วไป ─────── */
+if ($confirm === 'general_track') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [31]: สาย SLA บริหารงานทั่วไป (track + ga_*)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $cols = $db->query("SHOW COLUMNS FROM sla_steps")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('track', $cols)) {
+            $db->exec("ALTER TABLE sla_steps ADD COLUMN track VARCHAR(10) NOT NULL DEFAULT 'legal' AFTER step_key");
+            echo "✓ ALTER sla_steps ADD track\n";
+        } else echo "– sla_steps.track มีอยู่แล้ว\n";
+        $db->exec("UPDATE sla_steps SET track='common' WHERE step_key IN ('receive','propose_dir') AND track<>'common'");
+        echo "✓ receive/propose_dir → track=common\n";
+        foreach ([
+            ['ga_propose_group','เสนอหัวหน้าธุรการ',1,25,'เจ้าหน้าที่เสนอเรื่องต่อหัวหน้าธุรการ'],
+            ['ga_assign','มอบหมายเจ้าหน้าที่ธุรการ',1,30,'มอบหมายเจ้าหน้าที่ธุรการผู้ดำเนินการ'],
+            ['ga_execute','ดำเนินการตามข้อสั่งการ',10,40,'เจ้าหน้าที่ธุรการดำเนินการตามข้อสั่งการ'],
+            ['ga_propose_boss','เสนอผู้บังคับบัญชา',3,50,'เสนอ ผอ.สำนัก พิจารณาสั่งการ'],
+            ['ga_order','สั่งการ',2,60,'ผอ.สำนัก สั่งการขั้นสุดท้าย'],
+        ] as [$k,$l,$d,$o,$nt]) {
+            $ins = $db->prepare("INSERT INTO sla_steps (step_key,track,label,days_allowed,sort_order,active,note)
+                SELECT ?,'general',?,?,?,1,? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM sla_steps WHERE step_key=?)");
+            $ins->execute([$k,$l,$d,$o,$nt,$k]);
+            echo $ins->rowCount() ? "✓ เพิ่มขั้น $k\n" : "– $k มีอยู่แล้ว\n";
+        }
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) { echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n"; }
     echo '</pre>';
     exit;
 }
@@ -1117,6 +1168,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[31] สาย SLA บริหารงานทั่วไป</b> — sla_steps.track + ขั้น ga_* (เรื่องมอบหมายกลุ่มธุรการ)<br><code><a href="?confirm=general_track">migrate.php?confirm=general_track</a></code></li>';
     echo '<li><b>[30] สมาชิกหลายกลุ่ม</b> — ตาราง group_members (ผู้ใช้อยู่ได้หลายกลุ่ม)<br><code><a href="?confirm=group_members">migrate.php?confirm=group_members</a></code></li>';
     echo '<li><b>[29] เรื่องสืบเนื่อง</b> — cases.origin_case_id (อ้างเลขเรื่องเดิมที่ดำเนินการเสร็จ)<br><code><a href="?confirm=origin_case">migrate.php?confirm=origin_case</a></code></li>';
     echo '<li><b>[28] รายงานผลนิติกร (ร่าง)</b> — cases.report_note + report_sent_at (แก้ได้จนกว่าจะส่งให้ ผอ.กลุ่ม)<br><code><a href="?confirm=report_draft">migrate.php?confirm=report_draft</a></code></li>';

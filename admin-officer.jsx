@@ -772,7 +772,7 @@ function StepDoneModal({ step, onConfirm, onClose }) {
   const fileRef = React.useRef(null);
 
   // เช็คลิสต์รูปแบบคำสั่ง (เฉพาะขั้น "ออกคำสั่ง")
-  const isOrder = step.step_key === 'order';
+  const isOrder = step.step_key === 'order' || step.step_key === 'ga_order';
   const [orderTemplates, setOrderTemplates] = React.useState([]);
   const [orderSel, setOrderSel] = React.useState(() => Array.isArray(step.order_items) ? step.order_items : []);
 
@@ -1191,7 +1191,7 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
               {canDo(s.step_key) && (() => {
                 // ขั้นก่อนหน้าต้องเสร็จก่อนจึงเริ่มได้ — ยกเว้น dir_admin ออกคำสั่ง (order) ข้ามได้
                 const prevDone = i === 0 || steps[i-1].ev_status === 'done';
-                const canStart = prevDone || (s.step_key === 'order' && isDirAdmin);
+                const canStart = prevDone || ((s.step_key === 'order' || s.step_key === 'ga_order') && isDirAdmin);
                 return (
                 <div className="vcenter" style={{gap:6,marginTop:6,flexWrap:'wrap'}}>
                   {!isDone && !isActive && (
@@ -1218,9 +1218,9 @@ function CaseTimeline({ steps = [], onRefresh, canEdit, canEditStep, role }) {
                   )}
                   {isDone && (
                     <button className="btn btn-sm btn-ghost"
-                      style={{fontSize:11,padding:'2px 8px',color:s.step_key==='order'?'var(--danger)':undefined}}
+                      style={{fontSize:11,padding:'2px 8px',color:(s.step_key==='order'||s.step_key==='ga_order')?'var(--danger)':undefined}}
                       disabled={!!busy} onClick={()=>markStatus(s,'active')}>
-                      {s.step_key==='order' ? '↩ ยกเลิกคำสั่ง' : '↩ ย้อนกลับ'}
+                      {(s.step_key==='order'||s.step_key==='ga_order') ? '↩ ยกเลิกคำสั่ง' : '↩ ย้อนกลับ'}
                     </button>
                   )}
                   {/* บันทึกวันเริ่มย้อนหลัง */}
@@ -1416,19 +1416,29 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
   const myOid          = currentUser?.officer_id ? String(currentUser.officer_id) : null;
   const viewerIsLawyer = myOid && myOid === String(c.lawyer);
   const viewerIsClerk  = myOid && myOid === String(c.assignee);
+  // สายงานของเรื่อง: general = กลุ่มบริหารทั่วไป (หัวหน้ากลุ่ม = หัวหน้าธุรการ ไม่เกี่ยวข้องกับนิติกร)
+  const isGeneral    = c.work_track === 'general';
+  const kAssign      = isGeneral ? 'ga_assign'       : 'assign';
+  const kInvestigate = isGeneral ? 'ga_execute'      : 'investigate';
+  const kBoss        = isGeneral ? 'ga_propose_boss' : 'propose_boss';
+  const kOrder       = isGeneral ? 'ga_order'        : 'order';
+  const leadTitle    = isGeneral ? 'หัวหน้าธุรการ'      : 'ผอ.กลุ่ม';
+  const workerTitle  = isGeneral ? 'เจ้าหน้าที่ธุรการ'   : 'นิติกร';
+  // หัวหน้ากลุ่มของสายเรื่องนี้ (สาย general = head_secretary ทำหน้าที่แทน ผอ.กลุ่ม)
+  const isGroupLead  = role==="dir_legal" || role==="admin" || (isGeneral && role==="head_secretary");
   // สถานะขั้น SLA (ใช้คุมปุ่มสายรายงาน)
   const stepStatus = (k) => (c.steps||[]).find(s=>s.step_key===k)?.ev_status || 'pending';
-  const investigateDone   = stepStatus('investigate') === 'done';
-  const proposeBossStarted = stepStatus('propose_boss') !== 'pending';
-  const orderDone          = stepStatus('order') === 'done';
+  const investigateDone   = stepStatus(kInvestigate) === 'done';
+  const proposeBossStarted = stepStatus(kBoss) !== 'pending';
+  const orderDone          = stepStatus(kOrder) === 'done';
 
-  // เริ่มขั้น "ออกคำสั่ง" อัตโนมัติ (เมื่อ ผอ.สำนัก เปิดดูรายงาน)
+  // เริ่มขั้น "ออกคำสั่ง/สั่งการ" อัตโนมัติ (เมื่อ ผอ.สำนัก เปิดดูรายงาน)
   const ensureOrderStarted = async () => {
-    if (stepStatus('order') !== 'pending') return;
+    if (stepStatus(kOrder) !== 'pending') return;
     try {
-      const s = (c.steps||[]).find(x=>x.step_key==='order');
+      const s = (c.steps||[]).find(x=>x.step_key===kOrder);
       if (s?.event_id) await api.updateEvent(s.event_id, { ev_status:'active' });
-      else             await api.createEvent({ case_id:c.id, step_key:'order', ev_status:'active' });
+      else             await api.createEvent({ case_id:c.id, step_key:kOrder, ev_status:'active' });
       const fresh = await api.getCase(c.id); setC(fresh);
     } catch(e) {}
   };
@@ -1443,19 +1453,24 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
     // เรื่องปิดแล้ว (dir_admin ออกคำสั่งเสร็จสิ้น) → ล็อกการแก้ไข
     // เฉพาะ dir_admin เท่านั้นที่ยกเลิกคำสั่ง (order) เพื่อเปิดให้แก้ไขใหม่ได้
     if (c.status === 'closed') {
-      return role === 'dir_admin' && stepKey === 'order';
+      return role === 'dir_admin' && (stepKey === 'order' || stepKey === 'ga_order');
     }
     switch (stepKey) {
       case 'receive':       // รับเรื่อง
       case 'propose_dir':   // เสนอ ผอ.สำนัก
         return role === 'head_secretary';
       case 'assign':        // มอบหมายนิติกร
-        return role === 'dir_admin' || viewerIsClerk;
+      case 'ga_assign':     // มอบหมายเจ้าหน้าที่ธุรการ
+        return role === 'dir_admin' || viewerIsClerk || (stepKey==='ga_assign' && role==='head_secretary');
       case 'investigate':   // ตรวจสอบข้อเท็จจริง
+      case 'ga_execute':    // ดำเนินการตามข้อสั่งการ
         return viewerIsLawyer;
       case 'propose_boss':  // เสนอผู้บังคับบัญชา
         return viewerIsClerk;
+      case 'ga_propose_boss':
+        return role === 'head_secretary';
       case 'order':         // ออกคำสั่ง
+      case 'ga_order':      // สั่งการ (สายบริหารทั่วไป)
         return role === 'dir_admin';
       default:
         return false;
@@ -1586,9 +1601,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <div className="code" style={{fontSize:15,color:'var(--maroon)',fontWeight:700}}>{c.group_recv_no}</div>
             </div>}
 
-            {/* นิติกรผู้ดำเนินการ (เจ้าหน้าที่ส่งต่อให้) */}
+            {/* ผู้ดำเนินการ (เจ้าหน้าที่ส่งต่อให้) */}
             {c.lawyer_name && <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--line)'}}>
-              <div className="faint tiny" style={{marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>นิติกรผู้ดำเนินการ</div>
+              <div className="faint tiny" style={{marginBottom:8,textTransform:'uppercase',letterSpacing:'.04em'}}>{workerTitle}ผู้ดำเนินการ</div>
               <div className="vcenter" style={{gap:12}}>
                 <span className="avatar" style={{width:40,height:40}}>{c.lawyer_init}</span>
                 <div>
@@ -1606,42 +1621,42 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
             {o && c.status!=="closed" && viewerIsClerk && !c.group_recv_no &&
               <button className="btn btn-outline btn-block" style={{marginTop:14}} onClick={()=>setForwardGroup(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนเรื่อง</button>}
 
-            {/* ผอ.กลุ่ม มอบหมายนิติกรในกลุ่มให้เป็นผู้สอบสวน (หลังรับเรื่องจากธุรการ) */}
-            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && (c.group_recv_no || c.assigned_group) && !c.lawyer_sent_at &&
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name ? "เปลี่ยนนิติกรผู้ดำเนินการ" : "มอบหมายนิติกร"}</button>}
+            {/* หัวหน้ากลุ่ม มอบหมายผู้ดำเนินการในกลุ่ม (สายนิติการ = นิติกร / สายบริหารทั่วไป = เจ้าหน้าที่ธุรการ) */}
+            {isGroupLead && c.status!=="closed" && (c.group_recv_no || c.assigned_group) && !c.lawyer_sent_at &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setAssignLawyer(true)}><Icon name="gavel" style={{width:16,height:16}}/> {c.lawyer_name ? ("เปลี่ยน"+workerTitle+"ผู้ดำเนินการ") : ("มอบหมาย"+workerTitle)}</button>}
 
-            {/* ส่งเรื่องไปให้นิติกร (ล็อกการเปลี่ยนนิติกรหลังกดยืนยัน) */}
-            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
-              <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendLawyer(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งเรื่องไปให้นิติกร</button>}
+            {/* ส่งเรื่องไปให้ผู้ดำเนินการ (ล็อกการเปลี่ยนหลังกดยืนยัน) */}
+            {isGroupLead && c.status!=="closed" && c.lawyer_name && !c.lawyer_sent_at &&
+              <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendLawyer(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งเรื่องไปให้{workerTitle}</button>}
 
-            {/* ผอ.กลุ่ม: นิติกรส่งรายงานกลับมาแล้ว → ดูรายงาน */}
-            {c.has_report && (role==="dir_legal" || role==="admin") &&
-              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setViewReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> นิติกรส่งรายงานกลับมาแล้ว — คลิกเพื่อดูรายงาน</button>}
+            {/* หัวหน้ากลุ่ม: ผู้ดำเนินการส่งรายงานกลับมาแล้ว → ดูรายงาน */}
+            {c.has_report && isGroupLead &&
+              <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setViewReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {workerTitle}ส่งรายงานกลับมาแล้ว — คลิกเพื่อดูรายงาน</button>}
 
-            {/* แสดงสถานะเมื่อส่งเรื่องให้นิติกรแล้ว แต่ยังไม่ได้รับรายงานกลับ */}
+            {/* แสดงสถานะเมื่อส่งเรื่องให้ผู้ดำเนินการแล้ว แต่ยังไม่ได้รับรายงานกลับ */}
             {c.lawyer_sent_at && !c.has_report &&
-              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้นิติกรผู้ดำเนินการแล้ว — ล็อกการเปลี่ยนนิติกร</div></div>}
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งเรื่องให้{workerTitle}ผู้ดำเนินการแล้ว — ล็อกการเปลี่ยน{workerTitle}</div></div>}
 
-            {/* นิติกรผู้ดำเนินการ: รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
+            {/* ผู้ดำเนินการ: รายงานผล (ร่าง แก้ได้) / ส่งรายงาน / เกษียนกลับ */}
             {viewerIsLawyer && c.status!=="closed" && !c.report_sent_at && <>
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setReportOpen(true)}><Icon name="checkCircle" style={{width:16,height:16}}/> {(c.report_note || c.status==='reporting') ? 'แก้ไขรายงานผล' : 'รายงานผลการดำเนินการ'}</button>
               {(c.report_note || c.status==='reporting') &&
-                <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendReportOpen(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งรายงานให้ ผอ.กลุ่ม</button>}
-              <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setReturnOpen(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนกลับให้ ผอ.กลุ่ม</button>
+                <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--ok)',color:'var(--ok)'}} onClick={()=>setSendReportOpen(true)}><Icon name="send" style={{width:16,height:16}}/> ส่งรายงานให้ {leadTitle}</button>}
+              <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setReturnOpen(true)}><Icon name="flag" style={{width:16,height:16}}/> เกษียนกลับให้ {leadTitle}</button>
             </>}
             {viewerIsLawyer && c.report_sent_at &&
-              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานผลให้ ผอ.กลุ่มแล้ว</div></div>}
+              <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ส่งรายงานผลให้ {leadTitle}แล้ว</div></div>}
 
-            {/* ผอ.กลุ่ม: ส่งรายงานผลกลับให้ธุรการ (เมื่อนิติกรส่งรายงานแล้ว, ยังไม่เสร็จขั้นตรวจข้อเท็จจริง) */}
-            {(role==="dir_legal" || role==="admin") && c.status!=="closed" && c.has_report && !investigateDone &&
+            {/* หัวหน้ากลุ่ม: ส่งรายงานผลขึ้นตามสาย (สายนิติการ → ผ่านธุรการ / สายบริหารทั่วไป → ตรง ผอ.สำนัก) */}
+            {isGroupLead && c.status!=="closed" && c.has_report && !investigateDone &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setForwardUpOpen(true)}><Icon name="send" style={{width:16,height:16}}/> รายงานผู้อำนวยการสำนักนิติการ</button>}
 
-            {/* ธุรการ: เกษียนรายงานผลต่อ ผอ.สำนัก (หลัง ผอ.กลุ่มส่งกลับ, เริ่มขั้นเสนอผู้บังคับบัญชา) */}
-            {viewerIsClerk && c.status!=="closed" && investigateDone && !proposeBossStarted &&
+            {/* ธุรการ: เกษียนรายงานผลต่อ ผอ.สำนัก (เฉพาะสายนิติการ — หลัง ผอ.กลุ่มส่งกลับ) */}
+            {!isGeneral && viewerIsClerk && c.status!=="closed" && investigateDone && !proposeBossStarted &&
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setClerkForwardOpen(true)}><Icon name="send" style={{width:16,height:16}}/> เกษียนรายงานถึง ผอ.สำนัก</button>}
 
             {/* ธุรการ: เสนอรายงานต่อ ผอ.สำนัก เรียบร้อยแล้ว */}
-            {viewerIsClerk && investigateDone && proposeBossStarted &&
+            {!isGeneral && viewerIsClerk && investigateDone && proposeBossStarted &&
               <div className="notice notice-ok" style={{marginTop:14}}><Icon name="checkCircle"/><div>ได้เสนอรายงานต่อผู้อำนวยการสำนักเรียบร้อยแล้ว</div></div>}
 
             {/* ผอ.สำนัก: ได้รับรายงานผลคืนจากธุรการ → ดูรายงาน (เริ่มขั้นออกคำสั่งอัตโนมัติ) + สั่งการ */}
@@ -1661,9 +1676,9 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
               <button className="btn btn-primary btn-block" style={{marginTop:14}} onClick={()=>setHsArchiveOpen(true)}>
                 <Icon name="checkCircle" style={{width:16,height:16}}/> เก็บเรื่อง — เสร็จสิ้นการดำเนินงาน
               </button>
-              <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setHsReopenOpen(true)}>
+              {!isGeneral && <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={()=>setHsReopenOpen(true)}>
                 <Icon name="flag" style={{width:16,height:16}}/> ดำเนินการเป็นเรื่องใหม่
-              </button>
+              </button>}
               <button className="btn btn-outline btn-block" style={{marginTop:10,borderColor:'var(--maroon)',color:'var(--maroon)'}} onClick={()=>setSendLetterOpen(true)}>
                 <Icon name="send" style={{width:16,height:16}}/> จัดทำหนังสือส่ง
               </button>
@@ -1692,12 +1707,12 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
       </div>
 
       {showAssignDone && (() => {
-        const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
-        const fakeStep = { label:'มอบหมายผู้ดำเนินการ', step_key:'assign', event_id: assignStep?.event_id, _case_id: c.id };
+        const assignStep = (c.steps||[]).find(s=>s.step_key===kAssign);
+        const fakeStep = { label:'มอบหมายผู้ดำเนินการ', step_key:kAssign, event_id: assignStep?.event_id, _case_id: c.id };
         const handleConfirm = async ({ note, file }) => {
           let eid = assignStep?.event_id;
           if (!eid) {
-            const created = await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'active' });
+            const created = await api.createEvent({ case_id:c.id, step_key:kAssign, ev_status:'active' });
             eid = created.id;
           }
           let attachFields = {};
@@ -1713,10 +1728,10 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         return <StepDoneModal step={fakeStep} onConfirm={handleConfirm} onClose={()=>setShowAssignDone(false)}/>;
       })()}
       {confirmAssignDone && <ConfirmAssignDoneModal c={c} officer={o} close={()=>setConfirmAssignDone(false)} onConfirm={async (note)=>{
-        const assignStep = (c.steps||[]).find(s=>s.step_key==='assign');
+        const assignStep = (c.steps||[]).find(s=>s.step_key===kAssign);
         let eid = assignStep?.event_id;
         if (!eid) {
-          const created = await api.createEvent({ case_id:c.id, step_key:'assign', ev_status:'active' });
+          const created = await api.createEvent({ case_id:c.id, step_key:kAssign, ev_status:'active' });
           eid = created.id;
         }
         await api.updateEvent(eid, { ev_status:'done', detail: note ? note.trim() : null });
@@ -1770,19 +1785,21 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
-      {forwardUpOpen && <ForwardUpModal c={c} close={()=>setForwardUpOpen(false)} onDone={async ()=>{
+      {forwardUpOpen && <ForwardUpModal c={c}
+        {...(isGeneral ? { info:'หัวหน้าธุรการเสนอรายงานผลตรงถึง ผอ.สำนัก (เริ่มขั้นเสนอผู้บังคับบัญชา)' } : {})}
+        close={()=>setForwardUpOpen(false)} onDone={async ()=>{
         setForwardUpOpen(false);
         const fresh = await api.getCase(c.id); setC(fresh); bumpMemos();
         if (onRefresh) onRefresh();
       }}/>}
       {viewReportOpen && <ViewReportModal c={c} close={()=>setViewReportOpen(false)}/>}
       {orderFormOpen && (() => {
-        const orderStep = (c.steps||[]).find(s=>s.step_key==='order');
-        const fakeStep = { label:'ออกคำสั่ง', step_key:'order', event_id: orderStep?.event_id, order_items: orderStep?.order_items, _case_id: c.id };
+        const orderStep = (c.steps||[]).find(s=>s.step_key===kOrder);
+        const fakeStep = { label: isGeneral?'สั่งการ':'ออกคำสั่ง', step_key:kOrder, event_id: orderStep?.event_id, order_items: orderStep?.order_items, _case_id: c.id };
         const handleConfirm = async ({ note, file, orderItems }) => {
           let eid = orderStep?.event_id;
           if (!eid) {
-            const created = await api.createEvent({ case_id:c.id, step_key:'order', ev_status:'active' });
+            const created = await api.createEvent({ case_id:c.id, step_key:kOrder, ev_status:'active' });
             eid = created.id;
           }
           let attachFields = {};
@@ -1841,6 +1858,7 @@ function CaseDetail({ cid, cases, officers, back, updateCase, role, currentUser,
 
 /* ---------------- Modal มอบหมายนิติกร (clerk ส่งต่อให้นิติกรในกลุ่ม) ---------------- */
 function AssignLawyerModal({ c, officers, close, onAssign }) {
+  const wt = c.work_track === 'general' ? 'เจ้าหน้าที่ธุรการ' : 'นิติกร';
   const grp = c.assigned_group || null;
   // นิติกรในกลุ่มที่ได้รับมอบหมาย; ถ้าไม่มีใครในกลุ่ม fallback แสดงทั้งหมด
   const inGroup  = grp ? (officers||[]).filter(o => o.group === grp) : [];
@@ -1854,7 +1872,7 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
 
   const submit = async () => {
     const miss = [];
-    if (!sel)    miss.push('เลือกนิติกรผู้ดำเนินการ');
+    if (!sel)    miss.push('เลือก' + wt + 'ผู้ดำเนินการ');
     if (!noteOk) miss.push('ระบุข้อสั่งการอย่างน้อย 3 ตัวอักษร');
     if (miss.length) { setErr('ยังกรอกไม่ครบ — ' + miss.join(' · ')); return; }
     setSaving(true); setErr('');
@@ -1866,17 +1884,17 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
     <div className="overlay" onClick={close}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="gavel" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>มอบหมายนิติกรผู้ดำเนินการ</h3></div>
+          <div className="vcenter"><Icon name="gavel" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>มอบหมาย{wt}ผู้ดำเนินการ</h3></div>
           <button className="icon-btn" onClick={close}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
           <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>
             {grp
-              ? (fallback ? <>กลุ่มที่ได้รับมอบหมาย <b>{grp}</b> — ไม่พบนิติกรในกลุ่ม จึงแสดงทั้งหมด</> : <>เลือกนิติกรในกลุ่ม <b>{grp}</b> เพื่อส่งเรื่องต่อให้ดำเนินการ</>)
-              : <>ยังไม่ได้ระบุกลุ่มที่ได้รับมอบหมาย — แสดงนิติกรทั้งหมด</>}
+              ? (fallback ? <>กลุ่มที่ได้รับมอบหมาย <b>{grp}</b> — ไม่พบ{wt}ในกลุ่ม จึงแสดงทั้งหมด</> : <>เลือก{wt}ในกลุ่ม <b>{grp}</b> เพื่อส่งเรื่องต่อให้ดำเนินการ</>)
+              : <>ยังไม่ได้ระบุกลุ่มที่ได้รับมอบหมาย — แสดง{wt}ทั้งหมด</>}
           </div></div>
           {pool.length === 0
-            ? <div className="faint sm" style={{padding:'16px 0',textAlign:'center'}}>ไม่พบรายชื่อนิติกร</div>
+            ? <div className="faint sm" style={{padding:'16px 0',textAlign:'center'}}>ไม่พบรายชื่อ{wt}</div>
             : <div className="choices">
                 {pool.map(o=>(
                   <div key={o.id} className={"choice "+(sel===o.id?"active":"")} onClick={()=>setSel(o.id)}>
@@ -1894,7 +1912,7 @@ function AssignLawyerModal({ c, officers, close, onAssign }) {
           <div style={{marginTop:16}}>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อสั่งการ <span style={{color:'var(--danger)'}}>*</span></label>
             <textarea className="input" rows={4} value={note} onChange={e=>setNote(e.target.value)}
-              placeholder="ระบุข้อสั่งการถึงนิติกรผู้ดำเนินการ (อย่างน้อย 3 ตัวอักษร)"
+              placeholder={"ระบุข้อสั่งการถึง" + wt + "ผู้ดำเนินการ (อย่างน้อย 3 ตัวอักษร)"}
               style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>
             {!noteOk && note.length > 0 && <div className="tiny" style={{color:'var(--danger)',marginTop:4}}>ข้อสั่งการต้องมีอย่างน้อย 3 ตัวอักษร</div>}
           </div>
@@ -2012,7 +2030,9 @@ function ViewReportModal({ c, close }) {
 
 /* ---------------- Modal นิติกรรายงานผลการดำเนินการ (ข้อความ + แนบหลายไฟล์) ---------------- */
 function ReportResultModal({ c, close, onDone }) {
-  const [note, setNote] = useState(c.report_note || ('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n'));
+  const lt = c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม';
+  const [note, setNote] = useState(c.report_note ||
+    (c.work_track === 'general' ? 'เรียน หัวหน้าธุรการ\n' : ('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n')));
   const [files, setFiles] = useState([]); // File[]
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -2040,7 +2060,7 @@ function ReportResultModal({ c, close, onDone }) {
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>บันทึกร่างรายงานผล (พิมพ์ข้อความ และ/หรือ แนบไฟล์หลายไฟล์) — แก้ไขได้จนกว่าจะกด “ส่งรายงานให้ ผอ.กลุ่ม”</div></div>
+          <div className="notice notice-info" style={{marginBottom:14}}><Icon name="info"/><div>บันทึกร่างรายงานผล (พิมพ์ข้อความ และ/หรือ แนบไฟล์หลายไฟล์) — แก้ไขได้จนกว่าจะกด “ส่งรายงานให้ {lt}”</div></div>
           <div style={{marginBottom:14}}>
             <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ผลการดำเนินการ</label>
             <textarea className="input" rows={5} value={note} onChange={e=>setNote(e.target.value)}
@@ -2091,6 +2111,7 @@ function ReportResultModal({ c, close, onDone }) {
 
 /* ---------------- Modal ยืนยันส่งรายงานผลให้ ผอ.กลุ่ม (ล็อกการแก้ไข) ---------------- */
 function SendReportModal({ c, close, onDone }) {
+  const lt = c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม';
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const submit = async () => {
@@ -2103,7 +2124,7 @@ function SendReportModal({ c, close, onDone }) {
     <div className="overlay" onClick={close}>
       <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันส่งรายงานผลให้ ผอ.กลุ่ม</h3></div>
+          <div className="vcenter"><Icon name="send" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>ยืนยันส่งรายงานผลให้ {lt}</h3></div>
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
@@ -2125,7 +2146,8 @@ function SendReportModal({ c, close, onDone }) {
 
 /* ---------------- Modal นิติกรเกษียนกลับให้ ผอ.กลุ่ม ทบทวน ---------------- */
 function ReturnToDirModal({ c, close, onDone }) {
-  const [note, setNote] = useState('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n');
+  const lt = c.work_track === 'general' ? 'หัวหน้าธุรการ' : 'ผอ.กลุ่ม';
+  const [note, setNote] = useState(c.work_track === 'general' ? 'เรียน หัวหน้าธุรการ\n' : ('เรียน ผู้อำนวยการ' + (c.assigned_group || '') + '\n'));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const noteOk = note.trim().length >= 3;
@@ -2140,11 +2162,11 @@ function ReturnToDirModal({ c, close, onDone }) {
     <div className="overlay" onClick={close}>
       <div className="modal" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
         <div className="modal-h">
-          <div className="vcenter"><Icon name="flag" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เกษียนกลับให้ ผอ.กลุ่ม ทบทวน</h3></div>
+          <div className="vcenter"><Icon name="flag" style={{width:20,height:20,color:"var(--maroon)"}}/><h3 style={{fontSize:17}}>เกษียนกลับให้ {lt} ทบทวน</h3></div>
           <button className="icon-btn" onClick={close} disabled={saving}><Icon name="x"/></button>
         </div>
         <div className="modal-b">
-          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>ส่งเรื่องกลับให้ ผอ.กลุ่ม พิจารณาเปลี่ยนผู้ดำเนินการหรือแก้ข้อสั่งการ (จะปลดล็อกการเปลี่ยนนิติกร)</div></div>
+          <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>ส่งเรื่องกลับให้ {lt} พิจารณาเปลี่ยนผู้ดำเนินการหรือแก้ข้อสั่งการ (จะปลดล็อกการเปลี่ยนผู้ดำเนินการ)</div></div>
           <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ข้อความเกษียนกลับ <span style={{color:'var(--danger)'}}>*</span></label>
           <textarea className="input" rows={6} value={note} onChange={e=>setNote(e.target.value)}
             style={{width:'100%',resize:'vertical',fontFamily:'inherit',lineHeight:1.7,fontSize:13}}/>

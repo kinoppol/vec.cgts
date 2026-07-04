@@ -90,7 +90,7 @@ if (array_key_exists('ev_status', $body)) {
 
     // ยืนยันว่ากด "เสร็จแล้ว" — เฉพาะขั้น "ออกคำสั่ง" ต้องมีอย่างน้อยอย่างใดอย่างหนึ่ง
     // (เลือกการสั่งการ / พิมพ์ความเห็น / แนบไฟล์) ; ขั้นอื่นไม่บังคับ
-    if ($st === 'done' && $event['step_key'] === 'order') {
+    if ($st === 'done' && in_array($event['step_key'], ['order','ga_order'], true)) {
         $newDetail     = trim($body['detail'] ?? $event['detail'] ?? '');
         $hasAttachment = !empty($event['attachment_path']) || !empty($body['_has_file']);
         $hasOrderItems = isset($body['order_items']) && is_array($body['order_items']) && count($body['order_items']) > 0;
@@ -143,7 +143,7 @@ $db->prepare("UPDATE case_events SET " . implode(', ', $sets) . " WHERE id = ?")
    ->execute($vals);
 
 // ── ขั้น "ออกคำสั่ง" (order): เสร็จ → ปิดเรื่อง / ยกเลิก → เปิดเรื่องใหม่ ──
-if ($event['step_key'] === 'order' && array_key_exists('ev_status', $body)) {
+if (in_array($event['step_key'], ['order','ga_order'], true) && array_key_exists('ev_status', $body)) {
     $newSt = $body['ev_status'];
     if ($newSt === 'done') {
         // ออกคำสั่งเสร็จ → ดำเนินการเสร็จสิ้น

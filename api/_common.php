@@ -98,6 +98,46 @@ function completeSlaStep(PDO $db, string $caseId, string $stepKey): void {
     )->execute([$caseId, $step['label'], (int)$step['sort_order'], $stepKey]);
 }
 
+/**
+ * caseWorkTrack — สายงานของเรื่องตามกลุ่มที่ได้รับมอบหมาย
+ *   'general' = กลุ่มที่หัวหน้ากลุ่มมีบทบาทหัวหน้าธุรการ (ฝ่ายบริหารงานทั่วไป — ไม่เกี่ยวข้องกับนิติกร)
+ *   'legal'   = กลุ่มงานนิติการปกติ (ค่าเริ่มต้น)
+ */
+function caseWorkTrack(PDO $db, ?string $groupName): string {
+    if (!$groupName) return 'legal';
+    try {
+        $s = $db->prepare(
+            "SELECT u.role FROM `groups` g JOIN users u ON u.id = g.leader_id
+             WHERE g.name = ? LIMIT 1"
+        );
+        $s->execute([$groupName]);
+        return $s->fetchColumn() === 'head_secretary' ? 'general' : 'legal';
+    } catch (Throwable) { return 'legal'; }
+}
+
+/** trackSlaKey — แปลง step_key มาตรฐาน (สายนิติการ) เป็น key ของสายบริหารทั่วไป (ga_*) */
+function trackSlaKey(string $track, string $key): string {
+    if ($track !== 'general') return $key;
+    return [
+        'propose_group' => 'ga_propose_group',
+        'assign'        => 'ga_assign',
+        'investigate'   => 'ga_execute',
+        'propose_boss'  => 'ga_propose_boss',
+        'order'         => 'ga_order',
+    ][$key] ?? $key;
+}
+
+/** slaKeyForCase — track-aware step_key จาก assigned_group ของเรื่อง */
+function slaKeyForCase(PDO $db, string $caseId, string $key): string {
+    try {
+        $cols = $db->query("SHOW COLUMNS FROM cases")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('assigned_group', $cols)) return $key;
+        $s = $db->prepare("SELECT assigned_group FROM cases WHERE id = ?");
+        $s->execute([$caseId]);
+        return trackSlaKey(caseWorkTrack($db, $s->fetchColumn() ?: null), $key);
+    } catch (Throwable) { return $key; }
+}
+
 const ROLE_PRIORITY = ['officer','clerk','head_secretary','dir_legal','dir_admin','secretary','deputy_secretary','admin'];
 
 /**

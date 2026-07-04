@@ -188,7 +188,7 @@ if ($method === 'PATCH') {
     // เริ่ม SLA ขั้น "เสนอ ผอ.กลุ่ม" อัตโนมัติ เมื่อ clerk ได้รับมอบหมาย
     // (clerk จะเสร็จขั้นนี้เมื่อเกษียนเรื่องถึง ผอ.กลุ่ม)
     if ($finalOfficer) {
-        startSlaStep($db, $prop['case_id'], 'propose_group');
+        startSlaStep($db, $prop['case_id'], slaKeyForCase($db, $prop['case_id'], 'propose_group'));
     }
 
     audit('approve_proposal', $prop['case_id'], "proposal={$propId} final={$finalOfficer}");

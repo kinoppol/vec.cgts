@@ -118,8 +118,8 @@ if ($action === 'report') {
         $db->prepare("UPDATE cases SET report_note = ? WHERE id = ?")->execute([$note ?: null, $caseId]);
     }
     $db->prepare("UPDATE cases SET status='reporting' WHERE id = ? AND status NOT IN ('closed','rejected')")->execute([$caseId]);
-    // เริ่ม SLA ขั้น "ตรวจข้อเท็จจริง" อัตโนมัติเมื่อเริ่มบันทึกรายงานผล
-    try { startSlaStep($db, $caseId, 'investigate'); } catch (Throwable) {}
+    // เริ่ม SLA ขั้น "ตรวจข้อเท็จจริง / ดำเนินการตามข้อสั่งการ" อัตโนมัติเมื่อเริ่มบันทึกรายงานผล
+    try { startSlaStep($db, $caseId, slaKeyForCase($db, $caseId, 'investigate')); } catch (Throwable) {}
     audit('lawyer_report_draft', $caseId, $note);
     json_out(['ok' => true]);
 }
@@ -147,6 +147,18 @@ if ($action === 'report_send') {
 if ($action === 'forward_up') {
     $note = trim($body['note'] ?? '');
     if (mb_strlen($note) < 3) err('กรุณาระบุข้อความอย่างน้อย 3 ตัวอักษร', 422);
+    $track = caseWorkTrack($db, $case['assigned_group'] ?? null);
+    if ($track === 'general') {
+        // สายบริหารทั่วไป: หัวหน้าธุรการเสนอรายงานตรงถึง ผอ.สำนัก (ไม่ผ่านธุรการอีกชั้น)
+        addEvent($db, $caseId, 'หัวหน้าธุรการเสนอรายงานถึง ผอ.สำนัก', $actorName, $moment, $note, 'flag');
+        try { completeSlaStep($db, $caseId, 'ga_execute'); } catch (Throwable) {}
+        try { startSlaStep($db, $caseId, 'ga_propose_boss'); } catch (Throwable) {}
+        foreach ($db->query("SELECT id FROM users WHERE role='dir_admin' AND active=1")->fetchAll(PDO::FETCH_COLUMN) as $daId) {
+            notifyUser($db, $daId, $caseId, 'clerk_forward', "📤 หัวหน้าธุรการเสนอรายงานผลถึงท่าน: {$subjShort}", $note);
+        }
+        audit('forward_report_up', $caseId, "[general] {$note}");
+        json_out(['ok' => true]);
+    }
     addEvent($db, $caseId, 'ผอ.กลุ่มส่งรายงานให้ธุรการ', $actorName, $moment, $note, 'flag');
     // เสร็จสิ้น SLA ขั้น "ตรวจข้อเท็จจริง"
     try { completeSlaStep($db, $caseId, 'investigate'); } catch (Throwable) {}

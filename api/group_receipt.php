@@ -121,9 +121,9 @@ if ($method === 'POST') {
                "สำนวน {$caseId} เลขรับ {$recvNo} รอการพิจารณามอบหมาย"]);
     }
 
-    // เกษียนเรื่อง = เสร็จขั้น "เสนอ ผอ.กลุ่ม" อัตโนมัติ แล้วเริ่มขั้น "มอบหมายนิติกร"
-    completeSlaStep($db, $caseId, 'propose_group');
-    startSlaStep($db, $caseId, 'assign');
+    // เกษียนเรื่อง = เสร็จขั้น "เสนอหัวหน้ากลุ่ม" อัตโนมัติ แล้วเริ่มขั้น "มอบหมายผู้ดำเนินการ" (ตามสายของเรื่อง)
+    completeSlaStep($db, $caseId, slaKeyForCase($db, $caseId, 'propose_group'));
+    startSlaStep($db, $caseId, slaKeyForCase($db, $caseId, 'assign'));
 
     audit('group_receipt_issue', $caseId, "recv_no={$recvNo} group={$grp['id']}");
     json_out(['ok' => true, 'recv_no' => $recvNo, 'seq' => $seq, 'group_name' => $grp['name']]);

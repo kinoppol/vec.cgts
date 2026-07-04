@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS case_events (
 CREATE TABLE IF NOT EXISTS sla_steps (
   id           INT          NOT NULL AUTO_INCREMENT,
   step_key     VARCHAR(50)  NOT NULL,
+  track        VARCHAR(10)  NOT NULL DEFAULT 'legal', -- common | legal | general
   label        VARCHAR(200) NOT NULL,
   days_allowed INT          NOT NULL DEFAULT 1,
   sort_order   SMALLINT     NOT NULL DEFAULT 0,
