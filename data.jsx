@@ -176,6 +176,7 @@ const api = {
   getSendRecipients: ()          => apiFetch('/api/case_report.php?action=recipients'),
   getClerks:         ()          => apiFetch('/api/case_report.php?action=clerks'),
   getBackupLog:     ()           => apiFetch('/api/backup.php?action=log'),
+  restoreBackup:    (file, overwrite) => { const fd = new FormData(); fd.append('file', file); fd.append('overwrite', overwrite ? '1' : '0'); return apiFetch('/api/restore.php', { method:'POST', body: fd }); },
   getTestDataInfo:  ()           => apiFetch('/api/admin_testdata.php?action=seq_info'),
   testDataAction:   (data)       => apiFetch('/api/admin_testdata.php', { method:'POST', body: JSON.stringify(data) }),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),

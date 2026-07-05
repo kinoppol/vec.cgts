@@ -370,7 +370,7 @@ function TestDataPage({ cases = [], onChanged }) {
    BackupPage — สำรองข้อมูลสำนวนเป็นไฟล์ .zip ตามช่วงเวลา
    admin / dir_admin: คดี + เรื่องธุรการทั่วไป ; head_secretary: เฉพาะธุรการทั่วไป
    ============================================================ */
-function BackupPage({ currentUser }) {
+function BackupPage({ currentUser, onChanged }) {
   const role = currentUser?.role;
   const canAll = role === 'admin' || role === 'dir_admin';
 
@@ -385,6 +385,14 @@ function BackupPage({ currentUser }) {
   const [err, setErr]   = React.useState('');
   const [msg, setMsg]   = React.useState('');
   const [log, setLog]   = React.useState(null);
+
+  // นำเข้าเพื่อกู้คืน
+  const [rFile, setRFile]   = React.useState(null);
+  const [rOver, setROver]   = React.useState(false);
+  const [rBusy, setRBusy]   = React.useState(false);
+  const [rErr, setRErr]     = React.useState('');
+  const [rResult, setRResult] = React.useState(null);
+  const [rConfirm, setRConfirm] = React.useState(false);
 
   const loadLog = () => api.getBackupLog().then(setLog).catch(() => setLog([]));
   React.useEffect(() => { loadLog(); }, []);
@@ -425,6 +433,19 @@ function BackupPage({ currentUser }) {
       loadLog();
     } catch(e) { setErr(e.message); }
     setBusy(false);
+  };
+
+  const doRestore = async () => {
+    setRErr(''); setRResult(null); setRConfirm(false);
+    if (!rFile) { setRErr('กรุณาเลือกไฟล์สำรอง (.zip) ก่อน'); return; }
+    setRBusy(true);
+    try {
+      const r = await api.restoreBackup(rFile, rOver);
+      setRResult(r);
+      setRFile(null); setROver(false);
+      loadLog(); if (onChanged) onChanged();
+    } catch(e) { setRErr(e.message); }
+    setRBusy(false);
   };
 
   return (
@@ -469,6 +490,47 @@ function BackupPage({ currentUser }) {
         <button className="btn btn-primary" onClick={doBackup} disabled={busy}>
           <Icon name="download" style={{width:16,height:16}}/> {busy ? 'กำลังสร้างไฟล์สำรอง…' : 'ดาวน์โหลดไฟล์สำรอง (.zip)'}
         </button>
+      </div>
+
+      {/* นำเข้าข้อมูลเพื่อกู้คืน */}
+      <div className="card card-pad" style={{maxWidth:640, marginTop:18}}>
+        <h3 style={{fontSize:15, marginBottom:4}}>นำเข้าข้อมูลเพื่อกู้คืน</h3>
+        <div className="faint tiny" style={{marginBottom:14}}>อัปโหลดไฟล์สำรอง (.zip) ที่ส่งออกจากระบบนี้ เพื่อกู้คืนสำนวนและไฟล์แนบ</div>
+
+        {rErr && <div className="notice notice-danger" style={{marginBottom:12}}><Icon name="alert"/><div>{rErr}</div></div>}
+        {rResult && <div className="notice notice-ok" style={{marginBottom:12}}><Icon name="checkCircle"/><div>
+          กู้คืนสำเร็จ {rResult.imported.length} เรื่อง
+          {rResult.skipped.length > 0 && <> · ข้าม {rResult.skipped.length} เรื่อง</>}
+          {rResult.errors.length > 0 && <> · ผิดพลาด {rResult.errors.length} เรื่อง</>}
+          {rResult.skipped.length > 0 && <div className="tiny faint" style={{marginTop:6}}>ข้าม: {rResult.skipped.join(' · ')}</div>}
+          {rResult.errors.length > 0 && <div className="tiny" style={{marginTop:6, color:'var(--danger)'}}>{rResult.errors.join(' · ')}</div>}
+        </div></div>}
+
+        <input type="file" accept=".zip" onChange={e=>{ setRFile(e.target.files[0]||null); setRResult(null); setRErr(''); }} style={{marginBottom:12}}/>
+        {rFile && <div className="faint sm" style={{marginBottom:12}}><Icon name="file" style={{width:14,height:14}}/> {rFile.name} ({Math.round(rFile.size/1024)} KB)</div>}
+
+        {canAll && <label className="vcenter" style={{gap:8, marginBottom:14, cursor:'pointer'}}>
+          <input type="checkbox" checked={rOver} onChange={e=>setROver(e.target.checked)}/>
+          <span className="sm">เขียนทับเรื่องที่มีอยู่แล้ว (ถ้าไม่เลือก จะข้ามเรื่องที่ซ้ำ)</span>
+        </label>}
+
+        <div className="notice notice-warn" style={{marginBottom:14}}><Icon name="alert"/><div>
+          {rOver
+            ? <b>โหมดเขียนทับ:</b>
+            : 'ค่าเริ่มต้น:'} {rOver
+              ? ' เรื่องที่มีเลขซ้ำจะถูกลบและแทนที่ด้วยข้อมูลจากไฟล์สำรอง (ไม่สามารถย้อนกลับได้)'
+              : ' เรื่องที่มีเลขซ้ำอยู่แล้วจะถูกข้าม เพิ่มเฉพาะเรื่องใหม่'}
+        </div></div>
+
+        {!rConfirm
+          ? <button className="btn btn-primary" onClick={()=>{ if(!rFile){setRErr('กรุณาเลือกไฟล์สำรอง (.zip) ก่อน');return;} setRConfirm(true); }} disabled={rBusy}>
+              <Icon name="filePlus" style={{width:16,height:16}}/> นำเข้าและกู้คืน
+            </button>
+          : <div className="vcenter" style={{gap:8}}>
+              <span className="sm" style={{fontWeight:600}}>ยืนยันการกู้คืน?</span>
+              <button className="btn btn-primary" onClick={doRestore} disabled={rBusy}>{rBusy ? 'กำลังกู้คืน…' : 'ยืนยัน'}</button>
+              <button className="btn btn-outline" onClick={()=>setRConfirm(false)} disabled={rBusy}>ยกเลิก</button>
+            </div>}
       </div>
 
       {/* ประวัติการสำรองข้อมูล */}
