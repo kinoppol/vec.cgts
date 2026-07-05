@@ -224,14 +224,14 @@ function DirAdminDashboard({ cases, officers, setView }) {
                     <td className="tnum">{g.length}</td>
                     <td className="tnum">{gd}</td>
                     <td className="tnum">{gc}</td>
-                    <td><span className="badge badge-ok">{Math.round(gg/g.length*100)}%</span></td>
+                    <td><span className="badge badge-ok">{g.length ? Math.round(gg/g.length*100) : 0}%</span></td>
                   </tr>);
                 })}
               </tbody>
             </table>
           </div>
           <div className="card-pad" style={{paddingTop:16}}>
-            <div className="notice notice-info"><Icon name="info"/><div>กลุ่มนิติการอยู่ภายใต้ <b>สำนักอำนวยการ</b> ประกอบด้วยกลุ่มงานวินัย และกลุ่มงานกฎหมายและระเบียบ มีนิติกรรับผิดชอบ {(officers||[]).length} คน</div></div>
+            <div className="notice notice-info"><Icon name="info"/><div>กลุ่มนิติการประกอบด้วยกลุ่มงานวินัย และกลุ่มงานกฎหมายและระเบียบ มีนิติกรรับผิดชอบ {(officers||[]).length} คน</div></div>
           </div>
         </div>
       </div>
