@@ -163,7 +163,7 @@ function DirAdminDashboard({ cases, officers, setView }) {
   return (
     <div className="fade-in">
       <PageHead title="ภาพรวมการดำเนินงาน — สำนักอำนวยการ" sub="ภาพรวมผลการปฏิบัติงานของกลุ่มนิติการ ประจำปีงบประมาณ 2568">
-        <button className="btn btn-outline" onClick={()=>setView && setView("reports")}><Icon name="chart" style={{width:16,height:16}}/> ไปที่หน้ารายงาน</button>
+        <button className="btn btn-outline" onClick={()=>setView && setView("reports")}><Icon name="chart" style={{width:16,height:16}}/> รายงานข้อมูลสถิติ</button>
       </PageHead>
 
       <div className="grid" style={{gridTemplateColumns:"repeat(4,1fr)",marginBottom:22}}>
