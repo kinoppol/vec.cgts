@@ -112,6 +112,7 @@ function navFor(role, counts, user) {
     {v:"todos",        ic:"checkCircle",l:"รายการที่ต้องทำ"},
     {v:"sla",          ic:"settings",   l:"ตั้งค่า SLA"},
     {v:"system",       ic:"settings",   l:"ตั้งค่าระบบ"},
+    {v:"backup",       ic:"download",    l:"สำรองข้อมูล"},
     {v:"testdata",     ic:"alert",      l:"จัดการข้อมูลทดสอบ"},
   ];
   if (role === "officer") return [
@@ -141,6 +142,7 @@ function navFor(role, counts, user) {
     {v:"import",    ic:"filePlus", l:"นำเข้าเรื่องจากเอกสาร"},
     {v:"vault",     ic:"layers",   l:"คลังสำนวน & ไฟล์"},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
+    {v:"backup",    ic:"download",  l:"สำรองข้อมูล"},
     ...(user?.leader_of_group ? [{sec:"กลุ่ม"},{v:"my-group",ic:"users",l:"กลุ่มของฉัน"}] : []),
   ];
   if (role === "dir_legal") return [
@@ -170,6 +172,8 @@ function navFor(role, counts, user) {
     {v:"proposals", ic:"flag",     l:"เรื่องรอพิจารณา", count:counts.pendingProposals},
     {v:"calendar",  ic:"calendar", l:"ปฏิทินการดำเนินงาน"},
     {v:"reports",   ic:"chart",    l:"รายงานผู้บริหาร"},
+    {sec:"ระบบ"},
+    {v:"backup",    ic:"download",  l:"สำรองข้อมูล"},
   ];
 }
 
@@ -594,6 +598,7 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     vault:"คลังสำนวน", reports:"รายงาน", users:"จัดการผู้ใช้", proposals:"ข้อเสนอรอพิจารณา",
     todos:"รายการที่ต้องทำ", sla:"ตั้งค่า SLA", roles:"ชื่อบทบาท",
     "officers-mgt":"จัดการบุคลากร", lookup:"รายการอ้างอิง", testdata:"จัดการข้อมูลทดสอบ",
+    backup:"สำรองข้อมูล",
     calendar:"ปฏิทินการดำเนินงาน",
   }[view] || "";
 
@@ -673,6 +678,8 @@ function AdminApp({ user, setUser, go, theme, setTheme, onLogout }) {
     content = <SystemSettingsPage/>;
   } else if (view === "testdata" && role === "admin") {
     content = <TestDataPage cases={cases} onChanged={refreshCases}/>;
+  } else if (view === "backup" && (role === "admin" || role === "dir_admin" || role === "head_secretary")) {
+    content = <BackupPage currentUser={user}/>;
   } else if (view === "groups" && role === "admin") {
     content = <GroupsPage currentUser={user}/>;
   } else if (view === "my-group" && user?.leader_of_group) {

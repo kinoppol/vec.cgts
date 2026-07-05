@@ -366,4 +366,103 @@ function TestDataPage({ cases = [], onChanged }) {
   );
 }
 
-Object.assign(window, { RoleLabelsPage, SystemSettingsPage, TestDataPage });
+/* ============================================================
+   BackupPage — สำรองข้อมูลสำนวนเป็นไฟล์ .zip ตามช่วงเวลา
+   admin / dir_admin: คดี + เรื่องธุรการทั่วไป ; head_secretary: เฉพาะธุรการทั่วไป
+   ============================================================ */
+function BackupPage({ currentUser }) {
+  const role = currentUser?.role;
+  const canAll = role === 'admin' || role === 'dir_admin';
+
+  const today = new Date();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const [from, setFrom] = React.useState(iso(firstOfMonth));
+  const [to, setTo]     = React.useState(iso(today));
+  const [scope, setScope] = React.useState(canAll ? 'both' : 'general');
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr]   = React.useState('');
+  const [msg, setMsg]   = React.useState('');
+
+  const scopeOptions = canAll
+    ? [
+        { v:'both',    l:'ทั้งหมด',              d:'ทั้งคดีและเรื่องธุรการทั่วไป' },
+        { v:'legal',   l:'เฉพาะคดี',            d:'เรื่องที่มอบหมายกลุ่มงานนิติการ' },
+        { v:'general', l:'เฉพาะเรื่องธุรการทั่วไป', d:'เรื่องที่มอบหมายกลุ่มบริหารงานทั่วไป' },
+      ]
+    : [{ v:'general', l:'เรื่องธุรการทั่วไป', d:'เรื่องที่มอบหมายกลุ่มบริหารงานทั่วไป' }];
+
+  const doBackup = async () => {
+    setErr(''); setMsg('');
+    if (!from || !to) { setErr('กรุณาระบุช่วงวันที่ให้ครบ'); return; }
+    if (from > to)    { setErr('วันที่เริ่มต้องไม่อยู่หลังวันที่สิ้นสุด'); return; }
+    setBusy(true);
+    try {
+      const base = window.__APP_BASE__ || '';
+      const url  = `${base}/api/backup.php?from=${from}&to=${to}&scope=${scope}`;
+      const res  = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'สำรองข้อมูลไม่สำเร็จ');
+      }
+      const count = res.headers.get('X-Backup-Count') || '?';
+      const blob  = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `backup_${scope}_${from}_${to}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      setMsg(`ดาวน์โหลดไฟล์สำรองเรียบร้อย — ${count} เรื่อง`);
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="fade-in">
+      <PageHead title="สำรองข้อมูล" sub="ส่งออกสำนวนตามช่วงเวลาเป็นไฟล์ .zip (แยกโฟลเดอร์รายเรื่อง)"/>
+
+      {msg && <div className="notice notice-ok" style={{marginBottom:14}}><Icon name="checkCircle"/><div>{msg}</div></div>}
+      {err && <div className="notice notice-danger" style={{marginBottom:14}}><Icon name="alert"/><div>{err}</div></div>}
+
+      <div className="card card-pad" style={{maxWidth:640}}>
+        <div className="grid" style={{gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:18}}>
+          <div>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ตั้งแต่วันที่</label>
+            <input className="input" type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)} style={{width:'100%'}}/>
+          </div>
+          <div>
+            <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:6}}>ถึงวันที่</label>
+            <input className="input" type="date" value={to} min={from} onChange={e=>setTo(e.target.value)} style={{width:'100%'}}/>
+          </div>
+        </div>
+
+        <div style={{marginBottom:18}}>
+          <label style={{fontSize:13,fontWeight:600,display:'block',marginBottom:8}}>ขอบเขตข้อมูล</label>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {scopeOptions.map(o => (
+              <label key={o.v} className={"choice " + (scope===o.v ? "active" : "")} style={{cursor:'pointer'}}>
+                <input type="radio" name="scope" checked={scope===o.v} onChange={()=>setScope(o.v)} style={{marginRight:4}}/>
+                <div style={{flex:1}}>
+                  <div className="ct">{o.l}</div>
+                  <div className="cd">{o.d}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="notice notice-info" style={{marginBottom:16}}><Icon name="info"/><div>
+          ไฟล์ .zip จะแยกเป็นโฟลเดอร์ย่อยตามเลขที่สำนวน แต่ละโฟลเดอร์มี <b>case.json</b> (รายละเอียดเรื่อง + ไฟล์)
+          และโฟลเดอร์ <b>files/</b> เก็บไฟล์แนบทั้งหมด
+        </div></div>
+
+        <button className="btn btn-primary" onClick={doBackup} disabled={busy}>
+          <Icon name="download" style={{width:16,height:16}}/> {busy ? 'กำลังสร้างไฟล์สำรอง…' : 'ดาวน์โหลดไฟล์สำรอง (.zip)'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { RoleLabelsPage, SystemSettingsPage, TestDataPage, BackupPage });
