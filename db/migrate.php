@@ -79,6 +79,17 @@ if ($confirm === 'all') {
             $db->exec("UPDATE sla_steps SET active=0 WHERE step_key='ga_propose_group'");
             echo "✓ sla_steps.track (common/legal/general) + ยุบ ga_propose_group\n";
         } catch (Throwable $e) { echo "– ข้าม sla track: ".$e->getMessage()."\n"; }
+        // ประวัติการสำรองข้อมูล (backup_log)
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS backup_log (
+                id INT NOT NULL AUTO_INCREMENT, user_id INT DEFAULT NULL, user_name VARCHAR(150) DEFAULT NULL,
+                scope VARCHAR(20) NOT NULL, date_from DATE NOT NULL, date_to DATE NOT NULL,
+                case_count INT NOT NULL DEFAULT 0, size_bytes BIGINT NOT NULL DEFAULT 0,
+                ip VARCHAR(64) DEFAULT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id), KEY idx_backup_log_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            echo "✓ backup_log\n";
+        } catch (Throwable $e) { echo "– ข้าม backup_log: ".$e->getMessage()."\n"; }
         // สมาชิกหลายกลุ่ม (group_members)
         try {
             $db->exec("CREATE TABLE IF NOT EXISTS group_members (
@@ -95,6 +106,27 @@ if ($confirm === 'all') {
         } catch (Throwable $e) { echo "– ข้าม group_members: ".$e->getMessage()."\n"; }
         echo "\n<span class='ok'>✅ เสร็จสิ้น — คอลัมน์/ตารางครบแล้ว</span>\n";
     } catch (Throwable $e) { echo "<span class='err'>❌ ".htmlspecialchars($e->getMessage())."</span>\n"; }
+    echo '</pre>';
+    exit;
+}
+
+/* ── [32] backup_log — ประวัติการสำรองข้อมูล ───────────────────────── */
+if ($confirm === 'backup_log') {
+    echo '<style>body{font-family:sans-serif;padding:24px}pre{background:#f5f5f5;padding:16px;border-radius:6px}.ok{color:green}.err{color:red}</style>';
+    echo '<h2>Migration [32]: ประวัติการสำรองข้อมูล (backup_log)</h2><pre>';
+    try {
+        $db = getDB();
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $db->exec("CREATE TABLE IF NOT EXISTS backup_log (
+            id INT NOT NULL AUTO_INCREMENT, user_id INT DEFAULT NULL, user_name VARCHAR(150) DEFAULT NULL,
+            scope VARCHAR(20) NOT NULL, date_from DATE NOT NULL, date_to DATE NOT NULL,
+            case_count INT NOT NULL DEFAULT 0, size_bytes BIGINT NOT NULL DEFAULT 0,
+            ip VARCHAR(64) DEFAULT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id), KEY idx_backup_log_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        echo "✓ CREATE TABLE backup_log\n";
+        echo "\n<span class='ok'>✅ Migration สำเร็จ</span>\n";
+    } catch (Throwable $e) { echo "<span class='err'>❌ " . htmlspecialchars($e->getMessage()) . "</span>\n"; }
     echo '</pre>';
     exit;
 }
@@ -1170,6 +1202,7 @@ if ($confirm !== 'run') {
     echo '<li><b>[18] Backfill SLA</b> — เติม started_at ให้เรื่องเก่า (receive / propose_dir / assign)<br><code><a href="?confirm=backfill_sla">migrate.php?confirm=backfill_sla</a></code></li>';
     echo '<li><b>[19] App Settings</b> — สร้างตาราง app_settings สำหรับการตั้งค่าระบบ (prefix รหัสเรื่อง ฯลฯ)<br><code><a href="?confirm=app_settings">migrate.php?confirm=app_settings</a></code></li>';
     echo '<li><b>[20] Track Token</b> — เพิ่ม track_token (รหัสสุ่ม 10 หลัก) สำหรับการติดตามเรื่องสาธารณะ<br><code><a href="?confirm=track_token">migrate.php?confirm=track_token</a></code></li>';
+    echo '<li><b>[32] ประวัติการสำรองข้อมูล</b> — ตาราง backup_log (ใคร/เมื่อ/ขอบเขต/ช่วง)<br><code><a href="?confirm=backup_log">migrate.php?confirm=backup_log</a></code></li>';
     echo '<li><b>[31] สาย SLA บริหารงานทั่วไป</b> — sla_steps.track + ขั้น ga_* (เรื่องมอบหมายกลุ่มธุรการ)<br><code><a href="?confirm=general_track">migrate.php?confirm=general_track</a></code></li>';
     echo '<li><b>[30] สมาชิกหลายกลุ่ม</b> — ตาราง group_members (ผู้ใช้อยู่ได้หลายกลุ่ม)<br><code><a href="?confirm=group_members">migrate.php?confirm=group_members</a></code></li>';
     echo '<li><b>[29] เรื่องสืบเนื่อง</b> — cases.origin_case_id (อ้างเลขเรื่องเดิมที่ดำเนินการเสร็จ)<br><code><a href="?confirm=origin_case">migrate.php?confirm=origin_case</a></code></li>';

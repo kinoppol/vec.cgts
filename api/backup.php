@@ -15,6 +15,45 @@ $role = $auth['role'];
 $canAll = in_array($role, ['admin', 'dir_admin'], true);
 if (!$canAll && $role !== 'head_secretary') err('ไม่มีสิทธิ์สำรองข้อมูล', 403);
 
+$db = getDB();
+
+// ตารางบันทึกประวัติการสำรอง (สร้างถ้ายังไม่มี — idempotent)
+function ensureBackupLog(PDO $db): void {
+    $db->exec("CREATE TABLE IF NOT EXISTS backup_log (
+        id          INT NOT NULL AUTO_INCREMENT,
+        user_id     INT DEFAULT NULL,
+        user_name   VARCHAR(150) DEFAULT NULL,
+        scope       VARCHAR(20) NOT NULL,
+        date_from   DATE NOT NULL,
+        date_to     DATE NOT NULL,
+        case_count  INT NOT NULL DEFAULT 0,
+        size_bytes  BIGINT NOT NULL DEFAULT 0,
+        ip          VARCHAR(64) DEFAULT NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_backup_log_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/* ── GET ?action=log — ประวัติการสำรองข้อมูล ── */
+if (($_GET['action'] ?? '') === 'log') {
+    try {
+        ensureBackupLog($db);
+        // admin/dir_admin เห็นทั้งหมด; head_secretary เห็นเฉพาะของตนเอง
+        if ($canAll) {
+            $q = $db->query("SELECT id, user_id, user_name, scope, date_from, date_to, case_count, size_bytes, created_at
+                             FROM backup_log ORDER BY created_at DESC, id DESC LIMIT 100");
+            $rows = $q->fetchAll();
+        } else {
+            $q = $db->prepare("SELECT id, user_id, user_name, scope, date_from, date_to, case_count, size_bytes, created_at
+                               FROM backup_log WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 100");
+            $q->execute([$auth['id']]);
+            $rows = $q->fetchAll();
+        }
+    } catch (Throwable) { $rows = []; }
+    json_out($rows);
+}
+
 $from  = trim($_GET['from'] ?? '');
 $to    = trim($_GET['to'] ?? '');
 $scope = $_GET['scope'] ?? 'general';
@@ -25,8 +64,6 @@ if ($from > $to) err('วันที่เริ่มต้องไม่อ�
 // head_secretary ถูกจำกัดให้ general เท่านั้น
 if (!$canAll) $scope = 'general';
 if (!in_array($scope, ['legal', 'general', 'both'], true)) $scope = 'general';
-
-$db = getDB();
 
 // กลุ่มสายบริหารทั่วไป (หัวหน้ากลุ่ม = หัวหน้าธุรการ)
 $genGroups = [];
@@ -168,7 +205,19 @@ fwrite($out, pack('V', 0x06054b50) . pack('v', 0) . pack('v', 0)
     . pack('V', $cdSize) . pack('V', $cdOff) . pack('v', 0));
 fclose($out);
 
+$zipSize = (int)filesize($tmp);
 audit('backup', $scope, "from=$from to=$to cases=" . count($cases));
+
+// บันทึกประวัติการสำรอง (ใคร/เมื่อ/ขอบเขต/ช่วง/จำนวน/ขนาด)
+try {
+    ensureBackupLog($db);
+    $un = $db->prepare("SELECT display_name FROM users WHERE id = ?");
+    $un->execute([$auth['id']]);
+    $actorName = $un->fetchColumn() ?: null;
+    $db->prepare("INSERT INTO backup_log (user_id, user_name, scope, date_from, date_to, case_count, size_bytes, ip)
+                  VALUES (?,?,?,?,?,?,?,?)")
+       ->execute([$auth['id'], $actorName, $scope, $from, $to, count($cases), $zipSize, $_SERVER['REMOTE_ADDR'] ?? null]);
+} catch (Throwable) { /* ไม่ให้ล้มการดาวน์โหลดเพราะบันทึก log ไม่สำเร็จ */ }
 
 $fname = 'backup_' . $scope . '_' . $from . '_' . $to . '.zip';
 header('Content-Type: application/zip');

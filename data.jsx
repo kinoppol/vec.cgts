@@ -175,6 +175,7 @@ const api = {
   caseReport:       (data)       => apiFetch('/api/case_report.php', { method:'POST', body: JSON.stringify(data) }),
   getSendRecipients: ()          => apiFetch('/api/case_report.php?action=recipients'),
   getClerks:         ()          => apiFetch('/api/case_report.php?action=clerks'),
+  getBackupLog:     ()           => apiFetch('/api/backup.php?action=log'),
   getTestDataInfo:  ()           => apiFetch('/api/admin_testdata.php?action=seq_info'),
   testDataAction:   (data)       => apiFetch('/api/admin_testdata.php', { method:'POST', body: JSON.stringify(data) }),
   getRoleLabels:     ()         => apiFetch('/api/role_labels.php'),

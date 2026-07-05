@@ -331,6 +331,24 @@ CREATE TABLE IF NOT EXISTS group_roles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------
+-- backup_log: ประวัติการสำรองข้อมูล (ใคร/เมื่อ/ขอบเขต/ช่วง)
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS backup_log (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  user_id     INT          DEFAULT NULL,
+  user_name   VARCHAR(150) DEFAULT NULL,
+  scope       VARCHAR(20)  NOT NULL,
+  date_from   DATE         NOT NULL,
+  date_to     DATE         NOT NULL,
+  case_count  INT          NOT NULL DEFAULT 0,
+  size_bytes  BIGINT       NOT NULL DEFAULT 0,
+  ip          VARCHAR(64)  DEFAULT NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_backup_log_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------
 -- app_settings: การตั้งค่าระบบ (key-value)
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_settings (

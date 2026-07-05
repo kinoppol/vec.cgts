@@ -384,6 +384,14 @@ function BackupPage({ currentUser }) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr]   = React.useState('');
   const [msg, setMsg]   = React.useState('');
+  const [log, setLog]   = React.useState(null);
+
+  const loadLog = () => api.getBackupLog().then(setLog).catch(() => setLog([]));
+  React.useEffect(() => { loadLog(); }, []);
+
+  const SCOPE_LABEL = { both:'ทั้งหมด', legal:'เฉพาะคดี', general:'เรื่องธุรการทั่วไป' };
+  const fmtSize = (b) => { b = +b||0; return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.round(b/1024)+' KB'; };
+  const fmtWhen = (s) => { const d = new Date((s||'').replace(' ','T')); return isNaN(d) ? (s||'') : d.toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'}); };
 
   const scopeOptions = canAll
     ? [
@@ -414,6 +422,7 @@ function BackupPage({ currentUser }) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       setMsg(`ดาวน์โหลดไฟล์สำรองเรียบร้อย — ${count} เรื่อง`);
+      loadLog();
     } catch(e) { setErr(e.message); }
     setBusy(false);
   };
@@ -460,6 +469,42 @@ function BackupPage({ currentUser }) {
         <button className="btn btn-primary" onClick={doBackup} disabled={busy}>
           <Icon name="download" style={{width:16,height:16}}/> {busy ? 'กำลังสร้างไฟล์สำรอง…' : 'ดาวน์โหลดไฟล์สำรอง (.zip)'}
         </button>
+      </div>
+
+      {/* ประวัติการสำรองข้อมูล */}
+      <div className="card card-pad" style={{maxWidth:820, marginTop:18}}>
+        <h3 style={{fontSize:15, marginBottom:4}}>ประวัติการสำรองข้อมูล</h3>
+        <div className="faint tiny" style={{marginBottom:12}}>
+          {canAll ? 'บันทึกว่าใครสั่งสำรองข้อมูลเมื่อใด และขอบเขตใด' : 'ประวัติการสำรองข้อมูลของคุณ'}
+        </div>
+        {log === null
+          ? <LoadingSpinner/>
+          : log.length === 0
+            ? <div className="faint sm" style={{padding:'12px 0'}}>ยังไม่มีประวัติการสำรองข้อมูล</div>
+            : <div style={{overflowX:'auto'}}>
+                <table className="tbl" style={{width:'100%', fontSize:13, borderCollapse:'collapse'}}>
+                  <thead><tr style={{textAlign:'left', color:'var(--ink-3)'}}>
+                    <th style={{padding:'8px 10px'}}>เมื่อ</th>
+                    <th style={{padding:'8px 10px'}}>ผู้สั่งสำรอง</th>
+                    <th style={{padding:'8px 10px'}}>ขอบเขต</th>
+                    <th style={{padding:'8px 10px'}}>ช่วงข้อมูล</th>
+                    <th style={{padding:'8px 10px', textAlign:'right'}}>จำนวนเรื่อง</th>
+                    <th style={{padding:'8px 10px', textAlign:'right'}}>ขนาด</th>
+                  </tr></thead>
+                  <tbody>
+                    {log.map(r => (
+                      <tr key={r.id} style={{borderTop:'1px solid var(--line)'}}>
+                        <td style={{padding:'8px 10px', whiteSpace:'nowrap'}}>{fmtWhen(r.created_at)}</td>
+                        <td style={{padding:'8px 10px'}}>{r.user_name || ('#'+(r.user_id||'?'))}</td>
+                        <td style={{padding:'8px 10px'}}>{SCOPE_LABEL[r.scope] || r.scope}</td>
+                        <td style={{padding:'8px 10px', whiteSpace:'nowrap'}}>{thDate(r.date_from)} – {thDate(r.date_to)}</td>
+                        <td style={{padding:'8px 10px', textAlign:'right'}} className="tnum">{r.case_count}</td>
+                        <td style={{padding:'8px 10px', textAlign:'right'}} className="tnum">{fmtSize(r.size_bytes)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>}
       </div>
     </div>
   );
