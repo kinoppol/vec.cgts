@@ -5,7 +5,7 @@
 
 /* ---------------- Charts ---------------- */
 function GroupedBars({ data }) {
-  const max = Math.max(...data.flatMap(d=>[d.a,d.b]));
+  const max = Math.max(1, ...data.flatMap(d=>[d.a,d.b]));
   return (
     <div className="bars" style={{height:170}}>
       {data.map((d,i)=>(
@@ -129,11 +129,33 @@ function DirAdminDashboard({ cases, officers, setView }) {
   const onTime = cases.filter(c=>c.sla==="g").length;
   const overdue = cases.filter(c=>c.sla==="r"&&c.status!=="closed").length;
   const pending = cases.filter(c=>c.status!=="closed").length;
-  const compliance = Math.round(onTime/total*100);
-  const monthly = [
-    {l:"ธ.ค.",a:14,b:11},{l:"ม.ค.",a:18,b:13},{l:"ก.พ.",a:15,b:14},
-    {l:"มี.ค.",a:22,b:16},{l:"เม.ย.",a:19,b:17},{l:"พ.ค.",a:24,b:15},
-  ];
+  const compliance = total ? Math.round(onTime/total*100) : 0;
+  // กราฟรายเดือนจากข้อมูลจริง: รับเข้า (ตามวันรับเรื่อง) และเสร็จสิ้น (ตามวันปิดเรื่อง) 6 เดือนล่าสุด
+  const monthly = React.useMemo(() => {
+    const THMON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const ym = (d) => d ? String(d).slice(0,7) : null; // YYYY-MM
+    let maxYM = null;
+    const consider = (v) => { if (v && (!maxYM || v > maxYM)) maxYM = v; };
+    cases.forEach(c => { consider(ym(c.received)); consider(ym(c.closed_at)); });
+    // ยึดหน้าต่าง 6 เดือนไว้ที่เดือนล่าสุดที่มีความเคลื่อนไหวจริง (ถ้าไม่มีข้อมูลเลยใช้เดือนปัจจุบัน)
+    if (!maxYM) {
+      const now = new Date();
+      maxYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    }
+    const [my, mm] = maxYM.split('-').map(Number);
+    const recv = {}, done = {};
+    cases.forEach(c => {
+      const r = ym(c.received);   if (r) recv[r] = (recv[r]||0) + 1;
+      const d = ym(c.closed_at);  if (d) done[d] = (done[d]||0) + 1;
+    });
+    const out = [];
+    for (let i=5; i>=0; i--) {
+      const dt = new Date(my, mm-1-i, 1);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+      out.push({ l: THMON[dt.getMonth()], a: recv[key]||0, b: done[key]||0 });
+    }
+    return out;
+  }, [cases]);
   const slaR=cases.filter(c=>c.sla==="r"&&c.status!=="closed").length;
   const slaA=cases.filter(c=>c.sla==="a"&&c.status!=="closed").length;
   const slaG=cases.filter(c=>c.sla==="g").length;
@@ -141,7 +163,7 @@ function DirAdminDashboard({ cases, officers, setView }) {
   return (
     <div className="fade-in">
       <PageHead title="ภาพรวมการดำเนินงาน — สำนักอำนวยการ" sub="ภาพรวมผลการปฏิบัติงานของกลุ่มนิติการ ประจำปีงบประมาณ 2568">
-        <button className="btn btn-outline"><Icon name="download" style={{width:16,height:16}}/> ส่งออกรายงาน (PDF/CSV)</button>
+        <button className="btn btn-outline" onClick={()=>setView && setView("reports")}><Icon name="chart" style={{width:16,height:16}}/> ไปที่หน้ารายงาน</button>
       </PageHead>
 
       <div className="grid" style={{gridTemplateColumns:"repeat(4,1fr)",marginBottom:22}}>

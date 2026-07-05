@@ -527,10 +527,15 @@ if ($method === 'GET') {
     $recvCol   = in_array('group_recv_no', $caseColsList) ? 'c.group_recv_no' : 'NULL AS group_recv_no';
     $rptNoteCol = in_array('report_note', $caseColsList)    ? 'c.report_note'    : 'NULL AS report_note';
     $rptSentCol = in_array('report_sent_at', $caseColsList) ? 'c.report_sent_at' : 'NULL AS report_sent_at';
+    // วันที่เสร็จสิ้น (ปิดเรื่อง) = เวลาปิดขั้นออกคำสั่ง/สั่งการ — สำหรับกราฟรายเดือน
+    $evColsList = $db->query("SHOW COLUMNS FROM case_events")->fetchAll(PDO::FETCH_COLUMN);
+    $closedCol  = (in_array('step_key', $evColsList) && in_array('completed_at', $evColsList))
+        ? "(SELECT MAX(ce.completed_at) FROM case_events ce WHERE ce.case_id = c.id AND ce.step_key IN ('order','ga_order') AND ce.completed_at IS NOT NULL) AS closed_at"
+        : "NULL AS closed_at";
     $sql = "SELECT c.id, c.reg_number AS reg, c.subject, c.track, c.cat, c.channel,
                    c.cls, c.status, c.priority, c.anon, c.complainant, c.contact,
                    c.agency, c.assignee_id AS assignee, $lawyerCol, $groupCol, $recvCol,
-                   $rptNoteCol, $rptSentCol,
+                   $rptNoteCol, $rptSentCol, $closedCol,
                    EXISTS(SELECT 1 FROM case_events ae WHERE ae.case_id = c.id AND ae.title IN ('เก็บเรื่องเสร็จสิ้น','ดำเนินการเป็นเรื่องใหม่')) AS has_archive,
                    c.progress, c.received_date AS received, c.due_date AS due,
                    COALESCE(ss.days, 30) AS sla_days
