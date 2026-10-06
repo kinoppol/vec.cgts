@@ -34,7 +34,7 @@ if ($method === 'GET') {
 /* ----------------------------------------------------------------
    POST /api/users.php — สร้าง user ใหม่
 ---------------------------------------------------------------- */
-if ($method === 'POST') {
+if ($method === 'POST' && !isset($_GET['action'])) {
     $b = json_decode(file_get_contents('php://input'), true) ?? [];
     $username     = trim($b['username']     ?? '');
     $display_name = trim($b['display_name'] ?? '');
