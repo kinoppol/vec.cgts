@@ -316,6 +316,148 @@ function ResetPassModal({ user, onClose }) {
   );
 }
 
+/* ---------- รีเซ็ตรหัสผ่านหลายคน + พิมพ์ ---------- */
+function genPassword(len = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, n => chars[n % chars.length]).join('');
+}
+
+function printCredentials(rows) {
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const w = window.open('', '_blank');
+  if (!w) { alert('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาต pop-up'); return; }
+  const now = new Date().toLocaleString('th-TH');
+  const loginUrl = location.origin + (window.__APP_BASE__ || '/');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>รหัสผ่านผู้ใช้งาน</title>
+<style>
+  body{font-family:'Sarabun','TH Sarabun New',sans-serif;margin:24px;color:#000}
+  h2{margin:0 0 4px} .sub{color:#555;margin-bottom:16px;font-size:13px}
+  .slip{border:1px dashed #888;padding:12px 16px;margin-bottom:10px;page-break-inside:avoid}
+  .slip .name{font-weight:700;font-size:16px;margin-bottom:6px}
+  .slip table td{padding:2px 12px 2px 0;font-size:15px}
+  .mono{font-family:Consolas,monospace;font-size:16px;font-weight:700}
+  .note{font-size:12px;color:#555;margin-top:6px}
+  @media print{body{margin:10mm}}
+</style></head><body>
+<h2>ข้อมูลบัญชีผู้ใช้งาน — ระบบบริหารงานนิติการ</h2>
+<div class="sub">รีเซ็ตรหัสผ่านเมื่อ ${esc(now)} · ${rows.length} บัญชี</div>
+${rows.map(r => `<div class="slip"><div class="name">${esc(r.display_name)}</div>
+<table><tr><td>ชื่อผู้ใช้</td><td class="mono">${esc(r.username)}</td></tr>
+<tr><td>รหัสผ่าน</td><td class="mono">${esc(r.password)}</td></tr></table>
+<div class="note">เข้าระบบที่ ${esc(loginUrl)} · กรุณาเปลี่ยนรหัสผ่านหลังเข้าสู่ระบบครั้งแรก</div></div>`).join('')}
+<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+function BulkResetPassModal({ users, onClose }) {
+  const [mode, setMode]       = useState('random'); // random | same
+  const [pass, setPass]       = useState('');
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState(null); // [{...user, password, ok, error}]
+  const [err, setErr]         = useState('');
+
+  const submit = async e => {
+    e.preventDefault();
+    if (mode === 'same' && pass.length < 6) { setErr('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
+    setErr(''); setRunning(true); setProgress(0);
+    const out = [];
+    for (const u of users) {
+      const password = mode === 'same' ? pass : genPassword();
+      try {
+        await apiFetch('/api/users.php?action=reset_pass&id='+u.id,
+          { method:'POST', body: JSON.stringify({ password }) });
+        out.push({ ...u, password, ok:true });
+      } catch(ex) { out.push({ ...u, password:'', ok:false, error: ex.message }); }
+      setProgress(out.length);
+    }
+    setResults(out); setRunning(false);
+  };
+
+  const okRows = (results || []).filter(r => r.ok);
+  const allOk  = results && okRows.length === results.length;
+
+  return (
+    <div style={OVERLAY_STYLE} onClick={running || results ? undefined : onClose}>
+      <div style={{...BOX_STYLE_BASE, maxWidth:560, overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:'var(--surface)',borderRadius:'var(--r-lg) var(--r-lg) 0 0'}}>
+          <h3 style={{margin:0,fontSize:17}}>รีเซ็ตรหัสผ่าน {users.length} บัญชี</h3>
+          {!running && <button className="icon-btn" onClick={onClose}><Icon name="x"/></button>}
+        </div>
+        <div style={{padding:'16px 24px',overflowY:'auto',flex:1,display:'flex',flexDirection:'column',gap:14}}>
+          {results ? (
+            <>
+              <div className={'notice ' + (allOk ? 'notice-ok' : 'notice-err')}>
+                <Icon name={allOk ? 'checkCircle' : 'alert'}/>
+                <div>รีเซ็ตสำเร็จ {okRows.length} จาก {results.length} บัญชี — กรุณาพิมพ์หรือจดรหัสผ่านไว้ก่อนปิดหน้าต่างนี้</div>
+              </div>
+              <table className="tbl">
+                <thead><tr><th>ผู้ใช้</th><th>ชื่อผู้ใช้</th><th>รหัสผ่านใหม่</th></tr></thead>
+                <tbody>
+                  {results.map(r => (
+                    <tr key={r.id}>
+                      <td>{r.display_name}</td>
+                      <td>{r.username}</td>
+                      <td>
+                        {r.ok
+                          ? <span style={{fontFamily:'monospace',fontWeight:600}}>{r.password}</span>
+                          : <span style={{color:'var(--danger)'}}>{r.error}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <form id="bulk-reset-form" onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+              <p className="sm muted" style={{margin:0}}>
+                {users.slice(0,5).map(u=>u.display_name).join(', ')}{users.length > 5 ? ` และอีก ${users.length-5} คน` : ''}
+              </p>
+              {err && <div className="notice notice-err"><Icon name="alert"/><div>{err}</div></div>}
+              <label className="vcenter" style={{gap:8}}>
+                <input type="radio" checked={mode==='random'} onChange={()=>setMode('random')} disabled={running}/>
+                สุ่มรหัสผ่านใหม่ให้แต่ละบัญชี (8 ตัวอักษร)
+              </label>
+              <label className="vcenter" style={{gap:8}}>
+                <input type="radio" checked={mode==='same'} onChange={()=>setMode('same')} disabled={running}/>
+                ใช้รหัสผ่านเดียวกันทุกบัญชี
+              </label>
+              {mode === 'same' && (
+                <div className="field">
+                  <label>รหัสผ่านใหม่ <span className="req">*</span></label>
+                  <input className="input" type="text" value={pass} onChange={e=>setPass(e.target.value)}
+                    autoComplete="new-password" autoFocus disabled={running}/>
+                  <span className="hint">อย่างน้อย 6 ตัวอักษร</span>
+                </div>
+              )}
+              {running && <div className="sm muted">กำลังรีเซ็ต… {progress}/{users.length}</div>}
+            </form>
+          )}
+        </div>
+        <div className="modal-f">
+          {results
+            ? <>
+                {okRows.length > 0 && (
+                  <button type="button" className="btn btn-ghost" onClick={() => printCredentials(okRows)}>
+                    พิมพ์ชื่อผู้ใช้และรหัสผ่าน
+                  </button>
+                )}
+                <button type="button" className="btn btn-primary" onClick={onClose}>ปิด</button>
+              </>
+            : <>
+                <button type="button" className="btn btn-ghost" onClick={onClose} disabled={running}>ยกเลิก</button>
+                <button type="submit" form="bulk-reset-form" className="btn btn-primary" disabled={running}>
+                  {running ? <LoadingSpinner/> : 'รีเซ็ตรหัสผ่าน'}
+                </button>
+              </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- หน้าหลัก ---------- */
 function UserManagementPage({ currentUser, officers, roleLabels }) {
   const roleOpts = [
@@ -378,6 +520,8 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   };
 
   const [showInactive, setShowInactive] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const toggleSel = id => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // กลุ่มที่ผู้ใช้สังกัด (รองรับหลายกลุ่ม)
   const userGroups = (u) => (u.groups && u.groups.length ? u.groups : (u.group_name ? [u.group_name] : []));
@@ -400,8 +544,14 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
   const activeUsers   = filtered.filter(u => u.active);
   const inactiveUsers = filtered.filter(u => !u.active);
 
+  const canReset = u => !(u.role === 'admin' && currentUser.role !== 'admin');
+  const selectedUsers = users.filter(u => selected.has(u.id));
+
   const UserRow = ({ u }) => (
     <tr key={u.id}>
+      <td style={{width:36}}>
+        {canReset(u) && <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleSel(u.id)}/>}
+      </td>
       <td>
         <div className="vcenter" style={{gap:10}}>
           <Avatar user={{...u, init: u.init || u.username[0].toUpperCase()}} size="sm"/>
@@ -456,11 +606,20 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
     </tr>
   );
 
-  const UsersTable = ({ rows, emptyText }) => (
+  const UsersTable = ({ rows, emptyText }) => {
+    const selectable = rows.filter(canReset);
+    const allSel = selectable.length > 0 && selectable.every(u => selected.has(u.id));
+    const toggleAll = () => setSelected(prev => {
+      const n = new Set(prev);
+      selectable.forEach(u => allSel ? n.delete(u.id) : n.add(u.id));
+      return n;
+    });
+    return (
     <div className="table-wrap">
       <table className="tbl">
         <thead>
           <tr>
+            <th style={{width:36}}><input type="checkbox" checked={allSel} onChange={toggleAll} title="เลือกทั้งหมด"/></th>
             <th>ผู้ใช้</th>
             <th>บทบาท</th>
             <th>สิทธิ์พิเศษ</th>
@@ -469,12 +628,13 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
         </thead>
         <tbody>
           {rows.length === 0
-            ? <tr><td colSpan={4} style={{textAlign:'center',padding:32,color:'var(--ink-3)'}}>{emptyText}</td></tr>
+            ? <tr><td colSpan={5} style={{textAlign:'center',padding:32,color:'var(--ink-3)'}}>{emptyText}</td></tr>
             : rows.map(u => <UserRow key={u.id} u={u}/>)}
         </tbody>
       </table>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="fade-in">
@@ -498,6 +658,15 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
           <option value="__none__">— ไม่สังกัดกลุ่ม —</option>
         </select>
         <span className="faint sm">{activeUsers.length} บัญชีที่ใช้งาน</span>
+        {selected.size > 0 && (
+          <div className="vcenter" style={{gap:8,marginLeft:'auto'}}>
+            <span className="sm">เลือก {selected.size} บัญชี</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>ล้างที่เลือก</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setModal({type:'bulkReset'})}>
+              <Icon name="lock" style={{width:14,height:14}}/> รีเซ็ตรหัสผ่านที่เลือก
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ตารางผู้ใช้ที่ใช้งานได้ */}
@@ -535,6 +704,10 @@ function UserManagementPage({ currentUser, officers, roleLabels }) {
         <UserModal user={modal.user} officers={officers} roleLabels={roleLabels} isAdmin={currentUser?.role==='admin'}
           isDirLegal={currentUser?.role==='dir_legal'}
           onSave={handleSave} onAvatarChange={handleAvatarChange} onClose={() => setModal(null)}/>
+      )}
+      {modal?.type === 'bulkReset' && (
+        <BulkResetPassModal users={selectedUsers}
+          onClose={() => { setModal(null); setSelected(new Set()); }}/>
       )}
       {modal?.type === 'reset' && (
         <ResetPassModal user={modal.user} onClose={() => setModal(null)}/>
